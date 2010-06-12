@@ -35,6 +35,7 @@ menuconfig-prog	:= mconf
 nconfig-prog	:= nconf
 gconfig-prog	:= gconf
 xconfig-prog	:= qconf
+satconfig-prog	:= satconf
 
 define config_rule
 PHONY += $(1)
@@ -45,7 +46,7 @@ PHONY += build_$(1)
 build_$(1): $(obj)/$($(1)-prog)
 endef
 
-$(foreach c, config menuconfig nconfig gconfig xconfig, $(eval $(call config_rule,$(c))))
+$(foreach c, config menuconfig nconfig gconfig xconfig satconfig, $(eval $(call config_rule,$(c))))
 
 PHONY += localmodconfig localyesconfig
 localyesconfig localmodconfig: $(obj)/conf
@@ -132,6 +133,7 @@ help:
 	@echo  '  allmodconfig	  - New config selecting modules when possible'
 	@echo  '  alldefconfig    - New config with all symbols set to default'
 	@echo  '  randconfig	  - New config with random answer to all options'
+	@echo  '  satconfig       - New config respecting the .satconfig constraints'
 	@echo  '  yes2modconfig	  - Change answers from yes to mod if possible'
 	@echo  '  mod2yesconfig	  - Change answers from mod to yes if possible'
 	@echo  '  mod2noconfig	  - Change answers from mod to no if possible'
@@ -204,6 +206,9 @@ HOSTLDLIBS_gconf    = $(shell . $(obj)/gconf-cfg && echo $$libs)
 HOSTCFLAGS_gconf.o  = $(shell . $(obj)/gconf-cfg && echo $$cflags)
 
 $(obj)/gconf.o: $(obj)/gconf-cfg
+
+hostprogs	+= satconf
+satconf-objs	:= satconf.o $(common-objs)
 
 # check if necessary packages are available, and configure build flags
 filechk_conf_cfg = $(CONFIG_SHELL) $<
