@@ -208,7 +208,7 @@ HOSTCFLAGS_gconf.o  = $(shell . $(obj)/gconf-cfg && echo $$cflags)
 $(obj)/gconf.o: $(obj)/gconf-cfg
 
 hostprogs	+= satconf
-satconf-objs	:= satconf.o $(common-objs)
+satconf-objs	:= satconf.o picosat.o $(common-objs)
 
 # check if necessary packages are available, and configure build flags
 filechk_conf_cfg = $(CONFIG_SHELL) $<
