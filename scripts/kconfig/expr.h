@@ -216,6 +216,16 @@ struct property {
 	for (st = sym->prop; st; st = st->next) \
 		if (st->text)
 
+static inline bool sym_has_prompt(struct symbol *sym)
+{
+	struct property *prop;
+
+	for_all_prompts(sym, prop)
+		return true;
+
+	return false;
+}
+
 /*
  * Represents a node in the menu tree, as seen in e.g. menuconfig (though used
  * for all front ends). Each symbol, menu, etc. defined in the Kconfig files
