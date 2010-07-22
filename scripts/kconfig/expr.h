@@ -226,6 +226,16 @@ static inline bool sym_has_prompt(struct symbol *sym)
 	return false;
 }
 
+static inline struct property *sym_get_prompt(struct symbol *sym)
+{
+	struct property *prop;
+
+	for_all_prompts(sym, prop)
+		return prop;
+
+	return NULL;
+}
+
 /*
  * Represents a node in the menu tree, as seen in e.g. menuconfig (though used
  * for all front ends). Each symbol, menu, etc. defined in the Kconfig files
