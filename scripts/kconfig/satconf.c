@@ -796,7 +796,7 @@ int main(int argc, char *argv[])
 	setlocale(LC_ALL, "");
 
 	picosat_init();
-	picosat_set_global_default_phase(-1);
+	picosat_set_global_default_phase(0);
 
 	conf_parse(argv[1]);
 
