@@ -210,6 +210,8 @@ $(obj)/gconf.o: $(obj)/gconf-cfg
 hostprogs	+= satconf
 satconf-objs	:= satconf.o picosat.o $(common-objs)
 
+HOSTCFLAGS_picosat.o	= -DTRACE
+
 # check if necessary packages are available, and configure build flags
 filechk_conf_cfg = $(CONFIG_SHELL) $<
 
