@@ -176,6 +176,7 @@ struct symbol {
  *         select BAR
  * config BAZ
  *         int "BAZ Value"
+ *         depends on BAR
  *         range 1..255
  *
  * Please, also check parser.y:print_symbol() when modifying the
@@ -188,6 +189,7 @@ enum prop_type {
 	P_MENU,     /* prompt associated with a menu or menuconfig symbol */
 	P_DEFAULT,  /* default y */
 	P_CHOICE,   /* choice value */
+	P_DEPENDS,  /* depends on BAR */
 	P_SELECT,   /* select BAR */
 	P_IMPLY,    /* imply BAR */
 	P_RANGE,    /* range 7..100 (for a symbol) */
