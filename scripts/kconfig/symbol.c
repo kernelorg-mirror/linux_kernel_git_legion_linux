@@ -1148,6 +1148,8 @@ static struct symbol *sym_check_sym_deps(struct symbol *sym)
 		    prop->type == P_IMPLY)
 			continue;
 		stack.prop = prop;
+		if (prop->type == P_RAW_DEPENDS || prop->type == P_RAW_SELECT)
+			continue;
 		sym2 = sym_check_expr_deps(prop->visible.expr);
 		if (sym2)
 			break;
@@ -1255,8 +1257,6 @@ const char *prop_get_type_name(enum prop_type type)
 		return "default";
 	case P_CHOICE:
 		return "choice";
-	case P_DEPENDS:
-		return "depends on";
 	case P_SELECT:
 		return "select";
 	case P_IMPLY:
@@ -1265,6 +1265,10 @@ const char *prop_get_type_name(enum prop_type type)
 		return "range";
 	case P_SYMBOL:
 		return "symbol";
+	case P_RAW_DEPENDS:
+		return "depends on (raw)";
+	case P_RAW_SELECT:
+		return "select (raw)";
 	case P_UNKNOWN:
 		break;
 	}

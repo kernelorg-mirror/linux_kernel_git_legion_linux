@@ -189,11 +189,13 @@ enum prop_type {
 	P_MENU,     /* prompt associated with a menu or menuconfig symbol */
 	P_DEFAULT,  /* default y */
 	P_CHOICE,   /* choice value */
-	P_DEPENDS,  /* depends on BAR */
 	P_SELECT,   /* select BAR */
 	P_IMPLY,    /* imply BAR */
 	P_RANGE,    /* range 7..100 (for a symbol) */
 	P_SYMBOL,   /* where a symbol is defined */
+
+	P_RAW_DEPENDS,
+	P_RAW_SELECT,
 };
 
 struct property {
