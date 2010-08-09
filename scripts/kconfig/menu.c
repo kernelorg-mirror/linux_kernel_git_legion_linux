@@ -370,10 +370,6 @@ void menu_finalize(struct menu *parent)
 					 * Skip the property.
 					 */
 					continue;
-
-				if (prop->type == P_RAW_DEPENDS || prop->type == P_RAW_SELECT)
-					continue;
-
 				/*
 				 * Propagate parent dependencies to the
 				 * property's condition, rewriting and
