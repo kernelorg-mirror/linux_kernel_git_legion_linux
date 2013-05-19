@@ -196,9 +196,6 @@ enum prop_type {
 	P_IMPLY,    /* imply BAR */
 	P_RANGE,    /* range 7..100 (for a symbol) */
 	P_SYMBOL,   /* where a symbol is defined */
-
-	P_RAW_DEPENDS,
-	P_RAW_SELECT,
 };
 
 struct property {
