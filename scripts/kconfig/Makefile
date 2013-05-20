@@ -134,6 +134,7 @@ help:
 	@echo  '  alldefconfig    - New config with all symbols set to default'
 	@echo  '  randconfig	  - New config with random answer to all options'
 	@echo  '  satconfig       - New config respecting the .satconfig constraints'
+	@echo  '  satrandconfig	  - New config respecting .satconfig with random answers'
 	@echo  '  yes2modconfig	  - Change answers from yes to mod if possible'
 	@echo  '  mod2yesconfig	  - Change answers from mod to yes if possible'
 	@echo  '  mod2noconfig	  - Change answers from mod to no if possible'
@@ -211,6 +212,9 @@ hostprogs	+= satconf
 satconf-objs	:= satconf.o picosat.o $(common-objs)
 
 HOSTCFLAGS_picosat.o	= -DTRACE
+
+satrandconfig: $(obj)/satconf
+	$(Q)$< $(silent) --random $(Kconfig)
 
 # check if necessary packages are available, and configure build flags
 filechk_conf_cfg = $(CONFIG_SHELL) $<
