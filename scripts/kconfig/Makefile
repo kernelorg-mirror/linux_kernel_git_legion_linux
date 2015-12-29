@@ -211,7 +211,9 @@ $(obj)/gconf.o: $(obj)/gconf-cfg
 hostprogs	+= satconf
 satconf-objs	:= satconf.o picosat.o $(common-objs)
 
-HOSTCFLAGS_picosat.o	= -DTRACE
+# Silence some warnings in picosat (imported code)
+HOSTCFLAGS_satconf.o	= -Wno-strict-prototypes
+HOSTCFLAGS_picosat.o	= -Wno-strict-prototypes -Wno-missing-prototypes -Wno-unused-but-set-variable -DTRACE
 
 satrandconfig: $(obj)/satconf
 	$(Q)$< $(silent) --random $(Kconfig)
