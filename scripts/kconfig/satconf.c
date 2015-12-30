@@ -1182,6 +1182,8 @@ int main(int argc, char *argv[])
 					break;
 				case yes:
 					picosat_assume(sym_y(sym));
+					if (sym->type == S_TRISTATE)
+						picosat_assume(-sym_m(sym));
 					break;
 				case mod:
 					assert(sym->type == S_TRISTATE);
