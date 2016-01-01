@@ -35,7 +35,7 @@ menuconfig-prog	:= mconf
 nconfig-prog	:= nconf
 gconfig-prog	:= gconf
 xconfig-prog	:= qconf
-satconfig-prog	:= satconf
+satconfig-prog	:= satconfig
 
 define config_rule
 PHONY += $(1)
@@ -209,14 +209,14 @@ HOSTCFLAGS_gconf.o  = $(shell . $(obj)/gconf-cfg && echo $$cflags)
 
 $(obj)/gconf.o: $(obj)/gconf-cfg
 
-hostprogs	+= satconf
-satconf-objs	:= satconf.o picosat.o $(common-objs)
+hostprogs	+= satconfig
+satconfig-objs	:= satconfig.o satconf.o picosat.o $(common-objs)
 
 # Silence some warnings in picosat (imported code)
 HOSTCFLAGS_satconf.o	= -Wno-strict-prototypes
 HOSTCFLAGS_picosat.o	= -Wno-strict-prototypes -Wno-missing-prototypes -Wno-unused-but-set-variable -DTRACE
 
-satrandconfig: $(obj)/satconf
+satrandconfig: $(obj)/satconfig
 	$(Q)$< $(silent) --random $(Kconfig)
 
 hostprogs	+= satmconf
