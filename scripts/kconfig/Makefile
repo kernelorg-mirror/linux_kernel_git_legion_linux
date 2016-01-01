@@ -135,6 +135,7 @@ help:
 	@echo  '  randconfig	  - New config with random answer to all options'
 	@echo  '  satconfig       - New config respecting the .satconfig constraints'
 	@echo  '  satrandconfig	  - New config respecting .satconfig with random answers'
+	@echo  '  satmenuconfig	  - Edit .satconfig constraints using menuconfig-like editor'
 	@echo  '  yes2modconfig	  - Change answers from yes to mod if possible'
 	@echo  '  mod2yesconfig	  - Change answers from mod to yes if possible'
 	@echo  '  mod2noconfig	  - Change answers from mod to no if possible'
@@ -217,6 +218,12 @@ HOSTCFLAGS_picosat.o	= -Wno-strict-prototypes -Wno-missing-prototypes -Wno-unuse
 
 satrandconfig: $(obj)/satconf
 	$(Q)$< $(silent) --random $(Kconfig)
+
+hostprogs	+= satmconf
+satmconf-objs	:= satmconf.o picosat.o $(lxdialog) $(common-objs)
+
+satmenuconfig: $(obj)/satmconf
+	$(Q)$< $(silent) $(Kconfig)
 
 # check if necessary packages are available, and configure build flags
 filechk_conf_cfg = $(CONFIG_SHELL) $<
