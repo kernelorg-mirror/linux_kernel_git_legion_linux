@@ -220,7 +220,7 @@ satrandconfig: $(obj)/satconfig
 	$(Q)$< $(silent) --random $(Kconfig)
 
 hostprogs	+= satmconf
-satmconf-objs	:= satmconf.o picosat.o $(lxdialog) $(common-objs)
+satmconf-objs	:= satmconf.o satconf.o picosat.o $(lxdialog) $(common-objs)
 
 satmenuconfig: $(obj)/satmconf
 	$(Q)$< $(silent) $(Kconfig)
