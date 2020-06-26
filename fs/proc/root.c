@@ -145,18 +145,22 @@ static int proc_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	return 0;
 }
 
-static void proc_apply_options(struct proc_fs_info *fs_info,
+static void proc_apply_options(struct super_block *s,
 			       struct fs_context *fc,
 			       struct user_namespace *user_ns)
 {
 	struct proc_fs_context *ctx = fc->fs_private;
+	struct proc_fs_info *fs_info = proc_sb_info(s);
 
 	if (ctx->mask & (1 << Opt_gid))
 		fs_info->pid_gid = make_kgid(user_ns, ctx->gid);
 	if (ctx->mask & (1 << Opt_hidepid))
 		fs_info->hide_pid = ctx->hidepid;
-	if (ctx->mask & (1 << Opt_subset))
+	if (ctx->mask & (1 << Opt_subset)) {
+		if (ctx->pidonly == PROC_PIDONLY_ON)
+			s->s_iflags |= SB_I_DYNAMIC;
 		fs_info->pidonly = ctx->pidonly;
+	}
 }
 
 static int proc_fill_super(struct super_block *s, struct fs_context *fc)
@@ -170,9 +174,6 @@ static int proc_fill_super(struct super_block *s, struct fs_context *fc)
 	if (!fs_info)
 		return -ENOMEM;
 
-	fs_info->pid_ns = get_pid_ns(ctx->pid_ns);
-	proc_apply_options(fs_info, fc, current_user_ns());
-
 	/* User space would break if executables or devices appear on proc */
 	s->s_iflags |= SB_I_USERNS_VISIBLE | SB_I_NOEXEC | SB_I_NODEV;
 	s->s_flags |= SB_NODIRATIME | SB_NOSUID | SB_NOEXEC;
@@ -182,6 +183,9 @@ static int proc_fill_super(struct super_block *s, struct fs_context *fc)
 	s->s_op = &proc_sops;
 	s->s_time_gran = 1;
 	s->s_fs_info = fs_info;
+
+	fs_info->pid_ns = get_pid_ns(ctx->pid_ns);
+	proc_apply_options(s, fc, current_user_ns());
 
 	/*
 	 * procfs isn't actually a stacking filesystem; however, there is
@@ -216,11 +220,10 @@ static int proc_fill_super(struct super_block *s, struct fs_context *fc)
 static int proc_reconfigure(struct fs_context *fc)
 {
 	struct super_block *sb = fc->root->d_sb;
-	struct proc_fs_info *fs_info = proc_sb_info(sb);
 
 	sync_filesystem(sb);
 
-	proc_apply_options(fs_info, fc, current_user_ns());
+	proc_apply_options(sb, fc, current_user_ns());
 	return 0;
 }
 
