@@ -185,6 +185,8 @@ static int proc_fill_super(struct super_block *s, struct fs_context *fc)
 	s->s_fs_info = fs_info;
 
 	fs_info->pid_ns = get_pid_ns(ctx->pid_ns);
+	fs_info->mounter_cred = get_cred(fc->cred);
+
 	proc_apply_options(s, fc, current_user_ns());
 
 	/*
@@ -220,8 +222,12 @@ static int proc_fill_super(struct super_block *s, struct fs_context *fc)
 static int proc_reconfigure(struct fs_context *fc)
 {
 	struct super_block *sb = fc->root->d_sb;
+	struct proc_fs_info *fs_info = proc_sb_info(sb);
 
 	sync_filesystem(sb);
+
+	put_cred(fs_info->mounter_cred);
+	fs_info->mounter_cred = get_cred(fc->cred);
 
 	proc_apply_options(sb, fc, current_user_ns());
 	return 0;
@@ -277,6 +283,7 @@ static void proc_kill_sb(struct super_block *sb)
 
 	kill_anon_super(sb);
 	put_pid_ns(fs_info->pid_ns);
+	put_cred(fs_info->mounter_cred);
 	kfree(fs_info);
 }
 
