@@ -16,8 +16,21 @@
 #ifdef CONFIG_CMA
 #include <linux/cma.h>
 #endif
+#ifdef CONFIG_MEMCG
+#include <linux/memcontrol.h>
+#endif
 #include <asm/page.h>
 #include "internal.h"
+
+struct meminfo {
+	struct sysinfo si;
+	unsigned long pages[NR_LRU_LISTS];
+	long cached;
+	unsigned long dirty_pages;
+	unsigned long writeback_pages;
+	unsigned long slab_reclaimable;
+	unsigned long slab_unreclaimable;
+};
 
 void __attribute__((weak)) arch_report_meminfo(struct seq_file *m)
 {
@@ -151,6 +164,91 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
 	arch_report_meminfo(m);
 
 	return 0;
+}
+
+static int meminfo_proc_show_mi(struct seq_file *m, struct meminfo *mi)
+{
+	unsigned long *pages;
+
+	pages = mi->pages;
+
+	show_val_kb(m, "MemTotal:       ", mi->si.totalram);
+	show_val_kb(m, "MemFree:        ", mi->si.freeram);
+	show_val_kb(m, "Buffers:        ", 0);
+	show_val_kb(m, "Cached:         ", mi->cached);
+
+	show_val_kb(m, "Active:         ", pages[LRU_ACTIVE_ANON] + pages[LRU_ACTIVE_FILE]);
+	show_val_kb(m, "Inactive:       ", pages[LRU_INACTIVE_ANON] + pages[LRU_INACTIVE_FILE]);
+	show_val_kb(m, "Active(anon):   ", pages[LRU_ACTIVE_ANON]);
+	show_val_kb(m, "Inactive(anon): ", pages[LRU_INACTIVE_ANON]);
+	show_val_kb(m, "Active(file):   ", pages[LRU_ACTIVE_FILE]);
+	show_val_kb(m, "Inactive(file): ", pages[LRU_INACTIVE_FILE]);
+	show_val_kb(m, "Unevictable:    ", pages[LRU_UNEVICTABLE]);
+	show_val_kb(m, "Mlocked:        ", 0);
+
+	show_val_kb(m, "SwapTotal:      ", mi->si.totalswap);
+	show_val_kb(m, "SwapFree:       ", mi->si.freeswap);
+	show_val_kb(m, "Dirty:          ", mi->dirty_pages);
+	show_val_kb(m, "Writeback:      ", mi->writeback_pages);
+
+	show_val_kb(m, "AnonPages:      ", pages[LRU_ACTIVE_ANON] + pages[LRU_INACTIVE_ANON]);
+	show_val_kb(m, "Shmem:          ", mi->si.sharedram);
+	show_val_kb(m, "Slab:           ", mi->slab_reclaimable + mi->slab_unreclaimable);
+	show_val_kb(m, "SReclaimable:   ", mi->slab_reclaimable);
+	show_val_kb(m, "SUnreclaim:     ", mi->slab_unreclaimable);
+
+	return 0;
+}
+
+
+#ifdef CONFIG_MEMCG
+static void fill_meminfo(struct meminfo *mi, struct task_struct *task)
+{
+	struct cgroup_subsys_state *memcg_css = task_css(task, memory_cgrp_id);
+	struct mem_cgroup *memcg = mem_cgroup_from_css(memcg_css);
+	int nid;
+
+	memset(&mi->pages, 0, sizeof(mi->pages));
+
+	mem_cgroup_si_meminfo(&mi->si, task);
+
+	for_each_online_node(nid)
+		mem_cgroup_nr_pages(memcg, nid, mi->pages);
+
+	mi->slab_reclaimable = memcg_page_state(memcg, NR_SLAB_RECLAIMABLE_B);
+	mi->slab_unreclaimable = memcg_page_state(memcg, NR_SLAB_UNRECLAIMABLE_B);
+	mi->cached = memcg_page_state(memcg, NR_FILE_PAGES);
+	mi->dirty_pages = memcg_page_state(memcg, NR_FILE_DIRTY);
+	mi->writeback_pages = memcg_page_state(memcg, NR_WRITEBACK);
+}
+#else
+static void fill_meminfo(struct meminfo *mi, struct task_struct *task)
+{
+	int lru;
+
+	si_meminfo(&mi->si);
+	si_swapinfo(&mi->si);
+
+	for (lru = LRU_BASE; lru < NR_LRU_LISTS; lru++)
+		mi->pages[lru] = global_node_page_state(NR_LRU_BASE + lru);
+
+	mi->cached = global_node_page_state(NR_FILE_PAGES) - total_swapcache_pages() - mi->si.bufferram;
+	if (mi->cached < 0)
+		mi->cached = 0;
+
+	mi->slab_reclaimable = global_node_page_state_pages(NR_SLAB_RECLAIMABLE_B);
+	mi->slab_unreclaimable = global_node_page_state_pages(NR_SLAB_UNRECLAIMABLE_B);
+	mi->dirty_pages = global_node_page_state(NR_FILE_DIRTY);
+	mi->writeback_pages = global_node_page_state(NR_WRITEBACK);
+}
+#endif
+
+int proc_meminfo_show(struct seq_file *m, struct pid_namespace *ns,
+		     struct pid *pid, struct task_struct *task)
+{
+	struct meminfo mi;
+	fill_meminfo(&mi, task);
+	return meminfo_proc_show_mi(m, &mi);
 }
 
 static int __init proc_meminfo_init(void)

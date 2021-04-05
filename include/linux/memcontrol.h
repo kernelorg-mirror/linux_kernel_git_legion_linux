@@ -1063,6 +1063,9 @@ static inline void memcg_memory_event_mm(struct mm_struct *mm,
 
 void split_page_memcg(struct page *head, unsigned int nr);
 
+void mem_cgroup_nr_pages(struct mem_cgroup *memcg, int nid, unsigned long *pages);
+void mem_cgroup_si_meminfo(struct sysinfo *si, struct task_struct *task);
+
 #else /* CONFIG_MEMCG */
 
 #define MEM_CGROUP_ID_SHIFT	0

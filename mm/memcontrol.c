@@ -3963,6 +3963,62 @@ static unsigned long mem_cgroup_nr_lru_pages(struct mem_cgroup *memcg,
 	return nr;
 }
 
+void mem_cgroup_nr_pages(struct mem_cgroup *memcg, int nid, unsigned long *pages)
+{
+	struct mem_cgroup *iter;
+	int i;
+
+	for_each_mem_cgroup_tree(iter, memcg) {
+		for (i = 0; i < NR_LRU_LISTS; i++)
+			pages[i] += mem_cgroup_node_nr_lru_pages(iter, nid, BIT(i), false);
+	}
+}
+
+void mem_cgroup_si_meminfo(struct sysinfo *si, struct task_struct *task)
+{
+	unsigned long memtotal, memused, swapsize;
+	struct mem_cgroup *memcg;
+	struct cgroup_subsys_state *css;
+
+	css = task_css(task, memory_cgrp_id);
+	memcg = mem_cgroup_from_css(css);
+
+	memtotal = READ_ONCE(memcg->memory.max);
+
+	if (memtotal != PAGE_COUNTER_MAX) {
+		memused = page_counter_read(&memcg->memory);
+
+		si->totalram = memtotal;
+		si->freeram = (memtotal > memused ? memtotal - memused : 0);
+		si->sharedram = memcg_page_state(memcg, NR_SHMEM);
+
+		si->bufferram = nr_blockdev_pages();
+		si->totalhigh = totalhigh_pages();
+		si->freehigh = nr_free_highpages();
+		si->mem_unit = PAGE_SIZE;
+	} else {
+		si_meminfo(si);
+		memused = si->totalram - si->freeram;
+	}
+
+	swapsize = READ_ONCE(memcg->memsw.max);
+
+	if (swapsize != PAGE_COUNTER_MAX) {
+		unsigned long swaptotal, swapused;
+
+		swaptotal = swapsize - memtotal;
+		swapused = page_counter_read(&memcg->memsw) - memused;
+		si->totalswap = swaptotal;
+		/* Due to global reclaim, memory.memsw.usage can be greater than
+		 * (memory.memsw.max - memory.max). */
+		si->freeswap = (swaptotal > swapused ? swaptotal - swapused : 0);
+	} else {
+		si_swapinfo(si);
+	}
+
+	css_put(css);
+}
+
 static int memcg_numa_stat_show(struct seq_file *m, void *v)
 {
 	struct numa_stat {

@@ -3265,6 +3265,7 @@ static const struct pid_entry tgid_base_stuff[] = {
 #ifdef CONFIG_SECCOMP_CACHE_DEBUG
 	ONE("seccomp_cache", S_IRUSR, proc_pid_seccomp_cache),
 #endif
+	ONE("meminfo",  S_IRUGO, proc_meminfo_show),
 };
 
 static int proc_tgid_base_readdir(struct file *file, struct dir_context *ctx)
@@ -3598,6 +3599,7 @@ static const struct pid_entry tid_base_stuff[] = {
 #ifdef CONFIG_SECCOMP_CACHE_DEBUG
 	ONE("seccomp_cache", S_IRUSR, proc_pid_seccomp_cache),
 #endif
+	ONE("meminfo",  S_IRUGO, proc_meminfo_show),
 };
 
 static int proc_tid_base_readdir(struct file *file, struct dir_context *ctx)
