@@ -3155,6 +3155,21 @@ static inline int early_pfn_to_nid(unsigned long pfn)
 extern int __meminit early_pfn_to_nid(unsigned long pfn);
 #endif
 
+struct meminfo {
+	struct sysinfo si;
+	unsigned long pages[NR_LRU_LISTS];
+	unsigned long cached;
+	unsigned long swapcached;
+	unsigned long anon_pages;
+	unsigned long mapped;
+	unsigned long nr_pagetable;
+	unsigned long nr_secpagetable;
+	unsigned long dirty_pages;
+	unsigned long writeback_pages;
+	unsigned long slab_reclaimable;
+	unsigned long slab_unreclaimable;
+};
+
 extern void set_dma_reserve(unsigned long new_dma_reserve);
 extern void mem_init(void);
 extern void __init mmap_init(void);
@@ -3164,6 +3179,7 @@ static inline void show_mem(void)
 {
 	__show_mem(0, NULL, MAX_NR_ZONES - 1);
 }
+extern long si_mem_available_mi(struct meminfo *mi);
 extern long si_mem_available(void);
 extern void si_meminfo(struct sysinfo * val);
 extern void si_meminfo_node(struct sysinfo *val, int nid);

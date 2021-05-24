@@ -3352,6 +3352,7 @@ static const struct pid_entry tgid_base_stuff[] = {
 	ONE("ksm_merging_pages",  S_IRUSR, proc_pid_ksm_merging_pages),
 	ONE("ksm_stat",  S_IRUSR, proc_pid_ksm_stat),
 #endif
+	ONE("meminfo",  S_IRUGO, proc_meminfo_show),
 };
 
 static int proc_tgid_base_readdir(struct file *file, struct dir_context *ctx)
@@ -3691,6 +3692,7 @@ static const struct pid_entry tid_base_stuff[] = {
 	ONE("ksm_merging_pages",  S_IRUSR, proc_pid_ksm_merging_pages),
 	ONE("ksm_stat",  S_IRUSR, proc_pid_ksm_stat),
 #endif
+	ONE("meminfo",  S_IRUGO, proc_meminfo_show),
 };
 
 static int proc_tid_base_readdir(struct file *file, struct dir_context *ctx)

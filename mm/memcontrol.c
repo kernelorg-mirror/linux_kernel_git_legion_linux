@@ -64,6 +64,7 @@
 #include <linux/psi.h>
 #include <linux/seq_buf.h>
 #include <linux/sched/isolation.h>
+#include <linux/blkdev.h>
 #include "internal.h"
 #include <net/sock.h>
 #include <net/ip.h>
@@ -3990,6 +3991,19 @@ static unsigned long mem_cgroup_node_nr_lru_pages(struct mem_cgroup *memcg,
 	return nr;
 }
 
+static bool mem_cgroup_node_nr_pages(struct mem_cgroup *memcg, int nid,
+				     unsigned long *pages)
+{
+	struct mem_cgroup *iter;
+	int i;
+
+	for_each_mem_cgroup_tree(iter, memcg) {
+		for (i = 0; i < NR_LRU_LISTS; i++)
+			pages[i] += mem_cgroup_node_nr_lru_pages(iter, nid, BIT(i), false);
+	}
+	return true;
+}
+
 static unsigned long mem_cgroup_nr_lru_pages(struct mem_cgroup *memcg,
 					     unsigned int lru_mask,
 					     bool tree)
@@ -4052,7 +4066,95 @@ static int memcg_numa_stat_show(struct seq_file *m, void *v)
 
 	return 0;
 }
+#else
+static bool mem_cgroup_node_nr_pages(struct mem_cgroup *memcg, int nid,
+				     unsigned long *pages)
+{
+	return false;
+}
 #endif /* CONFIG_NUMA */
+
+static void mem_cgroup_nr_pages(struct mem_cgroup *memcg, int nid, unsigned long *pages)
+{
+	int i;
+
+	if (!mem_cgroup_node_nr_pages(memcg, nid, pages)) {
+		for (i = 0; i < NR_LRU_LISTS; i++)
+			pages[i] = memcg_page_state(memcg, NR_LRU_BASE + i) * PAGE_SIZE;
+	}
+}
+
+static void mem_cgroup_si_meminfo(struct sysinfo *si, struct task_struct *task)
+{
+	unsigned long memtotal, memused, swapsize;
+	struct mem_cgroup *memcg, *mi;
+	struct cgroup_subsys_state *css;
+
+	css = task_css(task, memory_cgrp_id);
+	memcg = mem_cgroup_from_css(css);
+
+	si_meminfo(si);
+	si_swapinfo(si);
+
+	memtotal = si->totalram;
+	swapsize = si->totalswap;
+	memused  = si->totalram - si->freeram;
+
+	for (mi = memcg; mi; mi = parent_mem_cgroup(mi)) {
+		memtotal = min(memtotal, READ_ONCE(mi->memory.max));
+		swapsize = min(swapsize, READ_ONCE(mi->memsw.max));
+	}
+
+	if (memtotal != si->totalram) {
+		memused = page_counter_read(&memcg->memory);
+
+		si->totalram = memtotal;
+		si->freeram = (memtotal > memused ? memtotal - memused : 0);
+		si->sharedram = memcg_page_state(memcg, NR_SHMEM);
+	}
+
+	if (swapsize != si->totalswap) {
+		unsigned long swaptotal, swapused;
+
+		swaptotal = swapsize - memtotal;
+		swapused = page_counter_read(&memcg->memsw) - memused;
+
+		si->totalswap = swaptotal;
+		/* Due to global reclaim, memory.memsw.usage can be greater than
+		 * (memory.memsw.max - memory.max). */
+		si->freeswap = (swaptotal > swapused ? swaptotal - swapused : 0);
+	}
+
+	css_put(css);
+}
+
+void mem_fill_meminfo(struct meminfo *mi, struct task_struct *task)
+{
+	struct cgroup_subsys_state *memcg_css = task_css(task, memory_cgrp_id);
+	struct mem_cgroup *memcg = mem_cgroup_from_css(memcg_css);
+	int nid;
+
+	memset(&mi->pages, 0, sizeof(mi->pages));
+
+	mem_cgroup_si_meminfo(&mi->si, task);
+
+	for_each_online_node(nid)
+		mem_cgroup_nr_pages(memcg, nid, mi->pages);
+
+	mi->slab_reclaimable = memcg_page_state(memcg, NR_SLAB_RECLAIMABLE_B);
+	mi->slab_unreclaimable = memcg_page_state(memcg, NR_SLAB_UNRECLAIMABLE_B);
+	mi->cached = memcg_page_state(memcg, NR_FILE_PAGES);
+	mi->anon_pages = memcg_page_state(memcg, NR_ANON_MAPPED);
+	mi->mapped = memcg_page_state(memcg, NR_FILE_MAPPED);
+	mi->nr_pagetable = memcg_page_state(memcg, NR_PAGETABLE);
+	mi->nr_secpagetable = memcg_page_state(memcg, NR_SECONDARY_PAGETABLE);
+	mi->dirty_pages = memcg_page_state(memcg, NR_FILE_DIRTY);
+	mi->writeback_pages = memcg_page_state(memcg, NR_WRITEBACK);
+
+#ifdef CONFIG_SWAP
+	mi->swapcached = memcg_page_state(memcg, NR_SWAPCACHE);
+#endif
+}
 
 static const unsigned int memcg1_stats[] = {
 	NR_FILE_PAGES,
