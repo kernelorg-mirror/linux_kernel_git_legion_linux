@@ -82,6 +82,9 @@ int create_user_ns(struct cred *new)
 	if (!ucounts)
 		goto fail;
 
+	if (!get_ucounts(ucounts))
+		goto fail_dec;
+
 	/*
 	 * Verify that we can not violate the policy of which files
 	 * may be accessed that is specified by the root directory,
@@ -90,7 +93,7 @@ int create_user_ns(struct cred *new)
 	 */
 	ret = -EPERM;
 	if (current_chrooted())
-		goto fail_dec;
+		goto fail_put;
 
 	/* The creator needs a mapping in the parent user namespace
 	 * or else we won't be able to reasonably tell userspace who
@@ -99,12 +102,12 @@ int create_user_ns(struct cred *new)
 	ret = -EPERM;
 	if (!kuid_has_mapping(parent_ns, owner) ||
 	    !kgid_has_mapping(parent_ns, group))
-		goto fail_dec;
+		goto fail_put;
 
 	ret = -ENOMEM;
 	ns = kmem_cache_zalloc(user_ns_cachep, GFP_KERNEL);
 	if (!ns)
-		goto fail_dec;
+		goto fail_put;
 
 	ns->parent_could_setfcap = cap_raised(new->cap_effective, CAP_SETFCAP);
 	ret = ns_alloc_inum(&ns->ns);
@@ -150,6 +153,8 @@ fail_keyring:
 	ns_free_inum(&ns->ns);
 fail_free:
 	kmem_cache_free(user_ns_cachep, ns);
+fail_put:
+	put_ucounts(ucounts);
 fail_dec:
 	dec_user_namespaces(ucounts);
 fail:
