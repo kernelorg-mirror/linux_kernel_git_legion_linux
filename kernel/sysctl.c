@@ -2023,10 +2023,12 @@ static struct ctl_table kern_table[] = {
 #endif
 	{
 		.procname	= "threads-max",
-		.data		= NULL,
+		.data		= &max_threads,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= sysctl_max_threads,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= SYSCTL_ONE,
+		.extra2		= (void *)&sysctl_max_threads,
 	},
 	{
 		.procname	= "usermodehelper",

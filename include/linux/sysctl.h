@@ -296,7 +296,7 @@ static inline void do_sysctl_args(void)
 }
 #endif /* CONFIG_SYSCTL */
 
-int sysctl_max_threads(struct ctl_table *table, int write, void *buffer,
-		size_t *lenp, loff_t *ppos);
+extern int max_threads;
+extern const int sysctl_max_threads;
 
 #endif /* _LINUX_SYSCTL_H */

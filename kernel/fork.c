@@ -88,7 +88,6 @@
 #include <linux/uprobes.h>
 #include <linux/aio.h>
 #include <linux/compiler.h>
-#include <linux/sysctl.h>
 #include <linux/kcov.h>
 #include <linux/livepatch.h>
 #include <linux/thread_info.h>
@@ -125,7 +124,12 @@
 unsigned long total_forks;	/* Handle normal Linux uptimes. */
 int nr_threads;			/* The idle threads do not count.. */
 
-static int max_threads;		/* tunable limit on nr_threads */
+int max_threads;		/* tunable limit on nr_threads */
+
+/*
+ * Upper limit for /proc/sys/kernel/threads-max.
+ */
+const int sysctl_max_threads = MAX_THREADS;
 
 #define NAMED_ARRAY_INDEX(x)	[x] = __stringify(x)
 
@@ -3150,28 +3154,5 @@ int unshare_files(void)
 	task->files = copy;
 	task_unlock(task);
 	put_files_struct(old);
-	return 0;
-}
-
-int sysctl_max_threads(struct ctl_table *table, int write,
-		       void *buffer, size_t *lenp, loff_t *ppos)
-{
-	struct ctl_table t;
-	int ret;
-	int threads = max_threads;
-	int min = 1;
-	int max = MAX_THREADS;
-
-	t = *table;
-	t.data = &threads;
-	t.extra1 = &min;
-	t.extra2 = &max;
-
-	ret = proc_dointvec_minmax(&t, write, buffer, lenp, ppos);
-	if (ret || !write)
-		return ret;
-
-	max_threads = threads;
-
 	return 0;
 }
