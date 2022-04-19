@@ -449,7 +449,7 @@ static void update_perf_cpu_limits(void)
 
 static bool perf_rotate_context(struct perf_cpu_context *cpuctx);
 
-int perf_proc_update_handler(struct ctl_table *table, int write,
+int perf_proc_update_handler(struct ctl_context *ctx,
 		void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int ret;
@@ -457,11 +457,11 @@ int perf_proc_update_handler(struct ctl_table *table, int write,
 	/*
 	 * If throttling is disabled don't allow the write:
 	 */
-	if (write && (perf_cpu == 100 || perf_cpu == 0))
+	if (ctx->write && (perf_cpu == 100 || perf_cpu == 0))
 		return -EINVAL;
 
-	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
-	if (ret || !write)
+	ret = proc_dointvec_minmax(ctx, buffer, lenp, ppos);
+	if (ret || !ctx->write)
 		return ret;
 
 	max_samples_per_tick = DIV_ROUND_UP(sysctl_perf_event_sample_rate, HZ);
@@ -473,12 +473,12 @@ int perf_proc_update_handler(struct ctl_table *table, int write,
 
 int sysctl_perf_cpu_time_max_percent __read_mostly = DEFAULT_CPU_TIME_MAX_PERCENT;
 
-int perf_cpu_time_max_percent_handler(struct ctl_table *table, int write,
+int perf_cpu_time_max_percent_handler(struct ctl_context *ctx,
 		void *buffer, size_t *lenp, loff_t *ppos)
 {
-	int ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+	int ret = proc_dointvec_minmax(ctx, buffer, lenp, ppos);
 
-	if (ret || !write)
+	if (ret || !ctx->write)
 		return ret;
 
 	if (sysctl_perf_cpu_time_max_percent == 100 ||

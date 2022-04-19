@@ -563,6 +563,7 @@ static ssize_t proc_sys_call_handler(struct kiocb *iocb, struct iov_iter *iter,
 	size_t count = iov_iter_count(iter);
 	char *kbuf;
 	ssize_t error;
+	struct ctl_context ctx;
 
 	if (IS_ERR(head))
 		return PTR_ERR(head);
@@ -595,13 +596,21 @@ static ssize_t proc_sys_call_handler(struct kiocb *iocb, struct iov_iter *iter,
 		kbuf[count] = '\0';
 	}
 
-	error = BPF_CGROUP_RUN_PROG_SYSCTL(head, table, write, &kbuf, &count,
-					   &iocb->ki_pos);
-	if (error)
-		goto out_free_buf;
+	if (IS_ENABLED(CONFIG_CGROUP_BPF)) {
+		ctx.ctl_table = table;
+		ctx.write = write;
+
+		error = BPF_CGROUP_RUN_PROG_SYSCTL(head, &ctx, &kbuf, &count,
+						   &iocb->ki_pos);
+		if (error)
+			goto out_free_buf;
+	}
+
+	ctx.ctl_table = table;
+	ctx.write = write;
 
 	/* careful: calling conventions are nasty here */
-	error = table->proc_handler(table, write, kbuf, &count, &iocb->ki_pos);
+	error = table->proc_handler(&ctx, kbuf, &count, &iocb->ki_pos);
 	if (error)
 		goto out_free_buf;
 

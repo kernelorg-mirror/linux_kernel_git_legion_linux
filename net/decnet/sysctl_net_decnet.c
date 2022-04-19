@@ -133,19 +133,19 @@ static int parse_addr(__le16 *addr, char *str)
 	return 0;
 }
 
-static int dn_node_address_handler(struct ctl_table *table, int write,
+static int dn_node_address_handler(struct ctl_context *ctx,
 		void *buffer, size_t *lenp, loff_t *ppos)
 {
 	char addr[DN_ASCBUF_LEN];
 	size_t len;
 	__le16 dnaddr;
 
-	if (!*lenp || (*ppos && !write)) {
+	if (!*lenp || (*ppos && !ctx->write)) {
 		*lenp = 0;
 		return 0;
 	}
 
-	if (write) {
+	if (ctx->write) {
 		len = (*lenp < DN_ASCBUF_LEN) ? *lenp : (DN_ASCBUF_LEN-1);
 		memcpy(addr, buffer, len);
 		addr[len] = 0;
@@ -178,19 +178,19 @@ static int dn_node_address_handler(struct ctl_table *table, int write,
 	return 0;
 }
 
-static int dn_def_dev_handler(struct ctl_table *table, int write,
+static int dn_def_dev_handler(struct ctl_context *ctx,
 		void *buffer, size_t *lenp, loff_t *ppos)
 {
 	size_t len;
 	struct net_device *dev;
 	char devname[17];
 
-	if (!*lenp || (*ppos && !write)) {
+	if (!*lenp || (*ppos && !ctx->write)) {
 		*lenp = 0;
 		return 0;
 	}
 
-	if (write) {
+	if (ctx->write) {
 		if (*lenp > 16)
 			return -E2BIG;
 

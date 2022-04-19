@@ -1922,28 +1922,29 @@ unlock:
 	return res;
 }
 
-static int vrf_shared_table_handler(struct ctl_table *table, int write,
+static int vrf_shared_table_handler(struct ctl_context *ctx,
 				    void *buffer, size_t *lenp, loff_t *ppos)
 {
-	struct net *net = (struct net *)table->extra1;
+	struct net *net = (struct net *)ctx->ctl_table->extra1;
 	struct vrf_map *vmap = netns_vrf_map(net);
 	int proc_strict_mode = 0;
 	struct ctl_table tmp = {
-		.procname	= table->procname,
+		.procname	= ctx->ctl_table->procname,
 		.data		= &proc_strict_mode,
 		.maxlen		= sizeof(int),
-		.mode		= table->mode,
+		.mode		= ctx->ctl_table->mode,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_ONE,
 	};
 	int ret;
 
-	if (!write)
+	if (!ctx->write)
 		proc_strict_mode = vrf_strict_mode(vmap);
 
-	ret = proc_dointvec_minmax(&tmp, write, buffer, lenp, ppos);
+	ctx->ctl_table = &tmp;
+	ret = proc_dointvec_minmax(ctx, buffer, lenp, ppos);
 
-	if (write && ret == 0)
+	if (ctx->write && ret == 0)
 		ret = vrf_strict_mode_change(vmap, (bool)proc_strict_mode);
 
 	return ret;

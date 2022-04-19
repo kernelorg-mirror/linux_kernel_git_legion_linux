@@ -256,14 +256,14 @@ void zap_pid_ns_processes(struct pid_namespace *pid_ns)
 }
 
 #ifdef CONFIG_CHECKPOINT_RESTORE
-static int pid_ns_ctl_handler(struct ctl_table *table, int write,
+static int pid_ns_ctl_handler(struct ctl_context *ctx,
 		void *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct pid_namespace *pid_ns = task_active_pid_ns(current);
-	struct ctl_table tmp = *table;
+	struct ctl_table tmp = *ctx->ctl_table;
 	int ret, next;
 
-	if (write && !checkpoint_restore_ns_capable(pid_ns->user_ns))
+	if (ctx->write && !checkpoint_restore_ns_capable(pid_ns->user_ns))
 		return -EPERM;
 
 	/*
@@ -275,8 +275,9 @@ static int pid_ns_ctl_handler(struct ctl_table *table, int write,
 	next = idr_get_cursor(&pid_ns->idr) - 1;
 
 	tmp.data = &next;
-	ret = proc_dointvec_minmax(&tmp, write, buffer, lenp, ppos);
-	if (!ret && write)
+	ctx->ctl_table = &tmp;
+	ret = proc_dointvec_minmax(ctx, buffer, lenp, ppos);
+	if (!ret && ctx->write)
 		idr_set_cursor(&pid_ns->idr, next + 1);
 
 	return ret;

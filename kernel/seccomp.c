@@ -2236,6 +2236,7 @@ static int read_actions_logged(struct ctl_table *ro_table, void *buffer,
 			       size_t *lenp, loff_t *ppos)
 {
 	char names[sizeof(seccomp_actions_avail)];
+	struct ctl_context ctx;
 	struct ctl_table table;
 
 	memset(names, 0, sizeof(names));
@@ -2247,13 +2248,18 @@ static int read_actions_logged(struct ctl_table *ro_table, void *buffer,
 	table = *ro_table;
 	table.data = names;
 	table.maxlen = sizeof(names);
-	return proc_dostring(&table, 0, buffer, lenp, ppos);
+
+	ctx.ctl_table = &table;
+	ctx.write = 0;
+
+	return proc_dostring(&ctx, buffer, lenp, ppos);
 }
 
 static int write_actions_logged(struct ctl_table *ro_table, void *buffer,
 				size_t *lenp, loff_t *ppos, u32 *actions_logged)
 {
 	char names[sizeof(seccomp_actions_avail)];
+	struct ctl_context ctx;
 	struct ctl_table table;
 	int ret;
 
@@ -2265,7 +2271,11 @@ static int write_actions_logged(struct ctl_table *ro_table, void *buffer,
 	table = *ro_table;
 	table.data = names;
 	table.maxlen = sizeof(names);
-	ret = proc_dostring(&table, 1, buffer, lenp, ppos);
+
+	ctx.ctl_table = &table;
+	ctx.write = 1;
+
+	ret = proc_dostring(&ctx, buffer, lenp, ppos);
 	if (ret)
 		return ret;
 
@@ -2311,21 +2321,21 @@ static void audit_actions_logged(u32 actions_logged, u32 old_actions_logged,
 	return audit_seccomp_actions_logged(new, old, !ret);
 }
 
-static int seccomp_actions_logged_handler(struct ctl_table *ro_table, int write,
+static int seccomp_actions_logged_handler(struct ctl_context *ctx,
 					  void *buffer, size_t *lenp,
 					  loff_t *ppos)
 {
 	int ret;
 
-	if (write) {
+	if (ctx->write) {
 		u32 actions_logged = 0;
 		u32 old_actions_logged = seccomp_actions_logged;
 
-		ret = write_actions_logged(ro_table, buffer, lenp, ppos,
+		ret = write_actions_logged(ctx->ctl_table, buffer, lenp, ppos,
 					   &actions_logged);
 		audit_actions_logged(actions_logged, old_actions_logged, ret);
 	} else
-		ret = read_actions_logged(ro_table, buffer, lenp, ppos);
+		ret = read_actions_logged(ctx->ctl_table, buffer, lenp, ppos);
 
 	return ret;
 }

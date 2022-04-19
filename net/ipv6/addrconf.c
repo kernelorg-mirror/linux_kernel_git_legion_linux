@@ -6174,10 +6174,11 @@ static void ipv6_ifa_notify(int event, struct inet6_ifaddr *ifp)
 
 #ifdef CONFIG_SYSCTL
 
-static int addrconf_sysctl_forward(struct ctl_table *ctl, int write,
+static int addrconf_sysctl_forward(struct ctl_context *ctx,
 		void *buffer, size_t *lenp, loff_t *ppos)
 {
-	int *valp = ctl->data;
+	struct ctl_context c = *ctx;
+	int *valp = ctx->ctl_table->data;
 	int val = *valp;
 	loff_t pos = *ppos;
 	struct ctl_table lctl;
@@ -6187,30 +6188,33 @@ static int addrconf_sysctl_forward(struct ctl_table *ctl, int write,
 	 * ctl->data points to idev->cnf.forwarding, we should
 	 * not modify it until we get the rtnl lock.
 	 */
-	lctl = *ctl;
+	lctl = *ctx->ctl_table;
 	lctl.data = &val;
+	c.ctl_table = &lctl;
 
-	ret = proc_dointvec(&lctl, write, buffer, lenp, ppos);
+	ret = proc_dointvec(&c, buffer, lenp, ppos);
 
-	if (write)
-		ret = addrconf_fixup_forwarding(ctl, valp, val);
+	if (ctx->write)
+		ret = addrconf_fixup_forwarding(ctx->ctl_table, valp, val);
 	if (ret)
 		*ppos = pos;
 	return ret;
 }
 
-static int addrconf_sysctl_mtu(struct ctl_table *ctl, int write,
+static int addrconf_sysctl_mtu(struct ctl_context *ctx,
 		void *buffer, size_t *lenp, loff_t *ppos)
 {
-	struct inet6_dev *idev = ctl->extra1;
+	struct inet6_dev *idev = ctx->ctl_table->extra1;
 	int min_mtu = IPV6_MIN_MTU;
 	struct ctl_table lctl;
 
-	lctl = *ctl;
+	lctl = *ctx->ctl_table;
 	lctl.extra1 = &min_mtu;
 	lctl.extra2 = idev ? &idev->dev->mtu : NULL;
 
-	return proc_dointvec_minmax(&lctl, write, buffer, lenp, ppos);
+	ctx->ctl_table = &lctl;
+
+	return proc_dointvec_minmax(ctx, buffer, lenp, ppos);
 }
 
 static void dev_disable_change(struct inet6_dev *idev)
@@ -6270,10 +6274,11 @@ static int addrconf_disable_ipv6(struct ctl_table *table, int *p, int newf)
 	return 0;
 }
 
-static int addrconf_sysctl_disable(struct ctl_table *ctl, int write,
+static int addrconf_sysctl_disable(struct ctl_context *ctx,
 		void *buffer, size_t *lenp, loff_t *ppos)
 {
-	int *valp = ctl->data;
+	struct ctl_context c = *ctx;
+	int *valp = ctx->ctl_table->data;
 	int val = *valp;
 	loff_t pos = *ppos;
 	struct ctl_table lctl;
@@ -6283,31 +6288,32 @@ static int addrconf_sysctl_disable(struct ctl_table *ctl, int write,
 	 * ctl->data points to idev->cnf.disable_ipv6, we should
 	 * not modify it until we get the rtnl lock.
 	 */
-	lctl = *ctl;
+	lctl = *ctx->ctl_table;
 	lctl.data = &val;
+	c.ctl_table = &lctl;
 
-	ret = proc_dointvec(&lctl, write, buffer, lenp, ppos);
+	ret = proc_dointvec(&c, buffer, lenp, ppos);
 
-	if (write)
-		ret = addrconf_disable_ipv6(ctl, valp, val);
+	if (ctx->write)
+		ret = addrconf_disable_ipv6(ctx->ctl_table, valp, val);
 	if (ret)
 		*ppos = pos;
 	return ret;
 }
 
-static int addrconf_sysctl_proxy_ndp(struct ctl_table *ctl, int write,
+static int addrconf_sysctl_proxy_ndp(struct ctl_context *ctx,
 		void *buffer, size_t *lenp, loff_t *ppos)
 {
-	int *valp = ctl->data;
+	int *valp = ctx->ctl_table->data;
 	int ret;
 	int old, new;
 
 	old = *valp;
-	ret = proc_dointvec(ctl, write, buffer, lenp, ppos);
+	ret = proc_dointvec(ctx, buffer, lenp, ppos);
 	new = *valp;
 
-	if (write && old != new) {
-		struct net *net = ctl->extra2;
+	if (ctx->write && old != new) {
+		struct net *net = ctx->ctl_table->extra2;
 
 		if (!rtnl_trylock())
 			return restart_syscall();
@@ -6323,7 +6329,7 @@ static int addrconf_sysctl_proxy_ndp(struct ctl_table *ctl, int write,
 						     NETCONFA_IFINDEX_ALL,
 						     net->ipv6.devconf_all);
 		else {
-			struct inet6_dev *idev = ctl->extra1;
+			struct inet6_dev *idev = ctx->ctl_table->extra1;
 
 			inet6_netconf_notify_devconf(net, RTM_NEWNETCONF,
 						     NETCONFA_PROXY_NEIGH,
@@ -6336,30 +6342,32 @@ static int addrconf_sysctl_proxy_ndp(struct ctl_table *ctl, int write,
 	return ret;
 }
 
-static int addrconf_sysctl_addr_gen_mode(struct ctl_table *ctl, int write,
+static int addrconf_sysctl_addr_gen_mode(struct ctl_context *ctx,
 					 void *buffer, size_t *lenp,
 					 loff_t *ppos)
 {
 	int ret = 0;
 	u32 new_val;
-	struct inet6_dev *idev = (struct inet6_dev *)ctl->extra1;
-	struct net *net = (struct net *)ctl->extra2;
+	struct inet6_dev *idev = (struct inet6_dev *)ctx->ctl_table->extra1;
+	struct net *net = (struct net *)ctx->ctl_table->extra2;
 	struct ctl_table tmp = {
 		.data = &new_val,
 		.maxlen = sizeof(new_val),
-		.mode = ctl->mode,
+		.mode = ctx->ctl_table->mode,
 	};
+	struct ctl_context c = *ctx;
 
 	if (!rtnl_trylock())
 		return restart_syscall();
 
-	new_val = *((u32 *)ctl->data);
+	c.ctl_table = &tmp;
+	new_val = *((u32 *)ctx->ctl_table->data);
 
-	ret = proc_douintvec(&tmp, write, buffer, lenp, ppos);
+	ret = proc_douintvec(&c, buffer, lenp, ppos);
 	if (ret != 0)
 		goto out;
 
-	if (write) {
+	if (ctx->write) {
 		if (check_addr_gen_mode(new_val) < 0) {
 			ret = -EINVAL;
 			goto out;
@@ -6375,7 +6383,7 @@ static int addrconf_sysctl_addr_gen_mode(struct ctl_table *ctl, int write,
 				idev->cnf.addr_gen_mode = new_val;
 				addrconf_dev_config(idev->dev);
 			}
-		} else if (&net->ipv6.devconf_all->addr_gen_mode == ctl->data) {
+		} else if (&net->ipv6.devconf_all->addr_gen_mode == ctx->ctl_table->data) {
 			struct net_device *dev;
 
 			net->ipv6.devconf_dflt->addr_gen_mode = new_val;
@@ -6389,7 +6397,7 @@ static int addrconf_sysctl_addr_gen_mode(struct ctl_table *ctl, int write,
 			}
 		}
 
-		*((u32 *)ctl->data) = new_val;
+		*((u32 *)ctx->ctl_table->data) = new_val;
 	}
 
 out:
@@ -6398,27 +6406,29 @@ out:
 	return ret;
 }
 
-static int addrconf_sysctl_stable_secret(struct ctl_table *ctl, int write,
+static int addrconf_sysctl_stable_secret(struct ctl_context *ctx,
 					 void *buffer, size_t *lenp,
 					 loff_t *ppos)
 {
 	int err;
 	struct in6_addr addr;
 	char str[IPV6_MAX_STRLEN];
-	struct ctl_table lctl = *ctl;
-	struct net *net = ctl->extra2;
-	struct ipv6_stable_secret *secret = ctl->data;
+	struct ctl_context c = *ctx;
+	struct ctl_table lctl = *ctx->ctl_table;
+	struct net *net = ctx->ctl_table->extra2;
+	struct ipv6_stable_secret *secret = ctx->ctl_table->data;
 
-	if (&net->ipv6.devconf_all->stable_secret == ctl->data)
+	if (&net->ipv6.devconf_all->stable_secret == ctx->ctl_table->data)
 		return -EIO;
 
 	lctl.maxlen = IPV6_MAX_STRLEN;
 	lctl.data = str;
+	c.ctl_table = &lctl;
 
 	if (!rtnl_trylock())
 		return restart_syscall();
 
-	if (!write && !secret->initialized) {
+	if (!ctx->write && !secret->initialized) {
 		err = -EIO;
 		goto out;
 	}
@@ -6429,8 +6439,8 @@ static int addrconf_sysctl_stable_secret(struct ctl_table *ctl, int write,
 		goto out;
 	}
 
-	err = proc_dostring(&lctl, write, buffer, lenp, ppos);
-	if (err || !write)
+	err = proc_dostring(&c, buffer, lenp, ppos);
+	if (err || !ctx->write)
 		goto out;
 
 	if (in6_pton(str, -1, addr.in6_u.u6_addr8, -1, NULL) != 1) {
@@ -6441,7 +6451,7 @@ static int addrconf_sysctl_stable_secret(struct ctl_table *ctl, int write,
 	secret->initialized = true;
 	secret->secret = addr;
 
-	if (&net->ipv6.devconf_dflt->stable_secret == ctl->data) {
+	if (&net->ipv6.devconf_dflt->stable_secret == ctx->ctl_table->data) {
 		struct net_device *dev;
 
 		for_each_netdev(net, dev) {
@@ -6453,7 +6463,7 @@ static int addrconf_sysctl_stable_secret(struct ctl_table *ctl, int write,
 			}
 		}
 	} else {
-		struct inet6_dev *idev = ctl->extra1;
+		struct inet6_dev *idev = ctx->ctl_table->extra1;
 
 		idev->cnf.addr_gen_mode = IN6_ADDR_GEN_MODE_STABLE_PRIVACY;
 	}
@@ -6465,12 +6475,13 @@ out:
 }
 
 static
-int addrconf_sysctl_ignore_routes_with_linkdown(struct ctl_table *ctl,
-						int write, void *buffer,
+int addrconf_sysctl_ignore_routes_with_linkdown(struct ctl_context *ctx,
+						void *buffer,
 						size_t *lenp,
 						loff_t *ppos)
 {
-	int *valp = ctl->data;
+	struct ctl_context c = *ctx;
+	int *valp = ctx->ctl_table->data;
 	int val = *valp;
 	loff_t pos = *ppos;
 	struct ctl_table lctl;
@@ -6479,13 +6490,14 @@ int addrconf_sysctl_ignore_routes_with_linkdown(struct ctl_table *ctl,
 	/* ctl->data points to idev->cnf.ignore_routes_when_linkdown
 	 * we should not modify it until we get the rtnl lock.
 	 */
-	lctl = *ctl;
+	lctl = *ctx->ctl_table;
 	lctl.data = &val;
+	c.ctl_table = &lctl;
 
-	ret = proc_dointvec(&lctl, write, buffer, lenp, ppos);
+	ret = proc_dointvec(&c, buffer, lenp, ppos);
 
-	if (write)
-		ret = addrconf_fixup_linkdown(ctl, valp, val);
+	if (ctx->write)
+		ret = addrconf_fixup_linkdown(ctx->ctl_table, valp, val);
 	if (ret)
 		*ppos = pos;
 	return ret;
@@ -6566,21 +6578,24 @@ int addrconf_disable_policy(struct ctl_table *ctl, int *valp, int val)
 	return 0;
 }
 
-static int addrconf_sysctl_disable_policy(struct ctl_table *ctl, int write,
+static int addrconf_sysctl_disable_policy(struct ctl_context *ctx,
 				   void *buffer, size_t *lenp, loff_t *ppos)
 {
-	int *valp = ctl->data;
+	struct ctl_context c = *ctx;
+	int *valp = ctx->ctl_table->data;
 	int val = *valp;
 	loff_t pos = *ppos;
 	struct ctl_table lctl;
 	int ret;
 
-	lctl = *ctl;
+	lctl = *ctx->ctl_table;
 	lctl.data = &val;
-	ret = proc_dointvec(&lctl, write, buffer, lenp, ppos);
+	c.ctl_table = &lctl;
 
-	if (write && (*valp != val))
-		ret = addrconf_disable_policy(ctl, valp, val);
+	ret = proc_dointvec(&c, buffer, lenp, ppos);
+
+	if (ctx->write && (*valp != val))
+		ret = addrconf_disable_policy(ctx->ctl_table, valp, val);
 
 	if (ret)
 		*ppos = pos;

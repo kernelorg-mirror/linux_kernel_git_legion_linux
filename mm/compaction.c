@@ -2707,16 +2707,16 @@ static void compact_nodes(void)
  */
 unsigned int __read_mostly sysctl_compaction_proactiveness = 20;
 
-int compaction_proactiveness_sysctl_handler(struct ctl_table *table, int write,
+int compaction_proactiveness_sysctl_handler(struct ctl_context *ctx,
 		void *buffer, size_t *length, loff_t *ppos)
 {
 	int rc, nid;
 
-	rc = proc_dointvec_minmax(table, write, buffer, length, ppos);
+	rc = proc_dointvec_minmax(ctx, buffer, length, ppos);
 	if (rc)
 		return rc;
 
-	if (write && sysctl_compaction_proactiveness) {
+	if (ctx->write && sysctl_compaction_proactiveness) {
 		for_each_online_node(nid) {
 			pg_data_t *pgdat = NODE_DATA(nid);
 
@@ -2735,10 +2735,10 @@ int compaction_proactiveness_sysctl_handler(struct ctl_table *table, int write,
  * This is the entry point for compacting all nodes via
  * /proc/sys/vm/compact_memory
  */
-int sysctl_compaction_handler(struct ctl_table *table, int write,
+int sysctl_compaction_handler(struct ctl_context *ctx,
 			void *buffer, size_t *length, loff_t *ppos)
 {
-	if (write)
+	if (ctx->write)
 		compact_nodes();
 
 	return 0;

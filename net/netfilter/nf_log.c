@@ -403,24 +403,26 @@ static struct ctl_table nf_log_sysctl_ftable[] = {
 	{ }
 };
 
-static int nf_log_proc_dostring(struct ctl_table *table, int write,
+static int nf_log_proc_dostring(struct ctl_context *ctx,
 			 void *buffer, size_t *lenp, loff_t *ppos)
 {
 	const struct nf_logger *logger;
 	char buf[NFLOGGER_NAME_LEN];
 	int r = 0;
-	int tindex = (unsigned long)table->extra1;
-	struct net *net = table->extra2;
+	int tindex = (unsigned long)ctx->ctl_table->extra1;
+	struct net *net = ctx->ctl_table->extra2;
+	struct ctl_table tmp = *ctx->ctl_table;
+	struct ctl_context c = *ctx;
 
-	if (write) {
-		struct ctl_table tmp = *table;
+	c.ctl_table = &tmp;
 
+	if (ctx->write) {
 		/* proc_dostring() can append to existing strings, so we need to
 		 * initialize it as an empty string.
 		 */
 		buf[0] = '\0';
 		tmp.data = buf;
-		r = proc_dostring(&tmp, write, buffer, lenp, ppos);
+		r = proc_dostring(&c, buffer, lenp, ppos);
 		if (r)
 			return r;
 
@@ -437,8 +439,6 @@ static int nf_log_proc_dostring(struct ctl_table *table, int write,
 		rcu_assign_pointer(net->nf.nf_loggers[tindex], logger);
 		mutex_unlock(&nf_log_mutex);
 	} else {
-		struct ctl_table tmp = *table;
-
 		tmp.data = buf;
 		mutex_lock(&nf_log_mutex);
 		logger = nft_log_dereference(net->nf.nf_loggers[tindex]);
@@ -447,7 +447,7 @@ static int nf_log_proc_dostring(struct ctl_table *table, int write,
 		else
 			strlcpy(buf, logger->name, sizeof(buf));
 		mutex_unlock(&nf_log_mutex);
-		r = proc_dostring(&tmp, write, buffer, lenp, ppos);
+		r = proc_dostring(&c, buffer, lenp, ppos);
 	}
 
 	return r;

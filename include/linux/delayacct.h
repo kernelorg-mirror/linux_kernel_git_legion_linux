@@ -61,7 +61,7 @@ extern int delayacct_on;	/* Delay accounting turned on/off */
 extern struct kmem_cache *delayacct_cache;
 extern void delayacct_init(void);
 
-extern int sysctl_delayacct(struct ctl_table *table, int write, void *buffer,
+extern int sysctl_delayacct(struct ctl_context *ctx, void *buffer,
 			    size_t *lenp, loff_t *ppos);
 
 extern void __delayacct_tsk_init(struct task_struct *);

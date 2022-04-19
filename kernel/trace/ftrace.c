@@ -7846,7 +7846,7 @@ static bool is_permanent_ops_registered(void)
 }
 
 int
-ftrace_enable_sysctl(struct ctl_table *table, int write,
+ftrace_enable_sysctl(struct ctl_context *ctx,
 		     void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int ret = -ENODEV;
@@ -7856,9 +7856,9 @@ ftrace_enable_sysctl(struct ctl_table *table, int write,
 	if (unlikely(ftrace_disabled))
 		goto out;
 
-	ret = proc_dointvec(table, write, buffer, lenp, ppos);
+	ret = proc_dointvec(ctx, buffer, lenp, ppos);
 
-	if (ret || !write || (last_ftrace_enabled == !!ftrace_enabled))
+	if (ret || !ctx->write || (last_ftrace_enabled == !!ftrace_enabled))
 		goto out;
 
 	if (ftrace_enabled) {

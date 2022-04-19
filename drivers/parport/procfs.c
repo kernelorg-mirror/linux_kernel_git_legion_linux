@@ -33,15 +33,15 @@
 #define PARPORT_MIN_SPINTIME_VALUE 1
 #define PARPORT_MAX_SPINTIME_VALUE 1000
 
-static int do_active_device(struct ctl_table *table, int write,
+static int do_active_device(struct ctl_context *ctx,
 		      void *result, size_t *lenp, loff_t *ppos)
 {
-	struct parport *port = (struct parport *)table->extra1;
+	struct parport *port = (struct parport *)ctx->ctl_table->extra1;
 	char buffer[256];
 	struct pardevice *dev;
 	int len = 0;
 
-	if (write)		/* can't happen anyway */
+	if (ctx->write)		/* can't happen anyway */
 		return -EACCES;
 
 	if (*ppos) {
@@ -70,15 +70,15 @@ static int do_active_device(struct ctl_table *table, int write,
 }
 
 #ifdef CONFIG_PARPORT_1284
-static int do_autoprobe(struct ctl_table *table, int write,
+static int do_autoprobe(struct ctl_context *ctx,
 			void *result, size_t *lenp, loff_t *ppos)
 {
-	struct parport_device_info *info = table->extra2;
+	struct parport_device_info *info = ctx->ctl_table->extra2;
 	const char *str;
 	char buffer[256];
 	int len = 0;
 
-	if (write) /* permissions stop this */
+	if (ctx->write) /* permissions stop this */
 		return -EACCES;
 
 	if (*ppos) {
@@ -113,10 +113,10 @@ static int do_autoprobe(struct ctl_table *table, int write,
 }
 #endif /* IEEE1284.3 support. */
 
-static int do_hardware_base_addr(struct ctl_table *table, int write,
+static int do_hardware_base_addr(struct ctl_context *ctx,
 				 void *result, size_t *lenp, loff_t *ppos)
 {
-	struct parport *port = (struct parport *)table->extra1;
+	struct parport *port = (struct parport *)ctx->ctl_table->extra1;
 	char buffer[20];
 	int len = 0;
 
@@ -125,7 +125,7 @@ static int do_hardware_base_addr(struct ctl_table *table, int write,
 		return 0;
 	}
 
-	if (write) /* permissions prevent this anyway */
+	if (ctx->write) /* permissions prevent this anyway */
 		return -EACCES;
 
 	len += sprintf (buffer, "%lu\t%lu\n", port->base, port->base_hi);
@@ -140,10 +140,10 @@ static int do_hardware_base_addr(struct ctl_table *table, int write,
 	return 0;
 }
 
-static int do_hardware_irq(struct ctl_table *table, int write,
+static int do_hardware_irq(struct ctl_context *ctx,
 			   void *result, size_t *lenp, loff_t *ppos)
 {
-	struct parport *port = (struct parport *)table->extra1;
+	struct parport *port = (struct parport *)ctx->ctl_table->extra1;
 	char buffer[20];
 	int len = 0;
 
@@ -152,7 +152,7 @@ static int do_hardware_irq(struct ctl_table *table, int write,
 		return 0;
 	}
 
-	if (write) /* permissions prevent this anyway */
+	if (ctx->write) /* permissions prevent this anyway */
 		return -EACCES;
 
 	len += sprintf (buffer, "%d\n", port->irq);
@@ -167,10 +167,10 @@ static int do_hardware_irq(struct ctl_table *table, int write,
 	return 0;
 }
 
-static int do_hardware_dma(struct ctl_table *table, int write,
+static int do_hardware_dma(struct ctl_context *ctx,
 			   void *result, size_t *lenp, loff_t *ppos)
 {
-	struct parport *port = (struct parport *)table->extra1;
+	struct parport *port = (struct parport *)ctx->ctl_table->extra1;
 	char buffer[20];
 	int len = 0;
 
@@ -179,7 +179,7 @@ static int do_hardware_dma(struct ctl_table *table, int write,
 		return 0;
 	}
 
-	if (write) /* permissions prevent this anyway */
+	if (ctx->write) /* permissions prevent this anyway */
 		return -EACCES;
 
 	len += sprintf (buffer, "%d\n", port->dma);
@@ -194,10 +194,10 @@ static int do_hardware_dma(struct ctl_table *table, int write,
 	return 0;
 }
 
-static int do_hardware_modes(struct ctl_table *table, int write,
+static int do_hardware_modes(struct ctl_context *ctx,
 			     void *result, size_t *lenp, loff_t *ppos)
 {
-	struct parport *port = (struct parport *)table->extra1;
+	struct parport *port = (struct parport *)ctx->ctl_table->extra1;
 	char buffer[40];
 	int len = 0;
 
@@ -206,7 +206,7 @@ static int do_hardware_modes(struct ctl_table *table, int write,
 		return 0;
 	}
 
-	if (write) /* permissions prevent this anyway */
+	if (ctx->write) /* permissions prevent this anyway */
 		return -EACCES;
 
 	{

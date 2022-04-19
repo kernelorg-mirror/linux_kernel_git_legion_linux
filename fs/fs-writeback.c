@@ -2351,13 +2351,13 @@ static int __init start_dirtytime_writeback(void)
 }
 __initcall(start_dirtytime_writeback);
 
-int dirtytime_interval_handler(struct ctl_table *table, int write,
+int dirtytime_interval_handler(struct ctl_context *ctx,
 			       void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int ret;
 
-	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
-	if (ret == 0 && write)
+	ret = proc_dointvec_minmax(ctx, buffer, lenp, ppos);
+	if (ret == 0 && ctx->write)
 		mod_delayed_work(system_wq, &dirtytime_work, 0);
 	return ret;
 }

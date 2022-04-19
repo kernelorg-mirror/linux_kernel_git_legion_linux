@@ -25,26 +25,28 @@ static inline int nf_hooks_lwtunnel_set(int enable)
 }
 
 #ifdef CONFIG_SYSCTL
-int nf_hooks_lwtunnel_sysctl_handler(struct ctl_table *table, int write,
+int nf_hooks_lwtunnel_sysctl_handler(struct ctl_context *ctx,
 				     void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int proc_nf_hooks_lwtunnel_enabled = 0;
 	struct ctl_table tmp = {
-		.procname = table->procname,
+		.procname = ctx->ctl_table->procname,
 		.data = &proc_nf_hooks_lwtunnel_enabled,
 		.maxlen = sizeof(int),
-		.mode = table->mode,
+		.mode = ctx->ctl_table->mode,
 		.extra1 = SYSCTL_ZERO,
 		.extra2 = SYSCTL_ONE,
 	};
 	int ret;
 
-	if (!write)
+	ctx->ctl_table = &tmp;
+
+	if (!ctx->write)
 		proc_nf_hooks_lwtunnel_enabled = nf_hooks_lwtunnel_get();
 
-	ret = proc_dointvec_minmax(&tmp, write, buffer, lenp, ppos);
+	ret = proc_dointvec_minmax(ctx, buffer, lenp, ppos);
 
-	if (write && ret == 0)
+	if (ctx->write && ret == 0)
 		ret = nf_hooks_lwtunnel_set(proc_nf_hooks_lwtunnel_enabled);
 
 	return ret;

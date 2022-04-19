@@ -1450,10 +1450,10 @@ static int do_proc_dopipe_max_size_conv(unsigned long *lvalp,
 	return 0;
 }
 
-static int proc_dopipe_max_size(struct ctl_table *table, int write,
+static int proc_dopipe_max_size(struct ctl_context *ctx,
 				void *buffer, size_t *lenp, loff_t *ppos)
 {
-	return do_proc_douintvec(table, write, buffer, lenp, ppos,
+	return do_proc_douintvec(ctx->ctl_table, ctx->write, buffer, lenp, ppos,
 				 do_proc_dopipe_max_size_conv, NULL);
 }
 

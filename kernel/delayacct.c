@@ -44,22 +44,23 @@ void delayacct_init(void)
 }
 
 #ifdef CONFIG_PROC_SYSCTL
-int sysctl_delayacct(struct ctl_table *table, int write, void *buffer,
+int sysctl_delayacct(struct ctl_context *ctx, void *buffer,
 		     size_t *lenp, loff_t *ppos)
 {
 	int state = delayacct_on;
 	struct ctl_table t;
 	int err;
 
-	if (write && !capable(CAP_SYS_ADMIN))
+	if (ctx->write && !capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	t = *table;
+	t = *ctx->ctl_table;
 	t.data = &state;
-	err = proc_dointvec_minmax(&t, write, buffer, lenp, ppos);
+	ctx->ctl_table = &t;
+	err = proc_dointvec_minmax(ctx, buffer, lenp, ppos);
 	if (err < 0)
 		return err;
-	if (write)
+	if (ctx->write)
 		set_delayacct(state);
 	return err;
 }

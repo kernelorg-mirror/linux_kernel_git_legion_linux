@@ -528,7 +528,7 @@ EXPORT_SYMBOL_GPL(nf_conntrack_count);
 static unsigned int nf_conntrack_htable_size_user __read_mostly;
 
 static int
-nf_conntrack_hash_sysctl(struct ctl_table *table, int write,
+nf_conntrack_hash_sysctl(struct ctl_context *ctx,
 			 void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int ret;
@@ -536,8 +536,8 @@ nf_conntrack_hash_sysctl(struct ctl_table *table, int write,
 	/* module_param hashsize could have changed value */
 	nf_conntrack_htable_size_user = nf_conntrack_htable_size;
 
-	ret = proc_dointvec(table, write, buffer, lenp, ppos);
-	if (ret < 0 || !write)
+	ret = proc_dointvec(ctx, buffer, lenp, ppos);
+	if (ret < 0 || !ctx->write)
 		return ret;
 
 	/* update ret, we might not be able to satisfy request */

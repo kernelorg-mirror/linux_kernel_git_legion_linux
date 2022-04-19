@@ -228,15 +228,15 @@ static long hung_timeout_jiffies(unsigned long last_checked,
 /*
  * Process updating of timeout sysctl
  */
-static int proc_dohung_task_timeout_secs(struct ctl_table *table, int write,
+static int proc_dohung_task_timeout_secs(struct ctl_context *ctx,
 				  void __user *buffer,
 				  size_t *lenp, loff_t *ppos)
 {
 	int ret;
 
-	ret = proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
+	ret = proc_doulongvec_minmax(ctx, buffer, lenp, ppos);
 
-	if (ret || !write)
+	if (ret || !ctx->write)
 		goto out;
 
 	wake_up_process(watchdog_task);

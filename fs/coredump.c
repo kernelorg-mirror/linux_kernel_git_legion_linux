@@ -905,10 +905,10 @@ void validate_coredump_safety(void)
 	}
 }
 
-static int proc_dostring_coredump(struct ctl_table *table, int write,
+static int proc_dostring_coredump(struct ctl_context *ctx,
 		  void *buffer, size_t *lenp, loff_t *ppos)
 {
-	int error = proc_dostring(table, write, buffer, lenp, ppos);
+	int error = proc_dostring(ctx, buffer, lenp, ppos);
 
 	if (!error)
 		validate_coredump_safety();

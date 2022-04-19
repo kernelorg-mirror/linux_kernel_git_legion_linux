@@ -32,6 +32,10 @@ static void sysctl_test_api_dointvec_null_tbl_data(struct kunit *test)
 		.extra1		= &i_zero,
 		.extra2         = &i_one_hundred,
 	};
+	struct ctl_context ctx = {
+		.ctl_table = &null_data_table,
+		.write = KUNIT_PROC_READ,
+	};
 	/*
 	 * proc_dointvec expects a buffer in user space, so we allocate one. We
 	 * also need to cast it to __user so sparse doesn't get mad.
@@ -46,17 +50,16 @@ static void sysctl_test_api_dointvec_null_tbl_data(struct kunit *test)
 	 * not try to read because .data is NULL.
 	 */
 	len = 1234;
-	KUNIT_EXPECT_EQ(test, 0, proc_dointvec(&null_data_table,
-					       KUNIT_PROC_READ, buffer, &len,
+	KUNIT_EXPECT_EQ(test, 0, proc_dointvec(&ctx, buffer, &len,
 					       &pos));
 	KUNIT_EXPECT_EQ(test, 0, len);
 
 	/*
 	 * See above.
 	 */
+	ctx.write = KUNIT_PROC_WRITE;
 	len = 1234;
-	KUNIT_EXPECT_EQ(test, 0, proc_dointvec(&null_data_table,
-					       KUNIT_PROC_WRITE, buffer, &len,
+	KUNIT_EXPECT_EQ(test, 0, proc_dointvec(&ctx, buffer, &len,
 					       &pos));
 	KUNIT_EXPECT_EQ(test, 0, len);
 }
@@ -82,6 +85,10 @@ static void sysctl_test_api_dointvec_table_maxlen_unset(struct kunit *test)
 		.extra1		= &i_zero,
 		.extra2         = &i_one_hundred,
 	};
+	struct ctl_context ctx = {
+		.ctl_table = &data_maxlen_unset_table,
+		.write = KUNIT_PROC_READ,
+	};
 	void __user *buffer = (void __user *)kunit_kzalloc(test, sizeof(int),
 							   GFP_USER);
 	size_t len;
@@ -92,17 +99,16 @@ static void sysctl_test_api_dointvec_table_maxlen_unset(struct kunit *test)
 	 * cannot do anything because its internal .data buffer has zero length.
 	 */
 	len = 1234;
-	KUNIT_EXPECT_EQ(test, 0, proc_dointvec(&data_maxlen_unset_table,
-					       KUNIT_PROC_READ, buffer, &len,
+	KUNIT_EXPECT_EQ(test, 0, proc_dointvec(&ctx, buffer, &len,
 					       &pos));
 	KUNIT_EXPECT_EQ(test, 0, len);
 
 	/*
 	 * See previous comment.
 	 */
+	ctx.write = KUNIT_PROC_WRITE;
 	len = 1234;
-	KUNIT_EXPECT_EQ(test, 0, proc_dointvec(&data_maxlen_unset_table,
-					       KUNIT_PROC_WRITE, buffer, &len,
+	KUNIT_EXPECT_EQ(test, 0, proc_dointvec(&ctx, buffer, &len,
 					       &pos));
 	KUNIT_EXPECT_EQ(test, 0, len);
 }
@@ -125,6 +131,10 @@ static void sysctl_test_api_dointvec_table_len_is_zero(struct kunit *test)
 		.extra1		= &i_zero,
 		.extra2         = &i_one_hundred,
 	};
+	struct ctl_context ctx = {
+		.ctl_table = &table,
+		.write = KUNIT_PROC_READ,
+	};
 	void __user *buffer = (void __user *)kunit_kzalloc(test, sizeof(int),
 							   GFP_USER);
 	/*
@@ -133,11 +143,13 @@ static void sysctl_test_api_dointvec_table_len_is_zero(struct kunit *test)
 	size_t len = 0;
 	loff_t pos;
 
-	KUNIT_EXPECT_EQ(test, 0, proc_dointvec(&table, KUNIT_PROC_READ, buffer,
+	KUNIT_EXPECT_EQ(test, 0, proc_dointvec(&ctx, buffer,
 					       &len, &pos));
 	KUNIT_EXPECT_EQ(test, 0, len);
 
-	KUNIT_EXPECT_EQ(test, 0, proc_dointvec(&table, KUNIT_PROC_WRITE, buffer,
+	ctx.write = KUNIT_PROC_WRITE;
+
+	KUNIT_EXPECT_EQ(test, 0, proc_dointvec(&ctx, buffer,
 					       &len, &pos));
 	KUNIT_EXPECT_EQ(test, 0, len);
 }
@@ -159,6 +171,10 @@ static void sysctl_test_api_dointvec_table_read_but_position_set(
 		.extra1		= &i_zero,
 		.extra2         = &i_one_hundred,
 	};
+	struct ctl_context ctx = {
+		.ctl_table = &table,
+		.write = KUNIT_PROC_READ,
+	};
 	void __user *buffer = (void __user *)kunit_kzalloc(test, sizeof(int),
 							   GFP_USER);
 	/*
@@ -172,7 +188,7 @@ static void sysctl_test_api_dointvec_table_read_but_position_set(
 	 */
 	loff_t pos = 1;
 
-	KUNIT_EXPECT_EQ(test, 0, proc_dointvec(&table, KUNIT_PROC_READ, buffer,
+	KUNIT_EXPECT_EQ(test, 0, proc_dointvec(&ctx, buffer,
 					       &len, &pos));
 	KUNIT_EXPECT_EQ(test, 0, len);
 }
@@ -194,6 +210,10 @@ static void sysctl_test_dointvec_read_happy_single_positive(struct kunit *test)
 		.extra1		= &i_zero,
 		.extra2         = &i_one_hundred,
 	};
+	struct ctl_context ctx = {
+		.ctl_table = &table,
+		.write = KUNIT_PROC_READ,
+	};
 	size_t len = 4;
 	loff_t pos = 0;
 	char *buffer = kunit_kzalloc(test, len, GFP_USER);
@@ -201,7 +221,7 @@ static void sysctl_test_dointvec_read_happy_single_positive(struct kunit *test)
 	/* Store 13 in the data field. */
 	*((int *)table.data) = 13;
 
-	KUNIT_EXPECT_EQ(test, 0, proc_dointvec(&table, KUNIT_PROC_READ,
+	KUNIT_EXPECT_EQ(test, 0, proc_dointvec(&ctx,
 					       user_buffer, &len, &pos));
 	KUNIT_ASSERT_EQ(test, 3, len);
 	buffer[len] = '\0';
@@ -225,13 +245,17 @@ static void sysctl_test_dointvec_read_happy_single_negative(struct kunit *test)
 		.extra1		= &i_zero,
 		.extra2         = &i_one_hundred,
 	};
+	struct ctl_context ctx = {
+		.ctl_table = &table,
+		.write = KUNIT_PROC_READ,
+	};
 	size_t len = 5;
 	loff_t pos = 0;
 	char *buffer = kunit_kzalloc(test, len, GFP_USER);
 	char __user *user_buffer = (char __user *)buffer;
 	*((int *)table.data) = -16;
 
-	KUNIT_EXPECT_EQ(test, 0, proc_dointvec(&table, KUNIT_PROC_READ,
+	KUNIT_EXPECT_EQ(test, 0, proc_dointvec(&ctx,
 					       user_buffer, &len, &pos));
 	KUNIT_ASSERT_EQ(test, 4, len);
 	buffer[len] = '\0';
@@ -254,6 +278,10 @@ static void sysctl_test_dointvec_write_happy_single_positive(struct kunit *test)
 		.extra1		= &i_zero,
 		.extra2         = &i_one_hundred,
 	};
+	struct ctl_context ctx = {
+		.ctl_table = &table,
+		.write = KUNIT_PROC_WRITE,
+	};
 	char input[] = "9";
 	size_t len = sizeof(input) - 1;
 	loff_t pos = 0;
@@ -262,7 +290,7 @@ static void sysctl_test_dointvec_write_happy_single_positive(struct kunit *test)
 
 	memcpy(buffer, input, len);
 
-	KUNIT_EXPECT_EQ(test, 0, proc_dointvec(&table, KUNIT_PROC_WRITE,
+	KUNIT_EXPECT_EQ(test, 0, proc_dointvec(&ctx,
 					       user_buffer, &len, &pos));
 	KUNIT_EXPECT_EQ(test, sizeof(input) - 1, len);
 	KUNIT_EXPECT_EQ(test, sizeof(input) - 1, pos);
@@ -284,6 +312,10 @@ static void sysctl_test_dointvec_write_happy_single_negative(struct kunit *test)
 		.extra1		= &i_zero,
 		.extra2         = &i_one_hundred,
 	};
+	struct ctl_context ctx = {
+		.ctl_table = &table,
+		.write = KUNIT_PROC_WRITE,
+	};
 	char input[] = "-9";
 	size_t len = sizeof(input) - 1;
 	loff_t pos = 0;
@@ -292,7 +324,7 @@ static void sysctl_test_dointvec_write_happy_single_negative(struct kunit *test)
 
 	memcpy(buffer, input, len);
 
-	KUNIT_EXPECT_EQ(test, 0, proc_dointvec(&table, KUNIT_PROC_WRITE,
+	KUNIT_EXPECT_EQ(test, 0, proc_dointvec(&ctx,
 					       user_buffer, &len, &pos));
 	KUNIT_EXPECT_EQ(test, sizeof(input) - 1, len);
 	KUNIT_EXPECT_EQ(test, sizeof(input) - 1, pos);
@@ -316,6 +348,10 @@ static void sysctl_test_api_dointvec_write_single_less_int_min(
 		.extra1		= &i_zero,
 		.extra2         = &i_one_hundred,
 	};
+	struct ctl_context ctx = {
+		.ctl_table = &table,
+		.write = KUNIT_PROC_WRITE,
+	};
 	size_t max_len = 32, len = max_len;
 	loff_t pos = 0;
 	char *buffer = kunit_kzalloc(test, max_len, GFP_USER);
@@ -332,7 +368,7 @@ static void sysctl_test_api_dointvec_write_single_less_int_min(
 					 abs_of_less_than_min),
 			max_len);
 
-	KUNIT_EXPECT_EQ(test, -EINVAL, proc_dointvec(&table, KUNIT_PROC_WRITE,
+	KUNIT_EXPECT_EQ(test, -EINVAL, proc_dointvec(&ctx,
 						     user_buffer, &len, &pos));
 	KUNIT_EXPECT_EQ(test, max_len, len);
 	KUNIT_EXPECT_EQ(test, 0, *((int *)table.data));
@@ -354,6 +390,10 @@ static void sysctl_test_api_dointvec_write_single_greater_int_max(
 		.extra1		= &i_zero,
 		.extra2         = &i_one_hundred,
 	};
+	struct ctl_context ctx = {
+		.ctl_table = &table,
+		.write = KUNIT_PROC_WRITE,
+	};
 	size_t max_len = 32, len = max_len;
 	loff_t pos = 0;
 	char *buffer = kunit_kzalloc(test, max_len, GFP_USER);
@@ -364,7 +404,7 @@ static void sysctl_test_api_dointvec_write_single_greater_int_max(
 	KUNIT_ASSERT_LT(test, (size_t)snprintf(buffer, max_len, "%lu",
 					       greater_than_max),
 			max_len);
-	KUNIT_EXPECT_EQ(test, -EINVAL, proc_dointvec(&table, KUNIT_PROC_WRITE,
+	KUNIT_EXPECT_EQ(test, -EINVAL, proc_dointvec(&ctx,
 						     user_buffer, &len, &pos));
 	KUNIT_ASSERT_EQ(test, max_len, len);
 	KUNIT_EXPECT_EQ(test, 0, *((int *)table.data));

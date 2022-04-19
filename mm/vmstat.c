@@ -74,16 +74,16 @@ static void invalid_numa_statistics(void)
 
 static DEFINE_MUTEX(vm_numa_stat_lock);
 
-int sysctl_vm_numa_stat_handler(struct ctl_table *table, int write,
+int sysctl_vm_numa_stat_handler(struct ctl_context *ctx,
 		void *buffer, size_t *length, loff_t *ppos)
 {
 	int ret, oldval;
 
 	mutex_lock(&vm_numa_stat_lock);
-	if (write)
+	if (ctx->write)
 		oldval = sysctl_vm_numa_stat;
-	ret = proc_dointvec_minmax(table, write, buffer, length, ppos);
-	if (ret || !write)
+	ret = proc_dointvec_minmax(ctx, buffer, length, ppos);
+	if (ret || !ctx->write)
 		goto out;
 
 	if (oldval == sysctl_vm_numa_stat)
@@ -1861,7 +1861,7 @@ static void refresh_vm_stats(struct work_struct *work)
 	refresh_cpu_vm_stats(true);
 }
 
-int vmstat_refresh(struct ctl_table *table, int write,
+int vmstat_refresh(struct ctl_context *ctx,
 		   void *buffer, size_t *lenp, loff_t *ppos)
 {
 	long val;
@@ -1912,7 +1912,7 @@ int vmstat_refresh(struct ctl_table *table, int write,
 				__func__, node_stat_name(i), val);
 		}
 	}
-	if (write)
+	if (ctx->write)
 		*ppos += *lenp;
 	else
 		*lenp = 0;

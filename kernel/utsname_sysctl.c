@@ -29,15 +29,16 @@ static void *get_uts(struct ctl_table *table)
  *	Special case of dostring for the UTS structure. This has locks
  *	to observe. Should this be in kernel/sys.c ????
  */
-static int proc_do_uts_string(struct ctl_table *table, int write,
+static int proc_do_uts_string(struct ctl_context *ctx,
 		  void *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct ctl_table uts_table;
 	int r;
 	char tmp_data[__NEW_UTS_LEN + 1];
 
-	memcpy(&uts_table, table, sizeof(uts_table));
+	memcpy(&uts_table, ctx->ctl_table, sizeof(uts_table));
 	uts_table.data = tmp_data;
+	ctx->ctl_table = &uts_table;
 
 	/*
 	 * Buffer the value in tmp_data so that proc_dostring() can be called
@@ -46,11 +47,11 @@ static int proc_do_uts_string(struct ctl_table *table, int write,
 	 * support partial writes.
 	 */
 	down_read(&uts_sem);
-	memcpy(tmp_data, get_uts(table), sizeof(tmp_data));
+	memcpy(tmp_data, get_uts(ctx->ctl_table), sizeof(tmp_data));
 	up_read(&uts_sem);
-	r = proc_dostring(&uts_table, write, buffer, lenp, ppos);
+	r = proc_dostring(ctx, buffer, lenp, ppos);
 
-	if (write) {
+	if (ctx->write) {
 		/*
 		 * Write back the new value.
 		 * Note that, since we dropped uts_sem, the result can
@@ -58,9 +59,9 @@ static int proc_do_uts_string(struct ctl_table *table, int write,
 		 * at non-zero offsets to the same sysctl.
 		 */
 		down_write(&uts_sem);
-		memcpy(get_uts(table), tmp_data, sizeof(tmp_data));
+		memcpy(get_uts(ctx->ctl_table), tmp_data, sizeof(tmp_data));
 		up_write(&uts_sem);
-		proc_sys_poll_notify(table->poll);
+		proc_sys_poll_notify(ctx->ctl_table->poll);
 	}
 
 	return r;

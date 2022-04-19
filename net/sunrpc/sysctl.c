@@ -59,13 +59,13 @@ rpc_unregister_sysctl(void)
 	}
 }
 
-static int proc_do_xprt(struct ctl_table *table, int write,
+static int proc_do_xprt(struct ctl_context *ctx,
 			void *buffer, size_t *lenp, loff_t *ppos)
 {
 	char tmpbuf[256];
 	ssize_t len;
 
-	if (write || *ppos) {
+	if (ctx->write || *ppos) {
 		*lenp = 0;
 		return 0;
 	}
@@ -81,7 +81,7 @@ static int proc_do_xprt(struct ctl_table *table, int write,
 }
 
 static int
-proc_dodebug(struct ctl_table *table, int write, void *buffer, size_t *lenp,
+proc_dodebug(struct ctl_context *ctx, void *buffer, size_t *lenp,
 	     loff_t *ppos)
 {
 	char		tmpbuf[20], *s = NULL;
@@ -89,14 +89,14 @@ proc_dodebug(struct ctl_table *table, int write, void *buffer, size_t *lenp,
 	unsigned int	value;
 	size_t		left, len;
 
-	if ((*ppos && !write) || !*lenp) {
+	if ((*ppos && !ctx->write) || !*lenp) {
 		*lenp = 0;
 		return 0;
 	}
 
 	left = *lenp;
 
-	if (write) {
+	if (ctx->write) {
 		p = buffer;
 		while (left && isspace(*p)) {
 			left--;
@@ -121,12 +121,12 @@ proc_dodebug(struct ctl_table *table, int write, void *buffer, size_t *lenp,
 			}
 		} else
 			left = 0;
-		*(unsigned int *) table->data = value;
+		*(unsigned int *) ctx->ctl_table->data = value;
 		/* Display the RPC tasks on writing to rpc_debug */
-		if (strcmp(table->procname, "rpc_debug") == 0)
+		if (strcmp(ctx->ctl_table->procname, "rpc_debug") == 0)
 			rpc_show_tasks(&init_net);
 	} else {
-		len = sprintf(tmpbuf, "0x%04x", *(unsigned int *) table->data);
+		len = sprintf(tmpbuf, "0x%04x", *(unsigned int *) ctx->ctl_table->data);
 		if (len > left)
 			len = left;
 		memcpy(buffer, tmpbuf, len);

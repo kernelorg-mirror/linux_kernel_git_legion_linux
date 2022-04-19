@@ -355,17 +355,17 @@ extern unsigned int dirtytime_expire_interval;
 extern int vm_highmem_is_dirtyable;
 extern int laptop_mode;
 
-int dirty_background_ratio_handler(struct ctl_table *table, int write,
+int dirty_background_ratio_handler(struct ctl_context *ctx,
 		void *buffer, size_t *lenp, loff_t *ppos);
-int dirty_background_bytes_handler(struct ctl_table *table, int write,
+int dirty_background_bytes_handler(struct ctl_context *ctx,
 		void *buffer, size_t *lenp, loff_t *ppos);
-int dirty_ratio_handler(struct ctl_table *table, int write,
+int dirty_ratio_handler(struct ctl_context *ctx,
 		void *buffer, size_t *lenp, loff_t *ppos);
-int dirty_bytes_handler(struct ctl_table *table, int write,
+int dirty_bytes_handler(struct ctl_context *ctx,
 		void *buffer, size_t *lenp, loff_t *ppos);
-int dirtytime_interval_handler(struct ctl_table *table, int write,
+int dirtytime_interval_handler(struct ctl_context *ctx,
 		void *buffer, size_t *lenp, loff_t *ppos);
-int dirty_writeback_centisecs_handler(struct ctl_table *table, int write,
+int dirty_writeback_centisecs_handler(struct ctl_context *ctx,
 		void *buffer, size_t *lenp, loff_t *ppos);
 
 void global_dirty_limits(unsigned long *pbackground, unsigned long *pdirty);

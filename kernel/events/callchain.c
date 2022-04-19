@@ -233,16 +233,17 @@ exit_put:
  * Used for sysctl_perf_event_max_stack and
  * sysctl_perf_event_max_contexts_per_stack.
  */
-int perf_event_max_stack_handler(struct ctl_table *table, int write,
+int perf_event_max_stack_handler(struct ctl_context *ctx,
 				 void *buffer, size_t *lenp, loff_t *ppos)
 {
-	int *value = table->data;
+	int *value = ctx->ctl_table->data;
 	int new_value = *value, ret;
-	struct ctl_table new_table = *table;
+	struct ctl_table new_table = *ctx->ctl_table;
 
 	new_table.data = &new_value;
-	ret = proc_dointvec_minmax(&new_table, write, buffer, lenp, ppos);
-	if (ret || !write)
+	ctx->ctl_table = &new_table;
+	ret = proc_dointvec_minmax(ctx, buffer, lenp, ppos);
+	if (ret || !ctx->write)
 		return ret;
 
 	mutex_lock(&callchain_mutex);

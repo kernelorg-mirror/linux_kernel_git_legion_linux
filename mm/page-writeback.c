@@ -503,50 +503,50 @@ bool node_dirty_ok(struct pglist_data *pgdat)
 	return nr_pages <= limit;
 }
 
-int dirty_background_ratio_handler(struct ctl_table *table, int write,
+int dirty_background_ratio_handler(struct ctl_context *ctx,
 		void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int ret;
 
-	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
-	if (ret == 0 && write)
+	ret = proc_dointvec_minmax(ctx, buffer, lenp, ppos);
+	if (ret == 0 && ctx->write)
 		dirty_background_bytes = 0;
 	return ret;
 }
 
-int dirty_background_bytes_handler(struct ctl_table *table, int write,
+int dirty_background_bytes_handler(struct ctl_context *ctx,
 		void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int ret;
 
-	ret = proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
-	if (ret == 0 && write)
+	ret = proc_doulongvec_minmax(ctx, buffer, lenp, ppos);
+	if (ret == 0 && ctx->write)
 		dirty_background_ratio = 0;
 	return ret;
 }
 
-int dirty_ratio_handler(struct ctl_table *table, int write, void *buffer,
+int dirty_ratio_handler(struct ctl_context *ctx, void *buffer,
 		size_t *lenp, loff_t *ppos)
 {
 	int old_ratio = vm_dirty_ratio;
 	int ret;
 
-	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
-	if (ret == 0 && write && vm_dirty_ratio != old_ratio) {
+	ret = proc_dointvec_minmax(ctx, buffer, lenp, ppos);
+	if (ret == 0 && ctx->write && vm_dirty_ratio != old_ratio) {
 		writeback_set_ratelimit();
 		vm_dirty_bytes = 0;
 	}
 	return ret;
 }
 
-int dirty_bytes_handler(struct ctl_table *table, int write,
+int dirty_bytes_handler(struct ctl_context *ctx,
 		void *buffer, size_t *lenp, loff_t *ppos)
 {
 	unsigned long old_bytes = vm_dirty_bytes;
 	int ret;
 
-	ret = proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
-	if (ret == 0 && write && vm_dirty_bytes != old_bytes) {
+	ret = proc_doulongvec_minmax(ctx, buffer, lenp, ppos);
+	if (ret == 0 && ctx->write && vm_dirty_bytes != old_bytes) {
 		writeback_set_ratelimit();
 		vm_dirty_ratio = 0;
 	}
@@ -1996,13 +1996,13 @@ bool wb_over_bg_thresh(struct bdi_writeback *wb)
 /*
  * sysctl handler for /proc/sys/vm/dirty_writeback_centisecs
  */
-int dirty_writeback_centisecs_handler(struct ctl_table *table, int write,
+int dirty_writeback_centisecs_handler(struct ctl_context *ctx,
 		void *buffer, size_t *length, loff_t *ppos)
 {
 	unsigned int old_interval = dirty_writeback_interval;
 	int ret;
 
-	ret = proc_dointvec(table, write, buffer, length, ppos);
+	ret = proc_dointvec(ctx, buffer, length, ppos);
 
 	/*
 	 * Writing 0 to dirty_writeback_interval will disable periodic writeback
@@ -2011,7 +2011,7 @@ int dirty_writeback_centisecs_handler(struct ctl_table *table, int write,
 	 * iterate over all bdis and wbs.
 	 * The reason we do this is to make the change take effect immediately.
 	 */
-	if (!ret && write && dirty_writeback_interval &&
+	if (!ret && ctx->write && dirty_writeback_interval &&
 		dirty_writeback_interval != old_interval)
 		wakeup_flusher_threads(WB_REASON_PERIODIC);
 

@@ -1295,14 +1295,14 @@ const struct bpf_verifier_ops cg_dev_verifier_ops = {
  * returned value != 1 during execution. In all other cases 0 is returned.
  */
 int __cgroup_bpf_run_filter_sysctl(struct ctl_table_header *head,
-				   struct ctl_table *table, int write,
+				   struct ctl_context *ctl_ctx,
 				   char **buf, size_t *pcount, loff_t *ppos,
 				   enum cgroup_bpf_attach_type atype)
 {
 	struct bpf_sysctl_kern ctx = {
 		.head = head,
-		.table = table,
-		.write = write,
+		.table = ctl_ctx->ctl_table,
+		.write = ctl_ctx->write,
 		.ppos = ppos,
 		.cur_val = NULL,
 		.cur_len = PAGE_SIZE,
@@ -1310,18 +1310,26 @@ int __cgroup_bpf_run_filter_sysctl(struct ctl_table_header *head,
 		.new_len = 0,
 		.new_updated = 0,
 	};
+
 	struct cgroup *cgrp;
 	loff_t pos = 0;
 	int ret;
 
 	ctx.cur_val = kmalloc_track_caller(ctx.cur_len, GFP_KERNEL);
-	if (!ctx.cur_val ||
-	    table->proc_handler(table, 0, ctx.cur_val, &ctx.cur_len, &pos)) {
+	ret = !ctx.cur_val;
+
+	if (!ret) {
+		struct ctl_context c = *ctl_ctx;
+		c.write = 0;
+		ret = ctx.table->proc_handler(&c, ctx.cur_val, &ctx.cur_len, &pos);
+	}
+
+	if (ret) {
 		/* Let BPF program decide how to proceed. */
 		ctx.cur_len = 0;
 	}
 
-	if (write && *buf && *pcount) {
+	if (ctl_ctx->write && *buf && *pcount) {
 		/* BPF program should be able to override new value with a
 		 * buffer bigger than provided by user.
 		 */

@@ -47,15 +47,15 @@ static void drop_pagecache_sb(struct super_block *sb, void *unused)
 	iput(toput_inode);
 }
 
-int drop_caches_sysctl_handler(struct ctl_table *table, int write,
+int drop_caches_sysctl_handler(struct ctl_context *ctx,
 		void *buffer, size_t *length, loff_t *ppos)
 {
 	int ret;
 
-	ret = proc_dointvec_minmax(table, write, buffer, length, ppos);
+	ret = proc_dointvec_minmax(ctx, buffer, length, ppos);
 	if (ret)
 		return ret;
-	if (write) {
+	if (ctx->write) {
 		static int stfu;
 
 		if (sysctl_drop_caches & 1) {

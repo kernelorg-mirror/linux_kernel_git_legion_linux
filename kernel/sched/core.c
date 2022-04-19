@@ -1727,7 +1727,7 @@ static void uclamp_update_root_tg(void)
 static void uclamp_update_root_tg(void) { }
 #endif
 
-int sysctl_sched_uclamp_handler(struct ctl_table *table, int write,
+int sysctl_sched_uclamp_handler(struct ctl_context *ctx,
 				void *buffer, size_t *lenp, loff_t *ppos)
 {
 	bool update_root_tg = false;
@@ -1739,10 +1739,10 @@ int sysctl_sched_uclamp_handler(struct ctl_table *table, int write,
 	old_max = sysctl_sched_uclamp_util_max;
 	old_min_rt = sysctl_sched_uclamp_util_min_rt_default;
 
-	result = proc_dointvec(table, write, buffer, lenp, ppos);
+	result = proc_dointvec(ctx, buffer, lenp, ppos);
 	if (result)
 		goto undo;
-	if (!write)
+	if (!ctx->write)
 		goto done;
 
 	if (sysctl_sched_uclamp_util_min > sysctl_sched_uclamp_util_max ||
@@ -4288,22 +4288,23 @@ void set_numabalancing_state(bool enabled)
 }
 
 #ifdef CONFIG_PROC_SYSCTL
-int sysctl_numa_balancing(struct ctl_table *table, int write,
+int sysctl_numa_balancing(struct ctl_context *ctx,
 			  void *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct ctl_table t;
 	int err;
 	int state = static_branch_likely(&sched_numa_balancing);
 
-	if (write && !capable(CAP_SYS_ADMIN))
+	if (ctx->write && !capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	t = *table;
+	t = *ctx->ctl_table;
 	t.data = &state;
-	err = proc_dointvec_minmax(&t, write, buffer, lenp, ppos);
+	ctx->ctl_table = &t;
+	err = proc_dointvec_minmax(ctx, buffer, lenp, ppos);
 	if (err < 0)
 		return err;
-	if (write)
+	if (ctx->write)
 		set_numabalancing_state(state);
 	return err;
 }
@@ -4352,22 +4353,23 @@ out:
 __setup("schedstats=", setup_schedstats);
 
 #ifdef CONFIG_PROC_SYSCTL
-int sysctl_schedstats(struct ctl_table *table, int write, void *buffer,
+int sysctl_schedstats(struct ctl_context *ctx, void *buffer,
 		size_t *lenp, loff_t *ppos)
 {
 	struct ctl_table t;
 	int err;
 	int state = static_branch_likely(&sched_schedstats);
 
-	if (write && !capable(CAP_SYS_ADMIN))
+	if (ctx->write && !capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	t = *table;
+	t = *ctx->ctl_table;
 	t.data = &state;
-	err = proc_dointvec_minmax(&t, write, buffer, lenp, ppos);
+	ctx->ctl_table = &t;
+	err = proc_dointvec_minmax(ctx, buffer, lenp, ppos);
 	if (err < 0)
 		return err;
-	if (write)
+	if (ctx->write)
 		set_schedstats(state);
 	return err;
 }

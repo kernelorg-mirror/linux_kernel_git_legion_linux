@@ -514,7 +514,7 @@ static const struct file_operations stack_trace_filter_fops = {
 #endif /* CONFIG_DYNAMIC_FTRACE */
 
 int
-stack_trace_sysctl(struct ctl_table *table, int write, void *buffer,
+stack_trace_sysctl(struct ctl_context *ctx, void *buffer,
 		   size_t *lenp, loff_t *ppos)
 {
 	int was_enabled;
@@ -523,9 +523,9 @@ stack_trace_sysctl(struct ctl_table *table, int write, void *buffer,
 	mutex_lock(&stack_sysctl_mutex);
 	was_enabled = !!stack_tracer_enabled;
 
-	ret = proc_dointvec(table, write, buffer, lenp, ppos);
+	ret = proc_dointvec(ctx, buffer, lenp, ppos);
 
-	if (ret || !write || (was_enabled == !!stack_tracer_enabled))
+	if (ret || !ctx->write || (was_enabled == !!stack_tracer_enabled))
 		goto out;
 
 	if (stack_tracer_enabled)

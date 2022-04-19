@@ -6143,12 +6143,12 @@ char numa_zonelist_order[] = "Node";
 /*
  * sysctl handler for numa_zonelist_order
  */
-int numa_zonelist_order_handler(struct ctl_table *table, int write,
+int numa_zonelist_order_handler(struct ctl_context *ctx,
 		void *buffer, size_t *length, loff_t *ppos)
 {
-	if (write)
+	if (ctx->write)
 		return __parse_numa_zonelist_order(buffer);
-	return proc_dostring(table, write, buffer, length, ppos);
+	return proc_dostring(ctx, buffer, length, ppos);
 }
 
 
@@ -8570,32 +8570,32 @@ postcore_initcall(init_per_zone_wmark_min)
  *	that we can call two helper functions whenever min_free_kbytes
  *	changes.
  */
-int min_free_kbytes_sysctl_handler(struct ctl_table *table, int write,
+int min_free_kbytes_sysctl_handler(struct ctl_context *ctx,
 		void *buffer, size_t *length, loff_t *ppos)
 {
 	int rc;
 
-	rc = proc_dointvec_minmax(table, write, buffer, length, ppos);
+	rc = proc_dointvec_minmax(ctx, buffer, length, ppos);
 	if (rc)
 		return rc;
 
-	if (write) {
+	if (ctx->write) {
 		user_min_free_kbytes = min_free_kbytes;
 		setup_per_zone_wmarks();
 	}
 	return 0;
 }
 
-int watermark_scale_factor_sysctl_handler(struct ctl_table *table, int write,
+int watermark_scale_factor_sysctl_handler(struct ctl_context *ctx,
 		void *buffer, size_t *length, loff_t *ppos)
 {
 	int rc;
 
-	rc = proc_dointvec_minmax(table, write, buffer, length, ppos);
+	rc = proc_dointvec_minmax(ctx, buffer, length, ppos);
 	if (rc)
 		return rc;
 
-	if (write)
+	if (ctx->write)
 		setup_per_zone_wmarks();
 
 	return 0;
@@ -8616,12 +8616,12 @@ static void setup_min_unmapped_ratio(void)
 }
 
 
-int sysctl_min_unmapped_ratio_sysctl_handler(struct ctl_table *table, int write,
+int sysctl_min_unmapped_ratio_sysctl_handler(struct ctl_context *ctx,
 		void *buffer, size_t *length, loff_t *ppos)
 {
 	int rc;
 
-	rc = proc_dointvec_minmax(table, write, buffer, length, ppos);
+	rc = proc_dointvec_minmax(ctx, buffer, length, ppos);
 	if (rc)
 		return rc;
 
@@ -8643,12 +8643,12 @@ static void setup_min_slab_ratio(void)
 						     sysctl_min_slab_ratio) / 100;
 }
 
-int sysctl_min_slab_ratio_sysctl_handler(struct ctl_table *table, int write,
+int sysctl_min_slab_ratio_sysctl_handler(struct ctl_context *ctx,
 		void *buffer, size_t *length, loff_t *ppos)
 {
 	int rc;
 
-	rc = proc_dointvec_minmax(table, write, buffer, length, ppos);
+	rc = proc_dointvec_minmax(ctx, buffer, length, ppos);
 	if (rc)
 		return rc;
 
@@ -8667,12 +8667,12 @@ int sysctl_min_slab_ratio_sysctl_handler(struct ctl_table *table, int write,
  * minimum watermarks. The lowmem reserve ratio can only make sense
  * if in function of the boot time zone sizes.
  */
-int lowmem_reserve_ratio_sysctl_handler(struct ctl_table *table, int write,
+int lowmem_reserve_ratio_sysctl_handler(struct ctl_context *ctx,
 		void *buffer, size_t *length, loff_t *ppos)
 {
 	int i;
 
-	proc_dointvec_minmax(table, write, buffer, length, ppos);
+	proc_dointvec_minmax(ctx, buffer, length, ppos);
 
 	for (i = 0; i < MAX_NR_ZONES; i++) {
 		if (sysctl_lowmem_reserve_ratio[i] < 1)
@@ -8688,8 +8688,8 @@ int lowmem_reserve_ratio_sysctl_handler(struct ctl_table *table, int write,
  * cpu. It is the fraction of total pages in each zone that a hot per cpu
  * pagelist can have before it gets flushed back to buddy allocator.
  */
-int percpu_pagelist_high_fraction_sysctl_handler(struct ctl_table *table,
-		int write, void *buffer, size_t *length, loff_t *ppos)
+int percpu_pagelist_high_fraction_sysctl_handler(struct ctl_context *ctx,
+		void *buffer, size_t *length, loff_t *ppos)
 {
 	struct zone *zone;
 	int old_percpu_pagelist_high_fraction;
@@ -8698,8 +8698,8 @@ int percpu_pagelist_high_fraction_sysctl_handler(struct ctl_table *table,
 	mutex_lock(&pcp_batch_high_lock);
 	old_percpu_pagelist_high_fraction = percpu_pagelist_high_fraction;
 
-	ret = proc_dointvec_minmax(table, write, buffer, length, ppos);
-	if (!write || ret < 0)
+	ret = proc_dointvec_minmax(ctx, buffer, length, ppos);
+	if (!ctx->write || ret < 0)
 		goto out;
 
 	/* Sanity checking to avoid pcp imbalance */

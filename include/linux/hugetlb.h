@@ -13,7 +13,7 @@
 #include <linux/gfp.h>
 #include <linux/userfaultfd_k.h>
 
-struct ctl_table;
+struct ctl_context;
 struct user_struct;
 struct mmu_gather;
 
@@ -125,12 +125,12 @@ void hugepage_put_subpool(struct hugepage_subpool *spool);
 
 void reset_vma_resv_huge_pages(struct vm_area_struct *vma);
 void clear_vma_resv_huge_pages(struct vm_area_struct *vma);
-int hugetlb_sysctl_handler(struct ctl_table *, int, void *, size_t *, loff_t *);
-int hugetlb_overcommit_handler(struct ctl_table *, int, void *, size_t *,
+int hugetlb_sysctl_handler(struct ctl_context *, void *, size_t *, loff_t *);
+int hugetlb_overcommit_handler(struct ctl_context *, void *, size_t *,
 		loff_t *);
-int hugetlb_treat_movable_handler(struct ctl_table *, int, void *, size_t *,
+int hugetlb_treat_movable_handler(struct ctl_context *, void *, size_t *,
 		loff_t *);
-int hugetlb_mempolicy_sysctl_handler(struct ctl_table *, int, void *, size_t *,
+int hugetlb_mempolicy_sysctl_handler(struct ctl_context *, void *, size_t *,
 		loff_t *);
 
 int move_hugetlb_page_tables(struct vm_area_struct *vma,

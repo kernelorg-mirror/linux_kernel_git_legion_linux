@@ -1362,17 +1362,17 @@ done:
 #define MPLS_PERDEV_SYSCTL_OFFSET(field)	\
 	(&((struct mpls_dev *)0)->field)
 
-static int mpls_conf_proc(struct ctl_table *ctl, int write,
+static int mpls_conf_proc(struct ctl_context *ctx,
 			  void *buffer, size_t *lenp, loff_t *ppos)
 {
-	int oval = *(int *)ctl->data;
-	int ret = proc_dointvec(ctl, write, buffer, lenp, ppos);
+	int oval = *(int *)ctx->ctl_table->data;
+	int ret = proc_dointvec(ctx, buffer, lenp, ppos);
 
-	if (write) {
-		struct mpls_dev *mdev = ctl->extra1;
-		int i = (int *)ctl->data - (int *)mdev;
-		struct net *net = ctl->extra2;
-		int val = *(int *)ctl->data;
+	if (ctx->write) {
+		struct mpls_dev *mdev = ctx->ctl_table->extra1;
+		int i = (int *)ctx->ctl_table->data - (int *)mdev;
+		struct net *net = ctx->ctl_table->extra2;
+		int val = *(int *)ctx->ctl_table->data;
 
 		if (i == offsetof(struct mpls_dev, input_enabled) &&
 		    val != oval) {
@@ -2610,24 +2610,25 @@ nolabels:
 	return -ENOMEM;
 }
 
-static int mpls_platform_labels(struct ctl_table *table, int write,
+static int mpls_platform_labels(struct ctl_context *ctx,
 				void *buffer, size_t *lenp, loff_t *ppos)
 {
-	struct net *net = table->data;
+	struct net *net = ctx->ctl_table->data;
 	int platform_labels = net->mpls.platform_labels;
 	int ret;
 	struct ctl_table tmp = {
-		.procname	= table->procname,
+		.procname	= ctx->ctl_table->procname,
 		.data		= &platform_labels,
 		.maxlen		= sizeof(int),
-		.mode		= table->mode,
+		.mode		= ctx->ctl_table->mode,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= &label_limit,
 	};
+	ctx->ctl_table = &tmp;
 
-	ret = proc_dointvec_minmax(&tmp, write, buffer, lenp, ppos);
+	ret = proc_dointvec_minmax(ctx, buffer, lenp, ppos);
 
-	if (write && ret == 0)
+	if (ctx->write && ret == 0)
 		ret = resize_platform_label_table(net, platform_labels);
 
 	return ret;

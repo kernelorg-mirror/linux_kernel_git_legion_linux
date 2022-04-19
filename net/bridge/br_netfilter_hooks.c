@@ -1028,15 +1028,15 @@ int br_nf_hook_thresh(unsigned int hook, struct net *net,
 
 #ifdef CONFIG_SYSCTL
 static
-int brnf_sysctl_call_tables(struct ctl_table *ctl, int write,
+int brnf_sysctl_call_tables(struct ctl_context *ctx,
 			    void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int ret;
 
-	ret = proc_dointvec(ctl, write, buffer, lenp, ppos);
+	ret = proc_dointvec(ctx, buffer, lenp, ppos);
 
-	if (write && *(int *)(ctl->data))
-		*(int *)(ctl->data) = 1;
+	if (ctx->write && *(int *)(ctx->ctl_table->data))
+		*(int *)(ctx->ctl_table->data) = 1;
 	return ret;
 }
 

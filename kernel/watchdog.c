@@ -644,23 +644,23 @@ static void proc_watchdog_update(void)
  * -------------------|----------------------------|--------------------------
  * proc_soft_watchdog | soft_watchdog_user_enabled | SOFT_WATCHDOG_ENABLED
  */
-static int proc_watchdog_common(int which, struct ctl_table *table, int write,
+static int proc_watchdog_common(int which, struct ctl_context *ctx,
 				void *buffer, size_t *lenp, loff_t *ppos)
 {
-	int err, old, *param = table->data;
+	int err, old, *param = ctx->ctl_table->data;
 
 	mutex_lock(&watchdog_mutex);
 
-	if (!write) {
+	if (!ctx->write) {
 		/*
 		 * On read synchronize the userspace interface. This is a
 		 * racy snapshot.
 		 */
 		*param = (watchdog_enabled & which) != 0;
-		err = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+		err = proc_dointvec_minmax(ctx, buffer, lenp, ppos);
 	} else {
 		old = READ_ONCE(*param);
-		err = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+		err = proc_dointvec_minmax(ctx, buffer, lenp, ppos);
 		if (!err && old != READ_ONCE(*param))
 			proc_watchdog_update();
 	}
@@ -671,39 +671,39 @@ static int proc_watchdog_common(int which, struct ctl_table *table, int write,
 /*
  * /proc/sys/kernel/watchdog
  */
-int proc_watchdog(struct ctl_table *table, int write,
+int proc_watchdog(struct ctl_context *ctx,
 		  void *buffer, size_t *lenp, loff_t *ppos)
 {
 	return proc_watchdog_common(NMI_WATCHDOG_ENABLED|SOFT_WATCHDOG_ENABLED,
-				    table, write, buffer, lenp, ppos);
+				    ctx, buffer, lenp, ppos);
 }
 
 /*
  * /proc/sys/kernel/nmi_watchdog
  */
-int proc_nmi_watchdog(struct ctl_table *table, int write,
+int proc_nmi_watchdog(struct ctl_context *ctx,
 		      void *buffer, size_t *lenp, loff_t *ppos)
 {
-	if (!nmi_watchdog_available && write)
+	if (!nmi_watchdog_available && ctx->write)
 		return -ENOTSUPP;
 	return proc_watchdog_common(NMI_WATCHDOG_ENABLED,
-				    table, write, buffer, lenp, ppos);
+				    ctx, buffer, lenp, ppos);
 }
 
 /*
  * /proc/sys/kernel/soft_watchdog
  */
-int proc_soft_watchdog(struct ctl_table *table, int write,
+int proc_soft_watchdog(struct ctl_context *ctx,
 			void *buffer, size_t *lenp, loff_t *ppos)
 {
 	return proc_watchdog_common(SOFT_WATCHDOG_ENABLED,
-				    table, write, buffer, lenp, ppos);
+				    ctx, buffer, lenp, ppos);
 }
 
 /*
  * /proc/sys/kernel/watchdog_thresh
  */
-int proc_watchdog_thresh(struct ctl_table *table, int write,
+int proc_watchdog_thresh(struct ctl_context *ctx,
 			 void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int err, old;
@@ -711,9 +711,9 @@ int proc_watchdog_thresh(struct ctl_table *table, int write,
 	mutex_lock(&watchdog_mutex);
 
 	old = READ_ONCE(watchdog_thresh);
-	err = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+	err = proc_dointvec_minmax(ctx, buffer, lenp, ppos);
 
-	if (!err && write && old != READ_ONCE(watchdog_thresh))
+	if (!err && ctx->write && old != READ_ONCE(watchdog_thresh))
 		proc_watchdog_update();
 
 	mutex_unlock(&watchdog_mutex);
@@ -726,15 +726,15 @@ int proc_watchdog_thresh(struct ctl_table *table, int write,
  * user to specify a mask that will include cpus that have not yet
  * been brought online, if desired.
  */
-int proc_watchdog_cpumask(struct ctl_table *table, int write,
+int proc_watchdog_cpumask(struct ctl_context *ctx,
 			  void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int err;
 
 	mutex_lock(&watchdog_mutex);
 
-	err = proc_do_large_bitmap(table, write, buffer, lenp, ppos);
-	if (!err && write)
+	err = proc_do_large_bitmap(ctx, buffer, lenp, ppos);
+	if (!err && ctx->write)
 		proc_watchdog_update();
 
 	mutex_unlock(&watchdog_mutex);

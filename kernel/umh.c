@@ -485,16 +485,17 @@ int call_usermodehelper(const char *path, char **argv, char **envp, int wait)
 }
 EXPORT_SYMBOL(call_usermodehelper);
 
-static int proc_cap_handler(struct ctl_table *table, int write,
+static int proc_cap_handler(struct ctl_context *ctx,
 			 void *buffer, size_t *lenp, loff_t *ppos)
 {
+	struct ctl_context c;
 	struct ctl_table t;
 	unsigned long cap_array[_KERNEL_CAPABILITY_U32S];
 	kernel_cap_t new_cap;
 	int err, i;
 
-	if (write && (!capable(CAP_SETPCAP) ||
-		      !capable(CAP_SYS_MODULE)))
+	if (ctx->write && (!capable(CAP_SETPCAP) ||
+		           !capable(CAP_SYS_MODULE)))
 		return -EPERM;
 
 	/*
@@ -503,23 +504,25 @@ static int proc_cap_handler(struct ctl_table *table, int write,
 	 */
 	spin_lock(&umh_sysctl_lock);
 	for (i = 0; i < _KERNEL_CAPABILITY_U32S; i++)  {
-		if (table->data == CAP_BSET)
+		if (ctx->ctl_table->data == CAP_BSET)
 			cap_array[i] = usermodehelper_bset.cap[i];
-		else if (table->data == CAP_PI)
+		else if (ctx->ctl_table->data == CAP_PI)
 			cap_array[i] = usermodehelper_inheritable.cap[i];
 		else
 			BUG();
 	}
 	spin_unlock(&umh_sysctl_lock);
 
-	t = *table;
+	t = *ctx->ctl_table;
 	t.data = &cap_array;
+	c = *ctx;
+	c.ctl_table = &t;
 
 	/*
 	 * actually read or write and array of ulongs from userspace.  Remember
 	 * these are least significant 32 bits first
 	 */
-	err = proc_doulongvec_minmax(&t, write, buffer, lenp, ppos);
+	err = proc_doulongvec_minmax(&c, buffer, lenp, ppos);
 	if (err < 0)
 		return err;
 
@@ -533,11 +536,11 @@ static int proc_cap_handler(struct ctl_table *table, int write,
 	/*
 	 * Drop everything not in the new_cap (but don't add things)
 	 */
-	if (write) {
+	if (ctx->write) {
 		spin_lock(&umh_sysctl_lock);
-		if (table->data == CAP_BSET)
+		if (ctx->ctl_table->data == CAP_BSET)
 			usermodehelper_bset = cap_intersect(usermodehelper_bset, new_cap);
-		if (table->data == CAP_PI)
+		if (ctx->ctl_table->data == CAP_PI)
 			usermodehelper_inheritable = cap_intersect(usermodehelper_inheritable, new_cap);
 		spin_unlock(&umh_sysctl_lock);
 	}

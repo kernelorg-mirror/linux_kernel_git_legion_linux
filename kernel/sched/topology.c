@@ -221,16 +221,16 @@ void rebuild_sched_domains_energy(void)
 }
 
 #ifdef CONFIG_PROC_SYSCTL
-int sched_energy_aware_handler(struct ctl_table *table, int write,
+int sched_energy_aware_handler(struct ctl_context *ctx,
 		void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int ret, state;
 
-	if (write && !capable(CAP_SYS_ADMIN))
+	if (ctx->write && !capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
-	if (!ret && write) {
+	ret = proc_dointvec_minmax(ctx, buffer, lenp, ppos);
+	if (!ret && ctx->write) {
 		state = static_branch_unlikely(&sched_energy_present);
 		if (state != sysctl_sched_energy_aware)
 			rebuild_sched_domains_energy();

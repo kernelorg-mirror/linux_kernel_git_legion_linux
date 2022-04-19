@@ -74,14 +74,14 @@ enum {
 	SVCRDMA_COUNTER_BUFSIZ	= sizeof(unsigned long long),
 };
 
-static int svcrdma_counter_handler(struct ctl_table *table, int write,
+static int svcrdma_counter_handler(struct ctl_context *ctx,
 				   void *buffer, size_t *lenp, loff_t *ppos)
 {
-	struct percpu_counter *stat = (struct percpu_counter *)table->data;
+	struct percpu_counter *stat = (struct percpu_counter *)ctx->ctl_table->data;
 	char tmp[SVCRDMA_COUNTER_BUFSIZ + 1];
 	int len;
 
-	if (write) {
+	if (ctx->write) {
 		percpu_counter_set(stat, 0);
 		return 0;
 	}

@@ -61,7 +61,7 @@ static atomic_t rds_tcp_unloading = ATOMIC_INIT(0);
 
 static struct kmem_cache *rds_tcp_conn_slab;
 
-static int rds_tcp_skbuf_handler(struct ctl_table *ctl, int write,
+static int rds_tcp_skbuf_handler(struct ctl_context *ctx,
 				 void *buffer, size_t *lenp, loff_t *fpos);
 
 static int rds_tcp_min_sndbuf = SOCK_MIN_SNDBUF;
@@ -665,19 +665,19 @@ static void rds_tcp_sysctl_reset(struct net *net)
 	spin_unlock_irq(&rds_tcp_conn_lock);
 }
 
-static int rds_tcp_skbuf_handler(struct ctl_table *ctl, int write,
+static int rds_tcp_skbuf_handler(struct ctl_context *ctx,
 				 void *buffer, size_t *lenp, loff_t *fpos)
 {
 	struct net *net = current->nsproxy->net_ns;
 	int err;
 
-	err = proc_dointvec_minmax(ctl, write, buffer, lenp, fpos);
+	err = proc_dointvec_minmax(ctx, buffer, lenp, fpos);
 	if (err < 0) {
 		pr_warn("Invalid input. Must be >= %d\n",
-			*(int *)(ctl->extra1));
+			*(int *)(ctx->ctl_table->extra1));
 		return err;
 	}
-	if (write)
+	if (ctx->write)
 		rds_tcp_sysctl_reset(net);
 	return 0;
 }

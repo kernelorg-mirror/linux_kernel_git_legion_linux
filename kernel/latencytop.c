@@ -269,12 +269,12 @@ static int __init init_lstats_procfs(void)
 	return 0;
 }
 
-int sysctl_latencytop(struct ctl_table *table, int write, void *buffer,
+int sysctl_latencytop(struct ctl_context *ctx, void *buffer,
 		size_t *lenp, loff_t *ppos)
 {
 	int err;
 
-	err = proc_dointvec(table, write, buffer, lenp, ppos);
+	err = proc_dointvec(ctx, buffer, lenp, ppos);
 	if (latencytop_enabled)
 		force_schedstat_enabled();
 

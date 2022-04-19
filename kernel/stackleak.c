@@ -21,18 +21,18 @@
 static DEFINE_STATIC_KEY_FALSE(stack_erasing_bypass);
 
 #ifdef CONFIG_SYSCTL
-static int stack_erasing_sysctl(struct ctl_table *table, int write,
+static int stack_erasing_sysctl(struct ctl_context *ctx,
 			void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	int ret = 0;
 	int state = !static_branch_unlikely(&stack_erasing_bypass);
 	int prev_state = state;
 
-	table->data = &state;
-	table->maxlen = sizeof(int);
-	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+	ctx->ctl_table->data = &state;
+	ctx->ctl_table->maxlen = sizeof(int);
+	ret = proc_dointvec_minmax(ctx, buffer, lenp, ppos);
 	state = !!state;
-	if (ret || !write || state == prev_state)
+	if (ret || !ctx->write || state == prev_state)
 		return ret;
 
 	if (state)
