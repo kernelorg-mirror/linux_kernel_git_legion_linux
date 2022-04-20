@@ -72,7 +72,7 @@ static int proc_ipc_sem_dointvec(struct ctl_table *table, int write,
 static int proc_ipc_dointvec_minmax_checkpoint_restore(struct ctl_table *table,
 		int write, void *buffer, size_t *lenp, loff_t *ppos)
 {
-	struct ipc_namespace *ns = table->extra1;
+	struct ipc_namespace *ns = current->nsproxy->ipc_ns;
 	struct ctl_table ipc_table;
 
 	if (write && !checkpoint_restore_ns_capable(ns->user_ns))
@@ -244,15 +244,12 @@ bool setup_ipc_sysctls(struct ipc_namespace *ns)
 #ifdef CONFIG_CHECKPOINT_RESTORE
 			} else if (tbl[i].data == &init_ipc_ns.ids[IPC_SEM_IDS].next_id) {
 				tbl[i].data = &ns->ids[IPC_SEM_IDS].next_id;
-				tbl[i].extra1 = ns;
 
 			} else if (tbl[i].data == &init_ipc_ns.ids[IPC_MSG_IDS].next_id) {
 				tbl[i].data = &ns->ids[IPC_MSG_IDS].next_id;
-				tbl[i].extra1 = ns;
 
 			} else if (tbl[i].data == &init_ipc_ns.ids[IPC_SHM_IDS].next_id) {
 				tbl[i].data = &ns->ids[IPC_SHM_IDS].next_id;
-				tbl[i].extra1 = ns;
 #endif
 			} else {
 				tbl[i].data = NULL;
