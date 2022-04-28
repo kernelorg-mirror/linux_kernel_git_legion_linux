@@ -954,11 +954,11 @@ static int debug_active = 1;
  * always allow read, allow write only if debug_stoppable is set or
  * if debug_active is already off
  */
-static int s390dbf_procactive(struct ctl_table *table, int write,
-			      void *buffer, size_t *lenp, loff_t *ppos)
+static int s390dbf_procactive(struct ctl_context *ctx, struct ctl_table *table,
+			      int write, void *buffer, size_t *lenp, loff_t *ppos)
 {
 	if (!write || debug_stoppable || !debug_active)
-		return proc_dointvec(table, write, buffer, lenp, ppos);
+		return proc_dointvec(ctx, table, write, buffer, lenp, ppos);
 	else
 		return 0;
 }

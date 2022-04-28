@@ -70,6 +70,7 @@ struct watch_notification;
 /* LSM Agnostic defines for fs_context::lsm_flags */
 #define SECURITY_LSM_NATIVE_LABELS	1
 
+struct ctl_context;
 struct ctl_table;
 struct audit_krule;
 struct user_namespace;
@@ -218,7 +219,8 @@ struct request_sock;
 #define LSM_UNSAFE_NO_NEW_PRIVS	4
 
 #ifdef CONFIG_MMU
-extern int mmap_min_addr_handler(struct ctl_table *table, int write,
+extern int mmap_min_addr_handler(struct ctl_context *ctx,
+				 struct ctl_table *table, int write,
 				 void *buffer, size_t *lenp, loff_t *ppos);
 #endif
 

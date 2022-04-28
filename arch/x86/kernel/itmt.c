@@ -38,7 +38,8 @@ static bool __read_mostly sched_itmt_capable;
  */
 unsigned int __read_mostly sysctl_sched_itmt_enabled;
 
-static int sched_itmt_update_handler(struct ctl_table *table, int write,
+static int sched_itmt_update_handler(struct ctl_context *ctx,
+				     struct ctl_table *table, int write,
 				     void *buffer, size_t *lenp, loff_t *ppos)
 {
 	unsigned int old_sysctl;
@@ -52,7 +53,7 @@ static int sched_itmt_update_handler(struct ctl_table *table, int write,
 	}
 
 	old_sysctl = sysctl_sched_itmt_enabled;
-	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+	ret = proc_dointvec_minmax(ctx, table, write, buffer, lenp, ppos);
 
 	if (!ret && write && old_sysctl != sysctl_sched_itmt_enabled) {
 		x86_topology_update = true;

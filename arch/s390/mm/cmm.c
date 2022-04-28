@@ -243,8 +243,8 @@ static int cmm_skip_blanks(char *cp, char **endp)
 	return str != cp;
 }
 
-static int cmm_pages_handler(struct ctl_table *ctl, int write,
-			     void *buffer, size_t *lenp, loff_t *ppos)
+static int cmm_pages_handler(struct ctl_context *ctx, struct ctl_table *ctl,
+			     int write, void *buffer, size_t *lenp, loff_t *ppos)
 {
 	long nr = cmm_get_pages();
 	struct ctl_table ctl_entry = {
@@ -254,7 +254,7 @@ static int cmm_pages_handler(struct ctl_table *ctl, int write,
 	};
 	int rc;
 
-	rc = proc_doulongvec_minmax(&ctl_entry, write, buffer, lenp, ppos);
+	rc = proc_doulongvec_minmax(ctx, &ctl_entry, write, buffer, lenp, ppos);
 	if (rc < 0 || !write)
 		return rc;
 
@@ -262,8 +262,8 @@ static int cmm_pages_handler(struct ctl_table *ctl, int write,
 	return 0;
 }
 
-static int cmm_timed_pages_handler(struct ctl_table *ctl, int write,
-				   void *buffer, size_t *lenp,
+static int cmm_timed_pages_handler(struct ctl_context *ctx, struct ctl_table *ctl,
+				   int write, void *buffer, size_t *lenp,
 				   loff_t *ppos)
 {
 	long nr = cmm_get_timed_pages();
@@ -274,7 +274,7 @@ static int cmm_timed_pages_handler(struct ctl_table *ctl, int write,
 	};
 	int rc;
 
-	rc = proc_doulongvec_minmax(&ctl_entry, write, buffer, lenp, ppos);
+	rc = proc_doulongvec_minmax(ctx, &ctl_entry, write, buffer, lenp, ppos);
 	if (rc < 0 || !write)
 		return rc;
 
@@ -282,8 +282,8 @@ static int cmm_timed_pages_handler(struct ctl_table *ctl, int write,
 	return 0;
 }
 
-static int cmm_timeout_handler(struct ctl_table *ctl, int write,
-			       void *buffer, size_t *lenp, loff_t *ppos)
+static int cmm_timeout_handler(struct ctl_context *ctx, struct ctl_table *ctl,
+			       int write, void *buffer, size_t *lenp, loff_t *ppos)
 {
 	char buf[64], *p;
 	long nr, seconds;

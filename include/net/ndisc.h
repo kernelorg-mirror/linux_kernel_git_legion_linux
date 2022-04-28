@@ -481,9 +481,10 @@ void igmp6_event_report(struct sk_buff *skb);
 
 
 #ifdef CONFIG_SYSCTL
-int ndisc_ifinfo_sysctl_change(struct ctl_table *ctl, int write,
+int ndisc_ifinfo_sysctl_change(struct ctl_context *ctx,
+			       struct ctl_table *ctl, int write,
 			       void *buffer, size_t *lenp, loff_t *ppos);
-int ndisc_ifinfo_sysctl_strategy(struct ctl_table *ctl,
+int ndisc_ifinfo_sysctl_strategy(struct ctl_context *ctx, struct ctl_table *ctl,
 				 void __user *oldval, size_t __user *oldlenp,
 				 void __user *newval, size_t newlen);
 #endif

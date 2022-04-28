@@ -4320,7 +4320,8 @@ static unsigned int allowed_mems_nr(struct hstate *h)
 }
 
 #ifdef CONFIG_SYSCTL
-static int proc_hugetlb_doulongvec_minmax(struct ctl_table *table, int write,
+static int proc_hugetlb_doulongvec_minmax(struct ctl_context *ctx,
+					  struct ctl_table *table, int write,
 					  void *buffer, size_t *length,
 					  loff_t *ppos, unsigned long *out)
 {
@@ -4333,10 +4334,11 @@ static int proc_hugetlb_doulongvec_minmax(struct ctl_table *table, int write,
 	dup_table = *table;
 	dup_table.data = out;
 
-	return proc_doulongvec_minmax(&dup_table, write, buffer, length, ppos);
+	return proc_doulongvec_minmax(ctx, &dup_table, write, buffer, length, ppos);
 }
 
 static int hugetlb_sysctl_handler_common(bool obey_mempolicy,
+			 struct ctl_context *ctx,
 			 struct ctl_table *table, int write,
 			 void *buffer, size_t *length, loff_t *ppos)
 {
@@ -4347,7 +4349,7 @@ static int hugetlb_sysctl_handler_common(bool obey_mempolicy,
 	if (!hugepages_supported())
 		return -EOPNOTSUPP;
 
-	ret = proc_hugetlb_doulongvec_minmax(table, write, buffer, length, ppos,
+	ret = proc_hugetlb_doulongvec_minmax(ctx, table, write, buffer, length, ppos,
 					     &tmp);
 	if (ret)
 		goto out;
@@ -4359,25 +4361,25 @@ out:
 	return ret;
 }
 
-int hugetlb_sysctl_handler(struct ctl_table *table, int write,
-			  void *buffer, size_t *length, loff_t *ppos)
+int hugetlb_sysctl_handler(struct ctl_context *ctx, struct ctl_table *table,
+			  int write, void *buffer, size_t *length, loff_t *ppos)
 {
 
-	return hugetlb_sysctl_handler_common(false, table, write,
+	return hugetlb_sysctl_handler_common(false, ctx, table, write,
 							buffer, length, ppos);
 }
 
 #ifdef CONFIG_NUMA
-int hugetlb_mempolicy_sysctl_handler(struct ctl_table *table, int write,
-			  void *buffer, size_t *length, loff_t *ppos)
+int hugetlb_mempolicy_sysctl_handler(struct ctl_context *ctx, struct ctl_table *table,
+			  int write, void *buffer, size_t *length, loff_t *ppos)
 {
-	return hugetlb_sysctl_handler_common(true, table, write,
+	return hugetlb_sysctl_handler_common(true, ctx, table, write,
 							buffer, length, ppos);
 }
 #endif /* CONFIG_NUMA */
 
-int hugetlb_overcommit_handler(struct ctl_table *table, int write,
-		void *buffer, size_t *length, loff_t *ppos)
+int hugetlb_overcommit_handler(struct ctl_context *ctx, struct ctl_table *table,
+		int write, void *buffer, size_t *length, loff_t *ppos)
 {
 	struct hstate *h = &default_hstate;
 	unsigned long tmp;
@@ -4391,7 +4393,7 @@ int hugetlb_overcommit_handler(struct ctl_table *table, int write,
 	if (write && hstate_is_gigantic(h))
 		return -EINVAL;
 
-	ret = proc_hugetlb_doulongvec_minmax(table, write, buffer, length, ppos,
+	ret = proc_hugetlb_doulongvec_minmax(ctx, table, write, buffer, length, ppos,
 					     &tmp);
 	if (ret)
 		goto out;

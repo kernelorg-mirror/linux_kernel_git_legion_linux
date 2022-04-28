@@ -2369,11 +2369,11 @@ static int devinet_conf_ifindex(struct net *net, struct ipv4_devconf *cnf)
 	}
 }
 
-static int devinet_conf_proc(struct ctl_table *ctl, int write,
-			     void *buffer, size_t *lenp, loff_t *ppos)
+static int devinet_conf_proc(struct ctl_context *ctx, struct ctl_table *ctl,
+			     int write, void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int old_value = *(int *)ctl->data;
-	int ret = proc_dointvec(ctl, write, buffer, lenp, ppos);
+	int ret = proc_dointvec(ctx, ctl, write, buffer, lenp, ppos);
 	int new_value = *(int *)ctl->data;
 
 	if (write) {
@@ -2421,7 +2421,8 @@ static int devinet_conf_proc(struct ctl_table *ctl, int write,
 	return ret;
 }
 
-static int devinet_sysctl_forward(struct ctl_table *ctl, int write,
+static int devinet_sysctl_forward(struct ctl_context *ctx,
+				  struct ctl_table *ctl, int write,
 				  void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int *valp = ctl->data;
@@ -2433,7 +2434,7 @@ static int devinet_sysctl_forward(struct ctl_table *ctl, int write,
 	if (write && !ns_capable(net->user_ns, CAP_NET_ADMIN))
 		return -EPERM;
 
-	ret = proc_dointvec(ctl, write, buffer, lenp, ppos);
+	ret = proc_dointvec(ctx, ctl, write, buffer, lenp, ppos);
 
 	if (write && *valp != val) {
 		if (valp != &IPV4_DEVCONF_DFLT(net, FORWARDING)) {
@@ -2468,12 +2469,13 @@ static int devinet_sysctl_forward(struct ctl_table *ctl, int write,
 	return ret;
 }
 
-static int ipv4_doint_and_flush(struct ctl_table *ctl, int write,
+static int ipv4_doint_and_flush(struct ctl_context *ctx,
+				struct ctl_table *ctl, int write,
 				void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int *valp = ctl->data;
 	int val = *valp;
-	int ret = proc_dointvec(ctl, write, buffer, lenp, ppos);
+	int ret = proc_dointvec(ctx, ctl, write, buffer, lenp, ppos);
 	struct net *net = ctl->extra2;
 
 	if (write && *valp != val)

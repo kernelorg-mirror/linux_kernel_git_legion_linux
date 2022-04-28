@@ -1362,11 +1362,12 @@ done:
 #define MPLS_PERDEV_SYSCTL_OFFSET(field)	\
 	(&((struct mpls_dev *)0)->field)
 
-static int mpls_conf_proc(struct ctl_table *ctl, int write,
+static int mpls_conf_proc(struct ctl_context *ctx,
+			  struct ctl_table *ctl, int write,
 			  void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int oval = *(int *)ctl->data;
-	int ret = proc_dointvec(ctl, write, buffer, lenp, ppos);
+	int ret = proc_dointvec(ctx, ctl, write, buffer, lenp, ppos);
 
 	if (write) {
 		struct mpls_dev *mdev = ctl->extra1;
@@ -2610,7 +2611,8 @@ nolabels:
 	return -ENOMEM;
 }
 
-static int mpls_platform_labels(struct ctl_table *table, int write,
+static int mpls_platform_labels(struct ctl_context *ctx,
+				struct ctl_table *table, int write,
 				void *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct net *net = table->data;
@@ -2625,7 +2627,7 @@ static int mpls_platform_labels(struct ctl_table *table, int write,
 		.extra2		= &label_limit,
 	};
 
-	ret = proc_dointvec_minmax(&tmp, write, buffer, lenp, ppos);
+	ret = proc_dointvec_minmax(ctx, &tmp, write, buffer, lenp, ppos);
 
 	if (write && ret == 0)
 		ret = resize_platform_label_table(net, platform_labels);

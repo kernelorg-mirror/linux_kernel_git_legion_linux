@@ -182,7 +182,8 @@ static void mac_hid_stop_emulation(void)
 	mac_hid_destroy_emumouse();
 }
 
-static int mac_hid_toggle_emumouse(struct ctl_table *table, int write,
+static int mac_hid_toggle_emumouse(struct ctl_context *ctx,
+				   struct ctl_table *table, int write,
 				   void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int *valp = table->data;
@@ -193,7 +194,7 @@ static int mac_hid_toggle_emumouse(struct ctl_table *table, int write,
 	if (rc)
 		return rc;
 
-	rc = proc_dointvec(table, write, buffer, lenp, ppos);
+	rc = proc_dointvec(ctx, table, write, buffer, lenp, ppos);
 
 	if (rc == 0 && write && *valp != old_val) {
 		if (*valp == 1)

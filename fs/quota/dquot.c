@@ -2844,7 +2844,8 @@ const struct quotactl_ops dquot_quotactl_sysfile_ops = {
 };
 EXPORT_SYMBOL(dquot_quotactl_sysfile_ops);
 
-static int do_proc_dqstats(struct ctl_table *table, int write,
+static int do_proc_dqstats(struct ctl_context *ctx,
+		     struct ctl_table *table, int write,
 		     void *buffer, size_t *lenp, loff_t *ppos)
 {
 	unsigned int type = (unsigned long *)table->data - dqstats.stat;
@@ -2857,7 +2858,7 @@ static int do_proc_dqstats(struct ctl_table *table, int write,
 
 	/* Update global table */
 	dqstats.stat[type] = value;
-	return proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
+	return proc_doulongvec_minmax(ctx, table, write, buffer, lenp, ppos);
 }
 
 static struct ctl_table fs_dqstats_table[] = {

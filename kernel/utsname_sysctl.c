@@ -29,7 +29,8 @@ static void *get_uts(struct ctl_table *table)
  *	Special case of dostring for the UTS structure. This has locks
  *	to observe. Should this be in kernel/sys.c ????
  */
-static int proc_do_uts_string(struct ctl_table *table, int write,
+static int proc_do_uts_string(struct ctl_context *ctx,
+		  struct ctl_table *table, int write,
 		  void *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct ctl_table uts_table;
@@ -48,7 +49,7 @@ static int proc_do_uts_string(struct ctl_table *table, int write,
 	down_read(&uts_sem);
 	memcpy(tmp_data, get_uts(table), sizeof(tmp_data));
 	up_read(&uts_sem);
-	r = proc_dostring(&uts_table, write, buffer, lenp, ppos);
+	r = proc_dostring(ctx, &uts_table, write, buffer, lenp, ppos);
 
 	if (write) {
 		/*

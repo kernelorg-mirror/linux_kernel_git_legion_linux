@@ -160,8 +160,8 @@ static int max_t3[] = { 8191 }; /* Must fit in 16 bits when multiplied by BCT3MU
 static int min_priority[1];
 static int max_priority[] = { 127 }; /* From DECnet spec */
 
-static int dn_forwarding_proc(struct ctl_table *, int, void *, size_t *,
-		loff_t *);
+static int dn_forwarding_proc(struct ctl_context *, struct ctl_table *, int,
+		void *, size_t *, loff_t *);
 static struct dn_dev_sysctl_table {
 	struct ctl_table_header *sysctl_header;
 	struct ctl_table dn_dev_vars[5];
@@ -244,8 +244,8 @@ static void dn_dev_sysctl_unregister(struct dn_dev_parms *parms)
 	}
 }
 
-static int dn_forwarding_proc(struct ctl_table *table, int write,
-		void *buffer, size_t *lenp, loff_t *ppos)
+static int dn_forwarding_proc(struct ctl_context *ctx, struct ctl_table *table,
+		int write, void *buffer, size_t *lenp, loff_t *ppos)
 {
 #ifdef CONFIG_DECNET_ROUTER
 	struct net_device *dev = table->extra1;
@@ -259,7 +259,7 @@ static int dn_forwarding_proc(struct ctl_table *table, int write,
 	dn_db = rcu_dereference_raw(dev->dn_ptr);
 	old = dn_db->parms.forwarding;
 
-	err = proc_dointvec(table, write, buffer, lenp, ppos);
+	err = proc_dointvec(ctx, table, write, buffer, lenp, ppos);
 
 	if ((err >= 0) && write) {
 		if (dn_db->parms.forwarding < 0)

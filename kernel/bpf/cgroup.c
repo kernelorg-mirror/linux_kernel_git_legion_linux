@@ -1295,6 +1295,7 @@ const struct bpf_verifier_ops cg_dev_verifier_ops = {
  * returned value != 1 during execution. In all other cases 0 is returned.
  */
 int __cgroup_bpf_run_filter_sysctl(struct ctl_table_header *head,
+				   struct ctl_context *ctl_ctx,
 				   struct ctl_table *table, int write,
 				   char **buf, size_t *pcount, loff_t *ppos,
 				   enum cgroup_bpf_attach_type atype)
@@ -1316,7 +1317,7 @@ int __cgroup_bpf_run_filter_sysctl(struct ctl_table_header *head,
 
 	ctx.cur_val = kmalloc_track_caller(ctx.cur_len, GFP_KERNEL);
 	if (!ctx.cur_val ||
-	    table->proc_handler(table, 0, ctx.cur_val, &ctx.cur_len, &pos)) {
+	    table->proc_handler(ctl_ctx, table, 0, ctx.cur_val, &ctx.cur_len, &pos)) {
 		/* Let BPF program decide how to proceed. */
 		ctx.cur_len = 0;
 	}

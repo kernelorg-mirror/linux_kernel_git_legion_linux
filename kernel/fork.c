@@ -3153,7 +3153,8 @@ int unshare_files(void)
 	return 0;
 }
 
-int sysctl_max_threads(struct ctl_table *table, int write,
+int sysctl_max_threads(struct ctl_context *ctx,
+		       struct ctl_table *table, int write,
 		       void *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct ctl_table t;
@@ -3167,7 +3168,7 @@ int sysctl_max_threads(struct ctl_table *table, int write,
 	t.extra1 = &min;
 	t.extra2 = &max;
 
-	ret = proc_dointvec_minmax(&t, write, buffer, lenp, ppos);
+	ret = proc_dointvec_minmax(ctx, &t, write, buffer, lenp, ppos);
 	if (ret || !write)
 		return ret;
 

@@ -174,13 +174,14 @@ static long get_nr_dentry_negative(void)
 	return sum < 0 ? 0 : sum;
 }
 
-static int proc_nr_dentry(struct ctl_table *table, int write, void *buffer,
+static int proc_nr_dentry(struct ctl_context *ctx, struct ctl_table *table,
+			  int write, void *buffer,
 			  size_t *lenp, loff_t *ppos)
 {
 	dentry_stat.nr_dentry = get_nr_dentry();
 	dentry_stat.nr_unused = get_nr_dentry_unused();
 	dentry_stat.nr_negative = get_nr_dentry_negative();
-	return proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
+	return proc_doulongvec_minmax(ctx, table, write, buffer, lenp, ppos);
 }
 
 static struct ctl_table fs_dcache_sysctls[] = {

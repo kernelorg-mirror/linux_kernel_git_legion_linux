@@ -48,7 +48,8 @@ void phonet_get_local_port_range(int *min, int *max)
 	} while (read_seqretry(&local_port_range_lock, seq));
 }
 
-static int proc_local_port_range(struct ctl_table *table, int write,
+static int proc_local_port_range(struct ctl_context *ctx,
+				 struct ctl_table *table, int write,
 				 void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int ret;
@@ -61,7 +62,7 @@ static int proc_local_port_range(struct ctl_table *table, int write,
 		.extra2 = &local_port_range_max,
 	};
 
-	ret = proc_dointvec_minmax(&tmp, write, buffer, lenp, ppos);
+	ret = proc_dointvec_minmax(ctx, &tmp, write, buffer, lenp, ppos);
 
 	if (write && ret == 0) {
 		if (range[1] < range[0])

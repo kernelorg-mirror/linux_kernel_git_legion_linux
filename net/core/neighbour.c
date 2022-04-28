@@ -3483,7 +3483,8 @@ EXPORT_SYMBOL(neigh_app_ns);
 #ifdef CONFIG_SYSCTL
 static int unres_qlen_max = INT_MAX / SKB_TRUESIZE(ETH_FRAME_LEN);
 
-static int proc_unres_qlen(struct ctl_table *ctl, int write,
+static int proc_unres_qlen(struct ctl_context *ctx,
+			   struct ctl_table *ctl, int write,
 			   void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int size, ret;
@@ -3494,7 +3495,7 @@ static int proc_unres_qlen(struct ctl_table *ctl, int write,
 	tmp.data = &size;
 
 	size = *(int *)ctl->data / SKB_TRUESIZE(ETH_FRAME_LEN);
-	ret = proc_dointvec_minmax(&tmp, write, buffer, lenp, ppos);
+	ret = proc_dointvec_minmax(ctx, &tmp, write, buffer, lenp, ppos);
 
 	if (write && !ret)
 		*(int *)ctl->data = size * SKB_TRUESIZE(ETH_FRAME_LEN);
@@ -3547,7 +3548,8 @@ static void neigh_proc_update(struct ctl_table *ctl, int write)
 		neigh_copy_dflt_parms(net, p, index);
 }
 
-static int neigh_proc_dointvec_zero_intmax(struct ctl_table *ctl, int write,
+static int neigh_proc_dointvec_zero_intmax(struct ctl_context *ctx,
+					   struct ctl_table *ctl, int write,
 					   void *buffer, size_t *lenp,
 					   loff_t *ppos)
 {
@@ -3557,62 +3559,68 @@ static int neigh_proc_dointvec_zero_intmax(struct ctl_table *ctl, int write,
 	tmp.extra1 = SYSCTL_ZERO;
 	tmp.extra2 = SYSCTL_INT_MAX;
 
-	ret = proc_dointvec_minmax(&tmp, write, buffer, lenp, ppos);
+	ret = proc_dointvec_minmax(ctx, &tmp, write, buffer, lenp, ppos);
 	neigh_proc_update(ctl, write);
 	return ret;
 }
 
-int neigh_proc_dointvec(struct ctl_table *ctl, int write, void *buffer,
+int neigh_proc_dointvec(struct ctl_context *ctx,
+			struct ctl_table *ctl, int write, void *buffer,
 			size_t *lenp, loff_t *ppos)
 {
-	int ret = proc_dointvec(ctl, write, buffer, lenp, ppos);
+	int ret = proc_dointvec(ctx, ctl, write, buffer, lenp, ppos);
 
 	neigh_proc_update(ctl, write);
 	return ret;
 }
 EXPORT_SYMBOL(neigh_proc_dointvec);
 
-int neigh_proc_dointvec_jiffies(struct ctl_table *ctl, int write, void *buffer,
+int neigh_proc_dointvec_jiffies(struct ctl_context *ctx,
+				struct ctl_table *ctl, int write, void *buffer,
 				size_t *lenp, loff_t *ppos)
 {
-	int ret = proc_dointvec_jiffies(ctl, write, buffer, lenp, ppos);
+	int ret = proc_dointvec_jiffies(ctx, ctl, write, buffer, lenp, ppos);
 
 	neigh_proc_update(ctl, write);
 	return ret;
 }
 EXPORT_SYMBOL(neigh_proc_dointvec_jiffies);
 
-static int neigh_proc_dointvec_userhz_jiffies(struct ctl_table *ctl, int write,
+static int neigh_proc_dointvec_userhz_jiffies(struct ctl_context *ctx,
+					      struct ctl_table *ctl, int write,
 					      void *buffer, size_t *lenp,
 					      loff_t *ppos)
 {
-	int ret = proc_dointvec_userhz_jiffies(ctl, write, buffer, lenp, ppos);
+	int ret = proc_dointvec_userhz_jiffies(ctx, ctl, write, buffer, lenp, ppos);
 
 	neigh_proc_update(ctl, write);
 	return ret;
 }
 
-int neigh_proc_dointvec_ms_jiffies(struct ctl_table *ctl, int write,
+int neigh_proc_dointvec_ms_jiffies(struct ctl_context *ctx,
+				   struct ctl_table *ctl, int write,
 				   void *buffer, size_t *lenp, loff_t *ppos)
 {
-	int ret = proc_dointvec_ms_jiffies(ctl, write, buffer, lenp, ppos);
+	int ret = proc_dointvec_ms_jiffies(ctx, ctl, write, buffer, lenp, ppos);
 
 	neigh_proc_update(ctl, write);
 	return ret;
 }
 EXPORT_SYMBOL(neigh_proc_dointvec_ms_jiffies);
 
-static int neigh_proc_dointvec_unres_qlen(struct ctl_table *ctl, int write,
+static int neigh_proc_dointvec_unres_qlen(struct ctl_context *ctx,
+					  struct ctl_table *ctl, int write,
 					  void *buffer, size_t *lenp,
 					  loff_t *ppos)
 {
-	int ret = proc_unres_qlen(ctl, write, buffer, lenp, ppos);
+	int ret = proc_unres_qlen(ctx, ctl, write, buffer, lenp, ppos);
 
 	neigh_proc_update(ctl, write);
 	return ret;
 }
 
-static int neigh_proc_base_reachable_time(struct ctl_table *ctl, int write,
+static int neigh_proc_base_reachable_time(struct ctl_context *ctx,
+					  struct ctl_table *ctl, int write,
 					  void *buffer, size_t *lenp,
 					  loff_t *ppos)
 {
@@ -3620,9 +3628,9 @@ static int neigh_proc_base_reachable_time(struct ctl_table *ctl, int write,
 	int ret;
 
 	if (strcmp(ctl->procname, "base_reachable_time") == 0)
-		ret = neigh_proc_dointvec_jiffies(ctl, write, buffer, lenp, ppos);
+		ret = neigh_proc_dointvec_jiffies(ctx, ctl, write, buffer, lenp, ppos);
 	else if (strcmp(ctl->procname, "base_reachable_time_ms") == 0)
-		ret = neigh_proc_dointvec_ms_jiffies(ctl, write, buffer, lenp, ppos);
+		ret = neigh_proc_dointvec_ms_jiffies(ctx, ctl, write, buffer, lenp, ppos);
 	else
 		ret = -1;
 

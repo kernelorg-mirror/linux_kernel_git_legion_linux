@@ -59,7 +59,7 @@ rpc_unregister_sysctl(void)
 	}
 }
 
-static int proc_do_xprt(struct ctl_table *table, int write,
+static int proc_do_xprt(struct ctl_context *ctx, struct ctl_table *table, int write,
 			void *buffer, size_t *lenp, loff_t *ppos)
 {
 	char tmpbuf[256];
@@ -81,8 +81,8 @@ static int proc_do_xprt(struct ctl_table *table, int write,
 }
 
 static int
-proc_dodebug(struct ctl_table *table, int write, void *buffer, size_t *lenp,
-	     loff_t *ppos)
+proc_dodebug(struct ctl_context *ctx, struct ctl_table *table,
+	     int write, void *buffer, size_t *lenp, loff_t *ppos)
 {
 	char		tmpbuf[20], *s = NULL;
 	char *p;

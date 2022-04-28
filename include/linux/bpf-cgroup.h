@@ -124,6 +124,7 @@ int __cgroup_bpf_check_dev_permission(short dev_type, u32 major, u32 minor,
 				      short access, enum cgroup_bpf_attach_type atype);
 
 int __cgroup_bpf_run_filter_sysctl(struct ctl_table_header *head,
+				   struct ctl_context *ctx,
 				   struct ctl_table *table, int write,
 				   char **buf, size_t *pcount, loff_t *ppos,
 				   enum cgroup_bpf_attach_type atype);
@@ -333,11 +334,11 @@ int bpf_percpu_cgroup_storage_update(struct bpf_map *map, void *key,
 })
 
 
-#define BPF_CGROUP_RUN_PROG_SYSCTL(head, table, write, buf, count, pos)  \
+#define BPF_CGROUP_RUN_PROG_SYSCTL(head, ctx, table, write, buf, count, pos)  \
 ({									       \
 	int __ret = 0;							       \
 	if (cgroup_bpf_enabled(CGROUP_SYSCTL))			       \
-		__ret = __cgroup_bpf_run_filter_sysctl(head, table, write,     \
+		__ret = __cgroup_bpf_run_filter_sysctl(head, ctx, table, write,\
 						       buf, count, pos,        \
 						       CGROUP_SYSCTL);     \
 	__ret;								       \
@@ -461,7 +462,7 @@ static inline int bpf_percpu_cgroup_storage_update(struct bpf_map *map,
 #define BPF_CGROUP_RUN_PROG_UDP6_RECVMSG_LOCK(sk, uaddr) ({ 0; })
 #define BPF_CGROUP_RUN_PROG_SOCK_OPS(sock_ops) ({ 0; })
 #define BPF_CGROUP_RUN_PROG_DEVICE_CGROUP(atype, major, minor, access) ({ 0; })
-#define BPF_CGROUP_RUN_PROG_SYSCTL(head,table,write,buf,count,pos) ({ 0; })
+#define BPF_CGROUP_RUN_PROG_SYSCTL(head,ctx,table,write,buf,count,pos) ({ 0; })
 #define BPF_CGROUP_GETSOCKOPT_MAX_OPTLEN(optlen) ({ 0; })
 #define BPF_CGROUP_RUN_PROG_GETSOCKOPT(sock, level, optname, optval, \
 				       optlen, max_optlen, retval) ({ retval; })

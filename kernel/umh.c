@@ -485,7 +485,7 @@ int call_usermodehelper(const char *path, char **argv, char **envp, int wait)
 }
 EXPORT_SYMBOL(call_usermodehelper);
 
-static int proc_cap_handler(struct ctl_table *table, int write,
+static int proc_cap_handler(struct ctl_context *ctx, struct ctl_table *table, int write,
 			 void *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct ctl_table t;
@@ -519,7 +519,7 @@ static int proc_cap_handler(struct ctl_table *table, int write,
 	 * actually read or write and array of ulongs from userspace.  Remember
 	 * these are least significant 32 bits first
 	 */
-	err = proc_doulongvec_minmax(&t, write, buffer, lenp, ppos);
+	err = proc_doulongvec_minmax(ctx, &t, write, buffer, lenp, ppos);
 	if (err < 0)
 		return err;
 

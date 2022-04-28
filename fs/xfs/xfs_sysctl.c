@@ -11,6 +11,7 @@ static struct ctl_table_header *xfs_table_header;
 #ifdef CONFIG_PROC_FS
 STATIC int
 xfs_stats_clear_proc_handler(
+	struct ctl_context	*ctx,
 	struct ctl_table	*ctl,
 	int			write,
 	void			*buffer,
@@ -19,7 +20,7 @@ xfs_stats_clear_proc_handler(
 {
 	int		ret, *valp = ctl->data;
 
-	ret = proc_dointvec_minmax(ctl, write, buffer, lenp, ppos);
+	ret = proc_dointvec_minmax(ctx, ctl, write, buffer, lenp, ppos);
 
 	if (!ret && write && *valp) {
 		xfs_stats_clearall(xfsstats.xs_stats);
@@ -31,6 +32,7 @@ xfs_stats_clear_proc_handler(
 
 STATIC int
 xfs_panic_mask_proc_handler(
+	struct ctl_context	*ctx,
 	struct ctl_table	*ctl,
 	int			write,
 	void			*buffer,
@@ -39,7 +41,7 @@ xfs_panic_mask_proc_handler(
 {
 	int		ret, *valp = ctl->data;
 
-	ret = proc_dointvec_minmax(ctl, write, buffer, lenp, ppos);
+	ret = proc_dointvec_minmax(ctx, ctl, write, buffer, lenp, ppos);
 	if (!ret && write) {
 		xfs_panic_mask = *valp;
 #ifdef DEBUG
@@ -52,6 +54,7 @@ xfs_panic_mask_proc_handler(
 
 STATIC int
 xfs_deprecated_dointvec_minmax(
+	struct ctl_context	*ctx,
 	struct ctl_table	*ctl,
 	int			write,
 	void			*buffer,
@@ -63,7 +66,7 @@ xfs_deprecated_dointvec_minmax(
 				"XFS: %s sysctl option is deprecated.\n",
 				ctl->procname);
 	}
-	return proc_dointvec_minmax(ctl, write, buffer, lenp, ppos);
+	return proc_dointvec_minmax(ctx, ctl, write, buffer, lenp, ppos);
 }
 
 static struct ctl_table xfs_table[] = {

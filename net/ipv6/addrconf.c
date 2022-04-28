@@ -6174,7 +6174,8 @@ static void ipv6_ifa_notify(int event, struct inet6_ifaddr *ifp)
 
 #ifdef CONFIG_SYSCTL
 
-static int addrconf_sysctl_forward(struct ctl_table *ctl, int write,
+static int addrconf_sysctl_forward(struct ctl_context *ctx,
+		struct ctl_table *ctl, int write,
 		void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int *valp = ctl->data;
@@ -6190,7 +6191,7 @@ static int addrconf_sysctl_forward(struct ctl_table *ctl, int write,
 	lctl = *ctl;
 	lctl.data = &val;
 
-	ret = proc_dointvec(&lctl, write, buffer, lenp, ppos);
+	ret = proc_dointvec(ctx, &lctl, write, buffer, lenp, ppos);
 
 	if (write)
 		ret = addrconf_fixup_forwarding(ctl, valp, val);
@@ -6199,7 +6200,8 @@ static int addrconf_sysctl_forward(struct ctl_table *ctl, int write,
 	return ret;
 }
 
-static int addrconf_sysctl_mtu(struct ctl_table *ctl, int write,
+static int addrconf_sysctl_mtu(struct ctl_context *ctx,
+		struct ctl_table *ctl, int write,
 		void *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct inet6_dev *idev = ctl->extra1;
@@ -6210,7 +6212,7 @@ static int addrconf_sysctl_mtu(struct ctl_table *ctl, int write,
 	lctl.extra1 = &min_mtu;
 	lctl.extra2 = idev ? &idev->dev->mtu : NULL;
 
-	return proc_dointvec_minmax(&lctl, write, buffer, lenp, ppos);
+	return proc_dointvec_minmax(ctx, &lctl, write, buffer, lenp, ppos);
 }
 
 static void dev_disable_change(struct inet6_dev *idev)
@@ -6270,7 +6272,8 @@ static int addrconf_disable_ipv6(struct ctl_table *table, int *p, int newf)
 	return 0;
 }
 
-static int addrconf_sysctl_disable(struct ctl_table *ctl, int write,
+static int addrconf_sysctl_disable(struct ctl_context *ctx,
+		struct ctl_table *ctl, int write,
 		void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int *valp = ctl->data;
@@ -6286,7 +6289,7 @@ static int addrconf_sysctl_disable(struct ctl_table *ctl, int write,
 	lctl = *ctl;
 	lctl.data = &val;
 
-	ret = proc_dointvec(&lctl, write, buffer, lenp, ppos);
+	ret = proc_dointvec(ctx, &lctl, write, buffer, lenp, ppos);
 
 	if (write)
 		ret = addrconf_disable_ipv6(ctl, valp, val);
@@ -6295,7 +6298,8 @@ static int addrconf_sysctl_disable(struct ctl_table *ctl, int write,
 	return ret;
 }
 
-static int addrconf_sysctl_proxy_ndp(struct ctl_table *ctl, int write,
+static int addrconf_sysctl_proxy_ndp(struct ctl_context *ctx,
+		struct ctl_table *ctl, int write,
 		void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int *valp = ctl->data;
@@ -6303,7 +6307,7 @@ static int addrconf_sysctl_proxy_ndp(struct ctl_table *ctl, int write,
 	int old, new;
 
 	old = *valp;
-	ret = proc_dointvec(ctl, write, buffer, lenp, ppos);
+	ret = proc_dointvec(ctx, ctl, write, buffer, lenp, ppos);
 	new = *valp;
 
 	if (write && old != new) {
@@ -6336,7 +6340,8 @@ static int addrconf_sysctl_proxy_ndp(struct ctl_table *ctl, int write,
 	return ret;
 }
 
-static int addrconf_sysctl_addr_gen_mode(struct ctl_table *ctl, int write,
+static int addrconf_sysctl_addr_gen_mode(struct ctl_context *ctx,
+					 struct ctl_table *ctl, int write,
 					 void *buffer, size_t *lenp,
 					 loff_t *ppos)
 {
@@ -6355,7 +6360,7 @@ static int addrconf_sysctl_addr_gen_mode(struct ctl_table *ctl, int write,
 
 	new_val = *((u32 *)ctl->data);
 
-	ret = proc_douintvec(&tmp, write, buffer, lenp, ppos);
+	ret = proc_douintvec(ctx, &tmp, write, buffer, lenp, ppos);
 	if (ret != 0)
 		goto out;
 
@@ -6398,7 +6403,8 @@ out:
 	return ret;
 }
 
-static int addrconf_sysctl_stable_secret(struct ctl_table *ctl, int write,
+static int addrconf_sysctl_stable_secret(struct ctl_context *ctx,
+					 struct ctl_table *ctl, int write,
 					 void *buffer, size_t *lenp,
 					 loff_t *ppos)
 {
@@ -6429,7 +6435,7 @@ static int addrconf_sysctl_stable_secret(struct ctl_table *ctl, int write,
 		goto out;
 	}
 
-	err = proc_dostring(&lctl, write, buffer, lenp, ppos);
+	err = proc_dostring(ctx, &lctl, write, buffer, lenp, ppos);
 	if (err || !write)
 		goto out;
 
@@ -6465,7 +6471,8 @@ out:
 }
 
 static
-int addrconf_sysctl_ignore_routes_with_linkdown(struct ctl_table *ctl,
+int addrconf_sysctl_ignore_routes_with_linkdown(struct ctl_context *ctx,
+						struct ctl_table *ctl,
 						int write, void *buffer,
 						size_t *lenp,
 						loff_t *ppos)
@@ -6482,7 +6489,7 @@ int addrconf_sysctl_ignore_routes_with_linkdown(struct ctl_table *ctl,
 	lctl = *ctl;
 	lctl.data = &val;
 
-	ret = proc_dointvec(&lctl, write, buffer, lenp, ppos);
+	ret = proc_dointvec(ctx, &lctl, write, buffer, lenp, ppos);
 
 	if (write)
 		ret = addrconf_fixup_linkdown(ctl, valp, val);
@@ -6566,7 +6573,8 @@ int addrconf_disable_policy(struct ctl_table *ctl, int *valp, int val)
 	return 0;
 }
 
-static int addrconf_sysctl_disable_policy(struct ctl_table *ctl, int write,
+static int addrconf_sysctl_disable_policy(struct ctl_context *ctx,
+				   struct ctl_table *ctl, int write,
 				   void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int *valp = ctl->data;
@@ -6577,7 +6585,7 @@ static int addrconf_sysctl_disable_policy(struct ctl_table *ctl, int write,
 
 	lctl = *ctl;
 	lctl.data = &val;
-	ret = proc_dointvec(&lctl, write, buffer, lenp, ppos);
+	ret = proc_dointvec(ctx, &lctl, write, buffer, lenp, ppos);
 
 	if (write && (*valp != val))
 		ret = addrconf_disable_policy(ctl, valp, val);

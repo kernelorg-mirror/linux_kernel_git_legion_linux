@@ -403,8 +403,8 @@ static struct ctl_table nf_log_sysctl_ftable[] = {
 	{ }
 };
 
-static int nf_log_proc_dostring(struct ctl_table *table, int write,
-			 void *buffer, size_t *lenp, loff_t *ppos)
+static int nf_log_proc_dostring(struct ctl_context *ctx, struct ctl_table *table,
+			 int write, void *buffer, size_t *lenp, loff_t *ppos)
 {
 	const struct nf_logger *logger;
 	char buf[NFLOGGER_NAME_LEN];
@@ -420,7 +420,7 @@ static int nf_log_proc_dostring(struct ctl_table *table, int write,
 		 */
 		buf[0] = '\0';
 		tmp.data = buf;
-		r = proc_dostring(&tmp, write, buffer, lenp, ppos);
+		r = proc_dostring(ctx, &tmp, write, buffer, lenp, ppos);
 		if (r)
 			return r;
 
@@ -447,7 +447,7 @@ static int nf_log_proc_dostring(struct ctl_table *table, int write,
 		else
 			strlcpy(buf, logger->name, sizeof(buf));
 		mutex_unlock(&nf_log_mutex);
-		r = proc_dostring(&tmp, write, buffer, lenp, ppos);
+		r = proc_dostring(ctx, &tmp, write, buffer, lenp, ppos);
 	}
 
 	return r;

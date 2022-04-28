@@ -48,7 +48,8 @@ int sysctl_devconf_inherit_init_net __read_mostly;
 EXPORT_SYMBOL(sysctl_devconf_inherit_init_net);
 
 #ifdef CONFIG_RPS
-static int rps_sock_flow_sysctl(struct ctl_table *table, int write,
+static int rps_sock_flow_sysctl(struct ctl_context *ctx,
+				struct ctl_table *table, int write,
 				void *buffer, size_t *lenp, loff_t *ppos)
 {
 	unsigned int orig_size, size;
@@ -67,7 +68,7 @@ static int rps_sock_flow_sysctl(struct ctl_table *table, int write,
 					lockdep_is_held(&sock_flow_mutex));
 	size = orig_size = orig_sock_table ? orig_sock_table->mask + 1 : 0;
 
-	ret = proc_dointvec(&tmp, write, buffer, lenp, ppos);
+	ret = proc_dointvec(ctx, &tmp, write, buffer, lenp, ppos);
 
 	if (write) {
 		if (size) {
@@ -118,7 +119,8 @@ static int rps_sock_flow_sysctl(struct ctl_table *table, int write,
 #ifdef CONFIG_NET_FLOW_LIMIT
 static DEFINE_MUTEX(flow_limit_update_mutex);
 
-static int flow_limit_cpu_sysctl(struct ctl_table *table, int write,
+static int flow_limit_cpu_sysctl(struct ctl_context *ctx,
+				 struct ctl_table *table, int write,
 				 void *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct sd_flow_limit *cur;
@@ -193,7 +195,8 @@ done:
 	return ret;
 }
 
-static int flow_limit_table_len_sysctl(struct ctl_table *table, int write,
+static int flow_limit_table_len_sysctl(struct ctl_context *ctx,
+				       struct ctl_table *table, int write,
 				       void *buffer, size_t *lenp, loff_t *ppos)
 {
 	unsigned int old, *ptr;
@@ -203,7 +206,7 @@ static int flow_limit_table_len_sysctl(struct ctl_table *table, int write,
 
 	ptr = table->data;
 	old = *ptr;
-	ret = proc_dointvec(table, write, buffer, lenp, ppos);
+	ret = proc_dointvec(ctx, table, write, buffer, lenp, ppos);
 	if (!ret && write && !is_power_of_2(*ptr)) {
 		*ptr = old;
 		ret = -EINVAL;
@@ -215,7 +218,8 @@ static int flow_limit_table_len_sysctl(struct ctl_table *table, int write,
 #endif /* CONFIG_NET_FLOW_LIMIT */
 
 #ifdef CONFIG_NET_SCHED
-static int set_default_qdisc(struct ctl_table *table, int write,
+static int set_default_qdisc(struct ctl_context *ctx,
+			     struct ctl_table *table, int write,
 			     void *buffer, size_t *lenp, loff_t *ppos)
 {
 	char id[IFNAMSIZ];
@@ -227,19 +231,20 @@ static int set_default_qdisc(struct ctl_table *table, int write,
 
 	qdisc_get_default(id, IFNAMSIZ);
 
-	ret = proc_dostring(&tbl, write, buffer, lenp, ppos);
+	ret = proc_dostring(ctx, &tbl, write, buffer, lenp, ppos);
 	if (write && ret == 0)
 		ret = qdisc_set_default(id);
 	return ret;
 }
 #endif
 
-static int proc_do_dev_weight(struct ctl_table *table, int write,
+static int proc_do_dev_weight(struct ctl_context *ctx,
+			   struct ctl_table *table, int write,
 			   void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int ret;
 
-	ret = proc_dointvec(table, write, buffer, lenp, ppos);
+	ret = proc_dointvec(ctx, table, write, buffer, lenp, ppos);
 	if (ret != 0)
 		return ret;
 
@@ -249,7 +254,8 @@ static int proc_do_dev_weight(struct ctl_table *table, int write,
 	return ret;
 }
 
-static int proc_do_rss_key(struct ctl_table *table, int write,
+static int proc_do_rss_key(struct ctl_context *ctx,
+			   struct ctl_table *table, int write,
 			   void *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct ctl_table fake_table;
@@ -258,11 +264,12 @@ static int proc_do_rss_key(struct ctl_table *table, int write,
 	snprintf(buf, sizeof(buf), "%*phC", NETDEV_RSS_KEY_LEN, netdev_rss_key);
 	fake_table.data = buf;
 	fake_table.maxlen = sizeof(buf);
-	return proc_dostring(&fake_table, write, buffer, lenp, ppos);
+	return proc_dostring(ctx, &fake_table, write, buffer, lenp, ppos);
 }
 
 #ifdef CONFIG_BPF_JIT
-static int proc_dointvec_minmax_bpf_enable(struct ctl_table *table, int write,
+static int proc_dointvec_minmax_bpf_enable(struct ctl_context *ctx,
+					   struct ctl_table *table, int write,
 					   void *buffer, size_t *lenp,
 					   loff_t *ppos)
 {
@@ -273,7 +280,7 @@ static int proc_dointvec_minmax_bpf_enable(struct ctl_table *table, int write,
 		return -EPERM;
 
 	tmp.data = &jit_enable;
-	ret = proc_dointvec_minmax(&tmp, write, buffer, lenp, ppos);
+	ret = proc_dointvec_minmax(ctx, &tmp, write, buffer, lenp, ppos);
 	if (write && !ret) {
 		if (jit_enable < 2 ||
 		    (jit_enable == 2 && bpf_dump_raw_ok(current_cred()))) {
@@ -289,24 +296,26 @@ static int proc_dointvec_minmax_bpf_enable(struct ctl_table *table, int write,
 
 # ifdef CONFIG_HAVE_EBPF_JIT
 static int
-proc_dointvec_minmax_bpf_restricted(struct ctl_table *table, int write,
+proc_dointvec_minmax_bpf_restricted(struct ctl_context *ctx,
+				    struct ctl_table *table, int write,
 				    void *buffer, size_t *lenp, loff_t *ppos)
 {
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	return proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+	return proc_dointvec_minmax(ctx, table, write, buffer, lenp, ppos);
 }
 # endif /* CONFIG_HAVE_EBPF_JIT */
 
 static int
-proc_dolongvec_minmax_bpf_restricted(struct ctl_table *table, int write,
+proc_dolongvec_minmax_bpf_restricted(struct ctl_context *ctx,
+				     struct ctl_table *table, int write,
 				     void *buffer, size_t *lenp, loff_t *ppos)
 {
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	return proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
+	return proc_doulongvec_minmax(ctx, table, write, buffer, lenp, ppos);
 }
 #endif
 

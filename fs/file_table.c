@@ -81,11 +81,11 @@ EXPORT_SYMBOL_GPL(get_max_files);
 /*
  * Handle nr_files sysctl
  */
-static int proc_nr_files(struct ctl_table *table, int write, void *buffer,
-			 size_t *lenp, loff_t *ppos)
+static int proc_nr_files(struct ctl_context *ctx, struct ctl_table *table,
+			int write, void *buffer, size_t *lenp, loff_t *ppos)
 {
 	files_stat.nr_files = get_nr_files();
-	return proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
+	return proc_doulongvec_minmax(ctx, table, write, buffer, lenp, ppos);
 }
 
 static struct ctl_table fs_stat_sysctls[] = {

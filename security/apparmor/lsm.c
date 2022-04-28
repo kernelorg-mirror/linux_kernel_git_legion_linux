@@ -1717,7 +1717,8 @@ static int __init alloc_buffers(void)
 }
 
 #ifdef CONFIG_SYSCTL
-static int apparmor_dointvec(struct ctl_table *table, int write,
+static int apparmor_dointvec(struct ctl_context *ctx,
+			     struct ctl_table *table, int write,
 			     void *buffer, size_t *lenp, loff_t *ppos)
 {
 	if (!aa_current_policy_admin_capable(NULL))
@@ -1725,7 +1726,7 @@ static int apparmor_dointvec(struct ctl_table *table, int write,
 	if (!apparmor_enabled)
 		return -EINVAL;
 
-	return proc_dointvec(table, write, buffer, lenp, ppos);
+	return proc_dointvec(ctx, table, write, buffer, lenp, ppos);
 }
 
 static struct ctl_path apparmor_sysctl_path[] = {

@@ -772,12 +772,13 @@ int sysctl_max_map_count __read_mostly = DEFAULT_MAX_MAP_COUNT;
 unsigned long sysctl_user_reserve_kbytes __read_mostly = 1UL << 17; /* 128MB */
 unsigned long sysctl_admin_reserve_kbytes __read_mostly = 1UL << 13; /* 8MB */
 
-int overcommit_ratio_handler(struct ctl_table *table, int write, void *buffer,
+int overcommit_ratio_handler(struct ctl_context *ctx, struct ctl_table *table,
+		int write, void *buffer,
 		size_t *lenp, loff_t *ppos)
 {
 	int ret;
 
-	ret = proc_dointvec(table, write, buffer, lenp, ppos);
+	ret = proc_dointvec(ctx, table, write, buffer, lenp, ppos);
 	if (ret == 0 && write)
 		sysctl_overcommit_kbytes = 0;
 	return ret;
@@ -788,7 +789,8 @@ static void sync_overcommit_as(struct work_struct *dummy)
 	percpu_counter_sync(&vm_committed_as);
 }
 
-int overcommit_policy_handler(struct ctl_table *table, int write, void *buffer,
+int overcommit_policy_handler(struct ctl_context *ctx,
+		struct ctl_table *table, int write, void *buffer,
 		size_t *lenp, loff_t *ppos)
 {
 	struct ctl_table t;
@@ -809,7 +811,7 @@ int overcommit_policy_handler(struct ctl_table *table, int write, void *buffer,
 	if (write) {
 		t = *table;
 		t.data = &new_policy;
-		ret = proc_dointvec_minmax(&t, write, buffer, lenp, ppos);
+		ret = proc_dointvec_minmax(ctx, &t, write, buffer, lenp, ppos);
 		if (ret || new_policy == -1)
 			return ret;
 
@@ -818,18 +820,19 @@ int overcommit_policy_handler(struct ctl_table *table, int write, void *buffer,
 			schedule_on_each_cpu(sync_overcommit_as);
 		sysctl_overcommit_memory = new_policy;
 	} else {
-		ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+		ret = proc_dointvec_minmax(ctx, table, write, buffer, lenp, ppos);
 	}
 
 	return ret;
 }
 
-int overcommit_kbytes_handler(struct ctl_table *table, int write, void *buffer,
+int overcommit_kbytes_handler(struct ctl_context *ctx,
+		struct ctl_table *table, int write, void *buffer,
 		size_t *lenp, loff_t *ppos)
 {
 	int ret;
 
-	ret = proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
+	ret = proc_doulongvec_minmax(ctx, table, write, buffer, lenp, ppos);
 	if (ret == 0 && write)
 		sysctl_overcommit_ratio = 0;
 	return ret;

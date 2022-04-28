@@ -32,7 +32,8 @@ static u32 rt6_multipath_hash_fields_all_mask =
 static u32 ioam6_id_max = IOAM6_DEFAULT_ID;
 static u64 ioam6_id_wide_max = IOAM6_DEFAULT_ID_WIDE;
 
-static int proc_rt6_multipath_hash_policy(struct ctl_table *table, int write,
+static int proc_rt6_multipath_hash_policy(struct ctl_context *ctx,
+					  struct ctl_table *table, int write,
 					  void *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct net *net;
@@ -40,7 +41,7 @@ static int proc_rt6_multipath_hash_policy(struct ctl_table *table, int write,
 
 	net = container_of(table->data, struct net,
 			   ipv6.sysctl.multipath_hash_policy);
-	ret = proc_dou8vec_minmax(table, write, buffer, lenp, ppos);
+	ret = proc_dou8vec_minmax(ctx, table, write, buffer, lenp, ppos);
 	if (write && ret == 0)
 		call_netevent_notifiers(NETEVENT_IPV6_MPATH_HASH_UPDATE, net);
 
@@ -48,7 +49,8 @@ static int proc_rt6_multipath_hash_policy(struct ctl_table *table, int write,
 }
 
 static int
-proc_rt6_multipath_hash_fields(struct ctl_table *table, int write, void *buffer,
+proc_rt6_multipath_hash_fields(struct ctl_context *ctx,
+			       struct ctl_table *table, int write, void *buffer,
 			       size_t *lenp, loff_t *ppos)
 {
 	struct net *net;
@@ -56,7 +58,7 @@ proc_rt6_multipath_hash_fields(struct ctl_table *table, int write, void *buffer,
 
 	net = container_of(table->data, struct net,
 			   ipv6.sysctl.multipath_hash_fields);
-	ret = proc_douintvec_minmax(table, write, buffer, lenp, ppos);
+	ret = proc_douintvec_minmax(ctx, table, write, buffer, lenp, ppos);
 	if (write && ret == 0)
 		call_netevent_notifiers(NETEVENT_IPV6_MPATH_HASH_UPDATE, net);
 

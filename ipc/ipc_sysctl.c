@@ -16,14 +16,15 @@
 #include <linux/slab.h>
 #include "util.h"
 
-static int proc_ipc_dointvec_minmax_orphans(struct ctl_table *table, int write,
+static int proc_ipc_dointvec_minmax_orphans(struct ctl_context *ctx,
+		struct ctl_table *table, int write,
 		void *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct ipc_namespace *ns =
 		container_of(table->data, struct ipc_namespace, shm_rmid_forced);
 	int err;
 
-	err = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+	err = proc_dointvec_minmax(ctx, table, write, buffer, lenp, ppos);
 
 	if (err < 0)
 		return err;
@@ -32,7 +33,8 @@ static int proc_ipc_dointvec_minmax_orphans(struct ctl_table *table, int write,
 	return err;
 }
 
-static int proc_ipc_auto_msgmni(struct ctl_table *table, int write,
+static int proc_ipc_auto_msgmni(struct ctl_context *ctx,
+		struct ctl_table *table, int write,
 		void *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct ctl_table ipc_table;
@@ -44,10 +46,11 @@ static int proc_ipc_auto_msgmni(struct ctl_table *table, int write,
 	if (write)
 		pr_info_once("writing to auto_msgmni has no effect");
 
-	return proc_dointvec_minmax(&ipc_table, write, buffer, lenp, ppos);
+	return proc_dointvec_minmax(ctx, &ipc_table, write, buffer, lenp, ppos);
 }
 
-static int proc_ipc_sem_dointvec(struct ctl_table *table, int write,
+static int proc_ipc_sem_dointvec(struct ctl_context *ctx,
+	struct ctl_table *table, int write,
 	void *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct ipc_namespace *ns =
@@ -55,7 +58,7 @@ static int proc_ipc_sem_dointvec(struct ctl_table *table, int write,
 	int ret, semmni;
 
 	semmni = ns->sem_ctls[3];
-	ret = proc_dointvec(table, write, buffer, lenp, ppos);
+	ret = proc_dointvec(ctx, table, write, buffer, lenp, ppos);
 
 	if (!ret)
 		ret = sem_check_semmni(ns);

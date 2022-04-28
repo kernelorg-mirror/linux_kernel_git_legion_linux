@@ -172,7 +172,7 @@ __setup("printk.devkmsg=", control_devkmsg);
 
 char devkmsg_log_str[DEVKMSG_STR_MAX_SIZE] = "ratelimit";
 #if defined(CONFIG_PRINTK) && defined(CONFIG_SYSCTL)
-int devkmsg_sysctl_set_loglvl(struct ctl_table *table, int write,
+int devkmsg_sysctl_set_loglvl(struct ctl_context *ctx, struct ctl_table *table, int write,
 			      void *buffer, size_t *lenp, loff_t *ppos)
 {
 	char old_str[DEVKMSG_STR_MAX_SIZE];
@@ -187,7 +187,7 @@ int devkmsg_sysctl_set_loglvl(struct ctl_table *table, int write,
 		strncpy(old_str, devkmsg_log_str, DEVKMSG_STR_MAX_SIZE);
 	}
 
-	err = proc_dostring(table, write, buffer, lenp, ppos);
+	err = proc_dostring(ctx, table, write, buffer, lenp, ppos);
 	if (err)
 		return err;
 

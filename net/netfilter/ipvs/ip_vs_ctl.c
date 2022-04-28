@@ -1770,7 +1770,7 @@ static int ip_vs_zero_all(struct netns_ipvs *ipvs)
 static int three = 3;
 
 static int
-proc_do_defense_mode(struct ctl_table *table, int write,
+proc_do_defense_mode(struct ctl_context *ctx, struct ctl_table *table, int write,
 		     void *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct netns_ipvs *ipvs = table->extra2;
@@ -1784,7 +1784,7 @@ proc_do_defense_mode(struct ctl_table *table, int write,
 		.mode = table->mode,
 	};
 
-	rc = proc_dointvec(&tmp, write, buffer, lenp, ppos);
+	rc = proc_dointvec(ctx, &tmp, write, buffer, lenp, ppos);
 	if (write && (*valp != val)) {
 		if (val < 0 || val > 3) {
 			rc = -EINVAL;
@@ -1797,7 +1797,7 @@ proc_do_defense_mode(struct ctl_table *table, int write,
 }
 
 static int
-proc_do_sync_threshold(struct ctl_table *table, int write,
+proc_do_sync_threshold(struct ctl_context *ctx, struct ctl_table *table, int write,
 		       void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int *valp = table->data;
@@ -1810,7 +1810,7 @@ proc_do_sync_threshold(struct ctl_table *table, int write,
 	};
 
 	memcpy(val, valp, sizeof(val));
-	rc = proc_dointvec(&tmp, write, buffer, lenp, ppos);
+	rc = proc_dointvec(ctx, &tmp, write, buffer, lenp, ppos);
 	if (write) {
 		if (val[0] < 0 || val[1] < 0 ||
 		    (val[0] >= val[1] && val[1]))
@@ -1822,7 +1822,7 @@ proc_do_sync_threshold(struct ctl_table *table, int write,
 }
 
 static int
-proc_do_sync_ports(struct ctl_table *table, int write,
+proc_do_sync_ports(struct ctl_context *ctx, struct ctl_table *table, int write,
 		   void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int *valp = table->data;
@@ -1835,7 +1835,7 @@ proc_do_sync_ports(struct ctl_table *table, int write,
 		.mode = table->mode,
 	};
 
-	rc = proc_dointvec(&tmp, write, buffer, lenp, ppos);
+	rc = proc_dointvec(ctx, &tmp, write, buffer, lenp, ppos);
 	if (write && (*valp != val)) {
 		if (val < 1 || !is_power_of_2(val))
 			rc = -EINVAL;

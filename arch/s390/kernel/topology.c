@@ -599,8 +599,8 @@ static int __init topology_setup(char *str)
 }
 early_param("topology", topology_setup);
 
-static int topology_ctl_handler(struct ctl_table *ctl, int write,
-				void *buffer, size_t *lenp, loff_t *ppos)
+static int topology_ctl_handler(struct ctl_context *ctx, struct ctl_table *ctl,
+				int write, void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int enabled = topology_is_enabled();
 	int new_mode;
@@ -613,7 +613,7 @@ static int topology_ctl_handler(struct ctl_table *ctl, int write,
 		.extra2		= SYSCTL_ONE,
 	};
 
-	rc = proc_douintvec_minmax(&ctl_entry, write, buffer, lenp, ppos);
+	rc = proc_douintvec_minmax(ctx, &ctl_entry, write, buffer, lenp, ppos);
 	if (rc < 0 || !write)
 		return rc;
 

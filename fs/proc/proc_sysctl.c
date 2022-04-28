@@ -595,13 +595,13 @@ static ssize_t proc_sys_call_handler(struct kiocb *iocb, struct iov_iter *iter,
 		kbuf[count] = '\0';
 	}
 
-	error = BPF_CGROUP_RUN_PROG_SYSCTL(head, table, write, &kbuf, &count,
+	error = BPF_CGROUP_RUN_PROG_SYSCTL(head, iocb->ki_filp->private_data, table, write, &kbuf, &count,
 					   &iocb->ki_pos);
 	if (error)
 		goto out_free_buf;
 
 	/* careful: calling conventions are nasty here */
-	error = table->proc_handler(table, write, kbuf, &count, &iocb->ki_pos);
+	error = table->proc_handler(iocb->ki_filp->private_data, table, write, kbuf, &count, &iocb->ki_pos);
 	if (error)
 		goto out_free_buf;
 
@@ -634,15 +634,30 @@ static int proc_sys_open(struct inode *inode, struct file *filp)
 {
 	struct ctl_table_header *head = grab_header(inode);
 	struct ctl_table *table = PROC_I(inode)->sysctl_entry;
+	struct ctl_context *ctx;
 
 	/* sysctl was unregistered */
 	if (IS_ERR(head))
 		return PTR_ERR(head);
 
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	if (!ctx)
+		return -ENOMEM;
+
+	filp->private_data = ctx;
+
 	if (table->poll)
-		filp->private_data = proc_sys_poll_event(table->poll);
+		ctx->poll_event = proc_sys_poll_event(table->poll);
 
 	sysctl_head_finish(head);
+
+	return 0;
+}
+
+static int proc_sys_release(struct inode *inode, struct file *filp)
+{
+	kfree(filp->private_data);
+	filp->private_data =  NULL;
 
 	return 0;
 }
@@ -652,8 +667,8 @@ static __poll_t proc_sys_poll(struct file *filp, poll_table *wait)
 	struct inode *inode = file_inode(filp);
 	struct ctl_table_header *head = grab_header(inode);
 	struct ctl_table *table = PROC_I(inode)->sysctl_entry;
+	struct ctl_context *ctx;
 	__poll_t ret = DEFAULT_POLLMASK;
-	unsigned long event;
 
 	/* sysctl was unregistered */
 	if (IS_ERR(head))
@@ -665,11 +680,11 @@ static __poll_t proc_sys_poll(struct file *filp, poll_table *wait)
 	if (!table->poll)
 		goto out;
 
-	event = (unsigned long)filp->private_data;
+	ctx = filp->private_data;
 	poll_wait(filp, &table->poll->wait, wait);
 
-	if (event != atomic_read(&table->poll->event)) {
-		filp->private_data = proc_sys_poll_event(table->poll);
+	if (ctx->poll_event != atomic_read(&table->poll->event)) {
+		ctx->poll_event = proc_sys_poll_event(table->poll);
 		ret = EPOLLIN | EPOLLRDNORM | EPOLLERR | EPOLLPRI;
 	}
 
@@ -866,6 +881,7 @@ static int proc_sys_getattr(struct user_namespace *mnt_userns,
 
 static const struct file_operations proc_sys_file_operations = {
 	.open		= proc_sys_open,
+	.release	= proc_sys_release,
 	.poll		= proc_sys_poll,
 	.read_iter	= proc_sys_read,
 	.write_iter	= proc_sys_write,

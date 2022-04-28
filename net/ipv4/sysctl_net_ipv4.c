@@ -63,7 +63,8 @@ static void set_local_port_range(struct net *net, int range[2])
 }
 
 /* Validate changes from /proc interface. */
-static int ipv4_local_port_range(struct ctl_table *table, int write,
+static int ipv4_local_port_range(struct ctl_context *ctx,
+				 struct ctl_table *table, int write,
 				 void *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct net *net =
@@ -80,7 +81,7 @@ static int ipv4_local_port_range(struct ctl_table *table, int write,
 
 	inet_get_local_port_range(net, &range[0], &range[1]);
 
-	ret = proc_dointvec_minmax(&tmp, write, buffer, lenp, ppos);
+	ret = proc_dointvec_minmax(ctx, &tmp, write, buffer, lenp, ppos);
 
 	if (write && ret == 0) {
 		/* Ensure that the upper limit is not smaller than the lower,
@@ -98,7 +99,8 @@ static int ipv4_local_port_range(struct ctl_table *table, int write,
 }
 
 /* Validate changes from /proc interface. */
-static int ipv4_privileged_ports(struct ctl_table *table, int write,
+static int ipv4_privileged_ports(struct ctl_context *ctx,
+				struct ctl_table *table, int write,
 				void *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct net *net = container_of(table->data, struct net,
@@ -116,7 +118,7 @@ static int ipv4_privileged_ports(struct ctl_table *table, int write,
 
 	pports = net->ipv4.sysctl_ip_prot_sock;
 
-	ret = proc_dointvec_minmax(&tmp, write, buffer, lenp, ppos);
+	ret = proc_dointvec_minmax(ctx, &tmp, write, buffer, lenp, ppos);
 
 	if (write && ret == 0) {
 		inet_get_local_port_range(net, &range[0], &range[1]);
@@ -159,7 +161,8 @@ static void set_ping_group_range(struct ctl_table *table, kgid_t low, kgid_t hig
 }
 
 /* Validate changes from /proc interface. */
-static int ipv4_ping_group_range(struct ctl_table *table, int write,
+static int ipv4_ping_group_range(struct ctl_context *ctx,
+				 struct ctl_table *table, int write,
 				 void *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct user_namespace *user_ns = current_user_ns();
@@ -177,7 +180,7 @@ static int ipv4_ping_group_range(struct ctl_table *table, int write,
 	inet_get_ping_group_range_table(table, &low, &high);
 	urange[0] = from_kgid_munged(user_ns, low);
 	urange[1] = from_kgid_munged(user_ns, high);
-	ret = proc_dointvec_minmax(&tmp, write, buffer, lenp, ppos);
+	ret = proc_dointvec_minmax(ctx, &tmp, write, buffer, lenp, ppos);
 
 	if (write && ret == 0) {
 		low = make_kgid(user_ns, urange[0]);
@@ -194,7 +197,8 @@ static int ipv4_ping_group_range(struct ctl_table *table, int write,
 	return ret;
 }
 
-static int ipv4_fwd_update_priority(struct ctl_table *table, int write,
+static int ipv4_fwd_update_priority(struct ctl_context *ctx,
+				    struct ctl_table *table, int write,
 				    void *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct net *net;
@@ -202,7 +206,7 @@ static int ipv4_fwd_update_priority(struct ctl_table *table, int write,
 
 	net = container_of(table->data, struct net,
 			   ipv4.sysctl_ip_fwd_update_priority);
-	ret = proc_dou8vec_minmax(table, write, buffer, lenp, ppos);
+	ret = proc_dou8vec_minmax(ctx, table, write, buffer, lenp, ppos);
 	if (write && ret == 0)
 		call_netevent_notifiers(NETEVENT_IPV4_FWD_UPDATE_PRIORITY_UPDATE,
 					net);
@@ -210,7 +214,8 @@ static int ipv4_fwd_update_priority(struct ctl_table *table, int write,
 	return ret;
 }
 
-static int proc_tcp_congestion_control(struct ctl_table *ctl, int write,
+static int proc_tcp_congestion_control(struct ctl_context *ctx,
+				       struct ctl_table *ctl, int write,
 				       void *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct net *net = container_of(ctl->data, struct net,
@@ -224,13 +229,14 @@ static int proc_tcp_congestion_control(struct ctl_table *ctl, int write,
 
 	tcp_get_default_congestion_control(net, val);
 
-	ret = proc_dostring(&tbl, write, buffer, lenp, ppos);
+	ret = proc_dostring(ctx, &tbl, write, buffer, lenp, ppos);
 	if (write && ret == 0)
 		ret = tcp_set_default_congestion_control(net, val);
 	return ret;
 }
 
-static int proc_tcp_available_congestion_control(struct ctl_table *ctl,
+static int proc_tcp_available_congestion_control(struct ctl_context *ctx,
+						 struct ctl_table *ctl,
 						 int write, void *buffer,
 						 size_t *lenp, loff_t *ppos)
 {
@@ -241,12 +247,13 @@ static int proc_tcp_available_congestion_control(struct ctl_table *ctl,
 	if (!tbl.data)
 		return -ENOMEM;
 	tcp_get_available_congestion_control(tbl.data, TCP_CA_BUF_MAX);
-	ret = proc_dostring(&tbl, write, buffer, lenp, ppos);
+	ret = proc_dostring(ctx, &tbl, write, buffer, lenp, ppos);
 	kfree(tbl.data);
 	return ret;
 }
 
-static int proc_allowed_congestion_control(struct ctl_table *ctl,
+static int proc_allowed_congestion_control(struct ctl_context *ctx,
+					   struct ctl_table *ctl,
 					   int write, void *buffer,
 					   size_t *lenp, loff_t *ppos)
 {
@@ -258,7 +265,7 @@ static int proc_allowed_congestion_control(struct ctl_table *ctl,
 		return -ENOMEM;
 
 	tcp_get_allowed_congestion_control(tbl.data, tbl.maxlen);
-	ret = proc_dostring(&tbl, write, buffer, lenp, ppos);
+	ret = proc_dostring(ctx, &tbl, write, buffer, lenp, ppos);
 	if (write && ret == 0)
 		ret = tcp_set_allowed_congestion_control(tbl.data);
 	kfree(tbl.data);
@@ -283,7 +290,8 @@ static int sscanf_key(char *buf, __le32 *key)
 	return ret;
 }
 
-static int proc_tcp_fastopen_key(struct ctl_table *table, int write,
+static int proc_tcp_fastopen_key(struct ctl_context *ctx,
+				 struct ctl_table *table, int write,
 				 void *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct net *net = container_of(table->data, struct net,
@@ -327,7 +335,7 @@ static int proc_tcp_fastopen_key(struct ctl_table *table, int write,
 			off += snprintf(tbl.data + off, tbl.maxlen - off, ",");
 	}
 
-	ret = proc_dostring(&tbl, write, buffer, lenp, ppos);
+	ret = proc_dostring(ctx, &tbl, write, buffer, lenp, ppos);
 
 	if (write && ret == 0) {
 		backup_data = strchr(tbl.data, ',');
@@ -377,12 +385,13 @@ static void proc_configure_early_demux(int enabled, int protocol)
 	rcu_read_unlock();
 }
 
-static int proc_tcp_early_demux(struct ctl_table *table, int write,
+static int proc_tcp_early_demux(struct ctl_context *ctx,
+				struct ctl_table *table, int write,
 				void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int ret = 0;
 
-	ret = proc_dou8vec_minmax(table, write, buffer, lenp, ppos);
+	ret = proc_dou8vec_minmax(ctx, table, write, buffer, lenp, ppos);
 
 	if (write && !ret) {
 		int enabled = init_net.ipv4.sysctl_tcp_early_demux;
@@ -393,12 +402,13 @@ static int proc_tcp_early_demux(struct ctl_table *table, int write,
 	return ret;
 }
 
-static int proc_udp_early_demux(struct ctl_table *table, int write,
+static int proc_udp_early_demux(struct ctl_context *ctx,
+				struct ctl_table *table, int write,
 				void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int ret = 0;
 
-	ret = proc_dou8vec_minmax(table, write, buffer, lenp, ppos);
+	ret = proc_dou8vec_minmax(ctx, table, write, buffer, lenp, ppos);
 
 	if (write && !ret) {
 		int enabled = init_net.ipv4.sysctl_udp_early_demux;
@@ -409,7 +419,8 @@ static int proc_udp_early_demux(struct ctl_table *table, int write,
 	return ret;
 }
 
-static int proc_tfo_blackhole_detect_timeout(struct ctl_table *table,
+static int proc_tfo_blackhole_detect_timeout(struct ctl_context *ctx,
+					     struct ctl_table *table,
 					     int write, void *buffer,
 					     size_t *lenp, loff_t *ppos)
 {
@@ -417,14 +428,15 @@ static int proc_tfo_blackhole_detect_timeout(struct ctl_table *table,
 	    ipv4.sysctl_tcp_fastopen_blackhole_timeout);
 	int ret;
 
-	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+	ret = proc_dointvec_minmax(ctx, table, write, buffer, lenp, ppos);
 	if (write && ret == 0)
 		atomic_set(&net->ipv4.tfo_active_disable_times, 0);
 
 	return ret;
 }
 
-static int proc_tcp_available_ulp(struct ctl_table *ctl,
+static int proc_tcp_available_ulp(struct ctl_context *ctx,
+				  struct ctl_table *ctl,
 				  int write, void *buffer, size_t *lenp,
 				  loff_t *ppos)
 {
@@ -435,14 +447,15 @@ static int proc_tcp_available_ulp(struct ctl_table *ctl,
 	if (!tbl.data)
 		return -ENOMEM;
 	tcp_get_available_ulp(tbl.data, TCP_ULP_BUF_MAX);
-	ret = proc_dostring(&tbl, write, buffer, lenp, ppos);
+	ret = proc_dostring(ctx, &tbl, write, buffer, lenp, ppos);
 	kfree(tbl.data);
 
 	return ret;
 }
 
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
-static int proc_fib_multipath_hash_policy(struct ctl_table *table, int write,
+static int proc_fib_multipath_hash_policy(struct ctl_context *ctx,
+					  struct ctl_table *table, int write,
 					  void *buffer, size_t *lenp,
 					  loff_t *ppos)
 {
@@ -450,14 +463,15 @@ static int proc_fib_multipath_hash_policy(struct ctl_table *table, int write,
 	    ipv4.sysctl_fib_multipath_hash_policy);
 	int ret;
 
-	ret = proc_dou8vec_minmax(table, write, buffer, lenp, ppos);
+	ret = proc_dou8vec_minmax(ctx, table, write, buffer, lenp, ppos);
 	if (write && ret == 0)
 		call_netevent_notifiers(NETEVENT_IPV4_MPATH_HASH_UPDATE, net);
 
 	return ret;
 }
 
-static int proc_fib_multipath_hash_fields(struct ctl_table *table, int write,
+static int proc_fib_multipath_hash_fields(struct ctl_context *ctx,
+					  struct ctl_table *table, int write,
 					  void *buffer, size_t *lenp,
 					  loff_t *ppos)
 {
@@ -466,7 +480,7 @@ static int proc_fib_multipath_hash_fields(struct ctl_table *table, int write,
 
 	net = container_of(table->data, struct net,
 			   ipv4.sysctl_fib_multipath_hash_fields);
-	ret = proc_douintvec_minmax(table, write, buffer, lenp, ppos);
+	ret = proc_douintvec_minmax(ctx, table, write, buffer, lenp, ppos);
 	if (write && ret == 0)
 		call_netevent_notifiers(NETEVENT_IPV4_MPATH_HASH_UPDATE, net);
 

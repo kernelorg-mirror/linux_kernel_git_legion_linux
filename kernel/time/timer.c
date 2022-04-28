@@ -251,13 +251,13 @@ void timers_update_nohz(void)
 	schedule_work(&timer_update_work);
 }
 
-int timer_migration_handler(struct ctl_table *table, int write,
+int timer_migration_handler(struct ctl_context *ctx, struct ctl_table *table, int write,
 			    void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int ret;
 
 	mutex_lock(&timer_keys_mutex);
-	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+	ret = proc_dointvec_minmax(ctx, table, write, buffer, lenp, ppos);
 	if (!ret && write)
 		timers_update_migration();
 	mutex_unlock(&timer_keys_mutex);

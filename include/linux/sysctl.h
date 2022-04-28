@@ -60,29 +60,33 @@ extern const int sysctl_vals[];
 
 extern const unsigned long sysctl_long_vals[];
 
-typedef int proc_handler(struct ctl_table *ctl, int write, void *buffer,
+struct ctl_context {
+	unsigned long poll_event;
+};
+
+typedef int proc_handler(struct ctl_context *ctx, struct ctl_table *ctl, int write, void *buffer,
 		size_t *lenp, loff_t *ppos);
 
-int proc_dostring(struct ctl_table *, int, void *, size_t *, loff_t *);
-int proc_dobool(struct ctl_table *table, int write, void *buffer,
+int proc_dostring(struct ctl_context *, struct ctl_table *, int, void *, size_t *, loff_t *);
+int proc_dobool(struct ctl_context *, struct ctl_table *table, int write, void *buffer,
 		size_t *lenp, loff_t *ppos);
-int proc_dointvec(struct ctl_table *, int, void *, size_t *, loff_t *);
-int proc_douintvec(struct ctl_table *, int, void *, size_t *, loff_t *);
-int proc_dointvec_minmax(struct ctl_table *, int, void *, size_t *, loff_t *);
-int proc_douintvec_minmax(struct ctl_table *table, int write, void *buffer,
+int proc_dointvec(struct ctl_context *, struct ctl_table *, int, void *, size_t *, loff_t *);
+int proc_douintvec(struct ctl_context *, struct ctl_table *, int, void *, size_t *, loff_t *);
+int proc_dointvec_minmax(struct ctl_context *, struct ctl_table *, int, void *, size_t *, loff_t *);
+int proc_douintvec_minmax(struct ctl_context *ctx, struct ctl_table *table, int write, void *buffer,
 		size_t *lenp, loff_t *ppos);
-int proc_dou8vec_minmax(struct ctl_table *table, int write, void *buffer,
+int proc_dou8vec_minmax(struct ctl_context *, struct ctl_table *table, int write, void *buffer,
 			size_t *lenp, loff_t *ppos);
-int proc_dointvec_jiffies(struct ctl_table *, int, void *, size_t *, loff_t *);
-int proc_dointvec_userhz_jiffies(struct ctl_table *, int, void *, size_t *,
+int proc_dointvec_jiffies(struct ctl_context *, struct ctl_table *, int, void *, size_t *, loff_t *);
+int proc_dointvec_userhz_jiffies(struct ctl_context *, struct ctl_table *, int, void *, size_t *,
 		loff_t *);
-int proc_dointvec_ms_jiffies(struct ctl_table *, int, void *, size_t *,
+int proc_dointvec_ms_jiffies(struct ctl_context *, struct ctl_table *, int, void *, size_t *,
 		loff_t *);
-int proc_doulongvec_minmax(struct ctl_table *, int, void *, size_t *, loff_t *);
-int proc_doulongvec_ms_jiffies_minmax(struct ctl_table *table, int, void *,
+int proc_doulongvec_minmax(struct ctl_context *, struct ctl_table *, int, void *, size_t *, loff_t *);
+int proc_doulongvec_ms_jiffies_minmax(struct ctl_context *, struct ctl_table *table, int, void *,
 		size_t *, loff_t *);
-int proc_do_large_bitmap(struct ctl_table *, int, void *, size_t *, loff_t *);
-int proc_do_static_key(struct ctl_table *table, int write, void *buffer,
+int proc_do_large_bitmap(struct ctl_context *, struct ctl_table *, int, void *, size_t *, loff_t *);
+int proc_do_static_key(struct ctl_context *, struct ctl_table *table, int write, void *buffer,
 		size_t *lenp, loff_t *ppos);
 
 /*
@@ -116,9 +120,9 @@ struct ctl_table_poll {
 	wait_queue_head_t wait;
 };
 
-static inline void *proc_sys_poll_event(struct ctl_table_poll *poll)
+static inline unsigned long proc_sys_poll_event(struct ctl_table_poll *poll)
 {
-	return (void *)(unsigned long)atomic_read(&poll->event);
+	return (unsigned long)atomic_read(&poll->event);
 }
 
 #define __CTL_TABLE_POLL_INITIALIZER(name) {				\
@@ -296,7 +300,7 @@ static inline void do_sysctl_args(void)
 }
 #endif /* CONFIG_SYSCTL */
 
-int sysctl_max_threads(struct ctl_table *table, int write, void *buffer,
+int sysctl_max_threads(struct ctl_context *ctx, struct ctl_table *table, int write, void *buffer,
 		size_t *lenp, loff_t *ppos);
 
 #endif /* _LINUX_SYSCTL_H */

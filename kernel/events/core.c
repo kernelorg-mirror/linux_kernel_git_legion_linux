@@ -449,7 +449,8 @@ static void update_perf_cpu_limits(void)
 
 static bool perf_rotate_context(struct perf_cpu_context *cpuctx);
 
-int perf_proc_update_handler(struct ctl_table *table, int write,
+int perf_proc_update_handler(struct ctl_context *ctx,
+		struct ctl_table *table, int write,
 		void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int ret;
@@ -460,7 +461,7 @@ int perf_proc_update_handler(struct ctl_table *table, int write,
 	if (write && (perf_cpu == 100 || perf_cpu == 0))
 		return -EINVAL;
 
-	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+	ret = proc_dointvec_minmax(ctx, table, write, buffer, lenp, ppos);
 	if (ret || !write)
 		return ret;
 
@@ -473,10 +474,11 @@ int perf_proc_update_handler(struct ctl_table *table, int write,
 
 int sysctl_perf_cpu_time_max_percent __read_mostly = DEFAULT_CPU_TIME_MAX_PERCENT;
 
-int perf_cpu_time_max_percent_handler(struct ctl_table *table, int write,
+int perf_cpu_time_max_percent_handler(struct ctl_context *ctx,
+		struct ctl_table *table, int write,
 		void *buffer, size_t *lenp, loff_t *ppos)
 {
-	int ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+	int ret = proc_dointvec_minmax(ctx, table, write, buffer, lenp, ppos);
 
 	if (ret || !write)
 		return ret;

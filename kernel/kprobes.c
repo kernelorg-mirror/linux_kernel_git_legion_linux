@@ -942,7 +942,8 @@ static void unoptimize_all_kprobes(void)
 
 static DEFINE_MUTEX(kprobe_sysctl_mutex);
 static int sysctl_kprobes_optimization;
-static int proc_kprobes_optimization_handler(struct ctl_table *table,
+static int proc_kprobes_optimization_handler(struct ctl_context *ctx,
+					     struct ctl_table *table,
 					     int write, void *buffer,
 					     size_t *length, loff_t *ppos)
 {
@@ -950,7 +951,7 @@ static int proc_kprobes_optimization_handler(struct ctl_table *table,
 
 	mutex_lock(&kprobe_sysctl_mutex);
 	sysctl_kprobes_optimization = kprobes_allow_optimization ? 1 : 0;
-	ret = proc_dointvec_minmax(table, write, buffer, length, ppos);
+	ret = proc_dointvec_minmax(ctx, table, write, buffer, length, ppos);
 
 	if (sysctl_kprobes_optimization)
 		optimize_all_kprobes();

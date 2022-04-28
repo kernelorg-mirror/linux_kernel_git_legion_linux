@@ -29,7 +29,8 @@ static void update_mmap_min_addr(void)
  * sysctl handler which just sets dac_mmap_min_addr = the new value and then
  * calls update_mmap_min_addr() so non MAP_FIXED hints get rounded properly
  */
-int mmap_min_addr_handler(struct ctl_table *table, int write,
+int mmap_min_addr_handler(struct ctl_context *ctx,
+			  struct ctl_table *table, int write,
 			  void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int ret;
@@ -37,7 +38,7 @@ int mmap_min_addr_handler(struct ctl_table *table, int write,
 	if (write && !capable(CAP_SYS_RAWIO))
 		return -EPERM;
 
-	ret = proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
+	ret = proc_doulongvec_minmax(ctx, table, write, buffer, lenp, ppos);
 
 	update_mmap_min_addr();
 

@@ -1950,7 +1950,8 @@ static char sysctl_bootid[16];
  * returned as an ASCII string in the standard UUID format; if via the
  * sysctl system call, as 16 bytes of binary data.
  */
-static int proc_do_uuid(struct ctl_table *table, int write, void *buffer,
+static int proc_do_uuid(struct ctl_context *ctx, struct ctl_table *table,
+			int write, void *buffer,
 			size_t *lenp, loff_t *ppos)
 {
 	struct ctl_table fake_table;
@@ -1974,13 +1975,14 @@ static int proc_do_uuid(struct ctl_table *table, int write, void *buffer,
 	fake_table.data = buf;
 	fake_table.maxlen = sizeof(buf);
 
-	return proc_dostring(&fake_table, write, buffer, lenp, ppos);
+	return proc_dostring(ctx, &fake_table, write, buffer, lenp, ppos);
 }
 
 /*
  * Return entropy available scaled to integral bits
  */
-static int proc_do_entropy(struct ctl_table *table, int write, void *buffer,
+static int proc_do_entropy(struct ctl_context *ctx, struct ctl_table *table,
+			   int write, void *buffer,
 			   size_t *lenp, loff_t *ppos)
 {
 	struct ctl_table fake_table;
@@ -1991,7 +1993,7 @@ static int proc_do_entropy(struct ctl_table *table, int write, void *buffer,
 	fake_table.data = &entropy_count;
 	fake_table.maxlen = sizeof(entropy_count);
 
-	return proc_dointvec(&fake_table, write, buffer, lenp, ppos);
+	return proc_dointvec(ctx, &fake_table, write, buffer, lenp, ppos);
 }
 
 static int sysctl_poolsize = POOL_BITS;
