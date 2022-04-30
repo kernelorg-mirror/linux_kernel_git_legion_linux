@@ -60,7 +60,15 @@ extern const int sysctl_vals[];
 
 extern const unsigned long sysctl_long_vals[];
 
+enum ctl_ns_type {
+	CTL_WITHOUT_NS,
+	CTL_USER_NS,
+	CTL_COUNTS
+};
+
 struct ctl_context {
+	struct ns_common *ctl_ns;
+	struct ctl_table *ctl_table;
 	unsigned long poll_event;
 };
 
@@ -138,6 +146,8 @@ struct ctl_table {
 	void *data;
 	int maxlen;
 	umode_t mode;
+	int index;
+	enum ctl_ns_type ns_type;
 	struct ctl_table *child;	/* Deprecated */
 	proc_handler *proc_handler;	/* Callback for text formatting */
 	struct ctl_table_poll *poll;

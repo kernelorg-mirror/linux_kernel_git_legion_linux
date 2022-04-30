@@ -17,6 +17,7 @@
 #include <linux/bpf-cgroup.h>
 #include <linux/mount.h>
 #include <linux/kmemleak.h>
+#include <linux/user_namespace.h>
 #include "internal.h"
 
 static const struct dentry_operations proc_sys_dentry_operations;
@@ -633,7 +634,6 @@ static ssize_t proc_sys_write(struct kiocb *iocb, struct iov_iter *iter)
 static int proc_sys_open(struct inode *inode, struct file *filp)
 {
 	struct ctl_table_header *head = grab_header(inode);
-	struct ctl_table *table = PROC_I(inode)->sysctl_entry;
 	struct ctl_context *ctx;
 
 	/* sysctl was unregistered */
@@ -644,10 +644,22 @@ static int proc_sys_open(struct inode *inode, struct file *filp)
 	if (!ctx)
 		return -ENOMEM;
 
+	ctx->ctl_table = PROC_I(inode)->sysctl_entry;
+
+	switch (ctx->ctl_table->ns_type) {
+		default:
+		case CTL_WITHOUT_NS:
+			break;
+		case CTL_USER_NS:
+			get_user_ns(current_user_ns());
+			ctx->ctl_ns = &current_user_ns()->ns;
+			break;
+	}
+
 	filp->private_data = ctx;
 
-	if (table->poll)
-		ctx->poll_event = proc_sys_poll_event(table->poll);
+	if (ctx->ctl_table->poll)
+		ctx->poll_event = proc_sys_poll_event(ctx->ctl_table->poll);
 
 	sysctl_head_finish(head);
 
@@ -656,7 +668,18 @@ static int proc_sys_open(struct inode *inode, struct file *filp)
 
 static int proc_sys_release(struct inode *inode, struct file *filp)
 {
-	kfree(filp->private_data);
+	struct ctl_context *ctx = filp->private_data;
+
+	switch (ctx->ctl_table->ns_type) {
+		default:
+		case CTL_WITHOUT_NS:
+			break;
+		case CTL_USER_NS:
+			put_user_ns(container_of(ctx->ctl_ns, struct user_namespace, ns));
+			break;
+	}
+
+	kfree(ctx);
 	filp->private_data =  NULL;
 
 	return 0;
