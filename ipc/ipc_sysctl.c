@@ -68,26 +68,56 @@ static int proc_ipc_sem_dointvec(struct ctl_table *table, int write,
 	return ret;
 }
 
+static void *ipc_sys_get_value(struct ctl_context *ctx, struct file *file);
+static int ipc_sys_open(struct ctl_context *ctx, struct inode *inode, struct file *file);
+
+static struct ctl_fops ipc_sys_fops = {
+	.open		= ipc_sys_open,
+	.get_value	= ipc_sys_get_value,
+	.read		= proc_sys_read_handler,
+	.write		= proc_sys_write_handler,
+};
+
 int ipc_mni = IPCMNI;
 int ipc_mni_shift = IPCMNI_SHIFT;
 int ipc_min_cycle = RADIX_TREE_MAP_SIZE;
 
+enum {
+	IPC_SYSCTL_SHMMAX,
+	IPC_SYSCTL_SHMALL,
+	IPC_SYSCTL_SHMMNI,
+	IPC_SYSCTL_SHM_RMID_FORCED,
+	IPC_SYSCTL_MSGMAX,
+	IPC_SYSCTL_MSGMNI,
+	IPC_SYSCTL_AUTO_MSGMNI,
+	IPC_SYSCTL_MSGMNB,
+	IPC_SYSCTL_SEM,
+#ifdef CONFIG_CHECKPOINT_RESTORE
+	IPC_SYSCTL_SEM_NEXT_ID,
+	IPC_SYSCTL_MSG_NEXT_ID,
+	IPC_SYSCTL_SHM_NEXT_ID,
+#endif
+	IPC_SYSCTL_COUNTS
+};
+
 static struct ctl_table ipc_sysctls[] = {
-	{
+	[IPC_SYSCTL_SHMMAX] = {
 		.procname	= "shmmax",
 		.data		= &init_ipc_ns.shm_ctlmax,
 		.maxlen		= sizeof(init_ipc_ns.shm_ctlmax),
 		.mode		= 0644,
-		.proc_handler	= proc_doulongvec_minmax,
+		.proc_handler   = proc_doulongvec_minmax,
+		.ctl_fops	= &ipc_sys_fops,
 	},
-	{
+	[IPC_SYSCTL_SHMALL] = {
 		.procname	= "shmall",
 		.data		= &init_ipc_ns.shm_ctlall,
 		.maxlen		= sizeof(init_ipc_ns.shm_ctlall),
 		.mode		= 0644,
-		.proc_handler	= proc_doulongvec_minmax,
+		.proc_handler   = proc_doulongvec_minmax,
+		.ctl_fops	= &ipc_sys_fops,
 	},
-	{
+	[IPC_SYSCTL_SHMMNI] = {
 		.procname	= "shmmni",
 		.data		= &init_ipc_ns.shm_ctlmni,
 		.maxlen		= sizeof(init_ipc_ns.shm_ctlmni),
@@ -95,8 +125,9 @@ static struct ctl_table ipc_sysctls[] = {
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= &ipc_mni,
+		.ctl_fops	= &ipc_sys_fops,
 	},
-	{
+	[IPC_SYSCTL_SHM_RMID_FORCED] = {
 		.procname	= "shm_rmid_forced",
 		.data		= &init_ipc_ns.shm_rmid_forced,
 		.maxlen		= sizeof(init_ipc_ns.shm_rmid_forced),
@@ -104,8 +135,9 @@ static struct ctl_table ipc_sysctls[] = {
 		.proc_handler	= proc_ipc_dointvec_minmax_orphans,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_ONE,
+		.ctl_fops	= &ipc_sys_fops,
 	},
-	{
+	[IPC_SYSCTL_MSGMAX] = {
 		.procname	= "msgmax",
 		.data		= &init_ipc_ns.msg_ctlmax,
 		.maxlen		= sizeof(init_ipc_ns.msg_ctlmax),
@@ -113,8 +145,9 @@ static struct ctl_table ipc_sysctls[] = {
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_INT_MAX,
+		.ctl_fops	= &ipc_sys_fops,
 	},
-	{
+	[IPC_SYSCTL_MSGMNI] = {
 		.procname	= "msgmni",
 		.data		= &init_ipc_ns.msg_ctlmni,
 		.maxlen		= sizeof(init_ipc_ns.msg_ctlmni),
@@ -122,8 +155,9 @@ static struct ctl_table ipc_sysctls[] = {
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= &ipc_mni,
+		.ctl_fops	= &ipc_sys_fops,
 	},
-	{
+	[IPC_SYSCTL_AUTO_MSGMNI] = {
 		.procname	= "auto_msgmni",
 		.data		= NULL,
 		.maxlen		= sizeof(int),
@@ -131,8 +165,9 @@ static struct ctl_table ipc_sysctls[] = {
 		.proc_handler	= proc_ipc_auto_msgmni,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_ONE,
+		.ctl_fops	= &ipc_sys_fops,
 	},
-	{
+	[IPC_SYSCTL_MSGMNB] = {
 		.procname	=  "msgmnb",
 		.data		= &init_ipc_ns.msg_ctlmnb,
 		.maxlen		= sizeof(init_ipc_ns.msg_ctlmnb),
@@ -140,152 +175,107 @@ static struct ctl_table ipc_sysctls[] = {
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_INT_MAX,
+		.ctl_fops	= &ipc_sys_fops,
 	},
-	{
+	[IPC_SYSCTL_SEM] = {
 		.procname	= "sem",
 		.data		= &init_ipc_ns.sem_ctls,
 		.maxlen		= 4*sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_ipc_sem_dointvec,
+		.ctl_fops	= &ipc_sys_fops,
 	},
 #ifdef CONFIG_CHECKPOINT_RESTORE
-	{
+	[IPC_SYSCTL_SEM_NEXT_ID] = {
 		.procname	= "sem_next_id",
 		.data		= &init_ipc_ns.ids[IPC_SEM_IDS].next_id,
 		.maxlen		= sizeof(init_ipc_ns.ids[IPC_SEM_IDS].next_id),
-		.mode		= 0444,
+		.mode		= 0666,
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_INT_MAX,
+		.ctl_fops	= &ipc_sys_fops,
 	},
-	{
+	[IPC_SYSCTL_MSG_NEXT_ID] = {
 		.procname	= "msg_next_id",
 		.data		= &init_ipc_ns.ids[IPC_MSG_IDS].next_id,
 		.maxlen		= sizeof(init_ipc_ns.ids[IPC_MSG_IDS].next_id),
-		.mode		= 0444,
+		.mode		= 0666,
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_INT_MAX,
+		.ctl_fops	= &ipc_sys_fops,
 	},
-	{
+	[IPC_SYSCTL_SHM_NEXT_ID] = {
 		.procname	= "shm_next_id",
 		.data		= &init_ipc_ns.ids[IPC_SHM_IDS].next_id,
 		.maxlen		= sizeof(init_ipc_ns.ids[IPC_SHM_IDS].next_id),
-		.mode		= 0444,
+		.mode		= 0666,
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_INT_MAX,
+		.ctl_fops	= &ipc_sys_fops,
 	},
 #endif
+	[IPC_SYSCTL_COUNTS] = {}
+};
+
+static void *ipc_sys_get_value(struct ctl_context *ctx, struct file *file)
+{
+	switch (ctx->ctl_table - ipc_sysctls) {
+		case IPC_SYSCTL_SHMMAX:			return &ctx->ipc_ns->shm_ctlmax;
+		case IPC_SYSCTL_SHMALL:			return &ctx->ipc_ns->shm_ctlall;
+		case IPC_SYSCTL_SHMMNI:			return &ctx->ipc_ns->shm_ctlmni;
+		case IPC_SYSCTL_SHM_RMID_FORCED:	return &ctx->ipc_ns->shm_rmid_forced;
+		case IPC_SYSCTL_MSGMAX:			return &ctx->ipc_ns->msg_ctlmax;
+		case IPC_SYSCTL_MSGMNI:			return &ctx->ipc_ns->msg_ctlmni;
+		case IPC_SYSCTL_MSGMNB:			return &ctx->ipc_ns->msg_ctlmnb;
+		case IPC_SYSCTL_SEM:			return &ctx->ipc_ns->sem_ctls;
+#ifdef CONFIG_CHECKPOINT_RESTORE
+		case IPC_SYSCTL_SEM_NEXT_ID:		return &ctx->ipc_ns->ids[IPC_SEM_IDS].next_id;
+		case IPC_SYSCTL_MSG_NEXT_ID:		return &ctx->ipc_ns->ids[IPC_MSG_IDS].next_id;
+		case IPC_SYSCTL_SHM_NEXT_ID:		return &ctx->ipc_ns->ids[IPC_SHM_IDS].next_id;
+#endif
+	}
+	return NULL;
+}
+
+static int ipc_sys_open(struct ctl_context *ctx, struct inode *inode, struct file *file)
+{
+	struct ipc_namespace *ns = current->nsproxy->ipc_ns;
+
+	// For now, we only allow changes in init_user_ns.
+	if (ns->user_ns != &init_user_ns)
+		return -EPERM;
+
+#ifdef CONFIG_CHECKPOINT_RESTORE
+	int index = (ctx->ctl_table - ipc_sysctls);
+
+	switch (index) {
+		case IPC_SYSCTL_SEM_NEXT_ID:
+		case IPC_SYSCTL_MSG_NEXT_ID:
+		case IPC_SYSCTL_SHM_NEXT_ID:
+			if (!checkpoint_restore_ns_capable(ns->user_ns))
+				return -EPERM;
+			break;
+	}
+#endif
+	ctx->ipc_ns = ns;
+	return 0;
+}
+
+static struct ctl_table ipc_root_table[] = {
+	{
+		.procname       = "kernel",
+		.mode           = 0555,
+		.child          = ipc_sysctls,
+	},
 	{}
 };
 
-static struct ctl_table_set *set_lookup(struct ctl_table_root *root)
-{
-	return &current->nsproxy->ipc_ns->ipc_set;
-}
-
-static int set_is_seen(struct ctl_table_set *set)
-{
-	return &current->nsproxy->ipc_ns->ipc_set == set;
-}
-
-static int ipc_permissions(struct ctl_table_header *head, struct ctl_table *table)
-{
-	int mode = table->mode;
-
-#ifdef CONFIG_CHECKPOINT_RESTORE
-	struct ipc_namespace *ns = current->nsproxy->ipc_ns;
-
-	if (((table->data == &ns->ids[IPC_SEM_IDS].next_id) ||
-	     (table->data == &ns->ids[IPC_MSG_IDS].next_id) ||
-	     (table->data == &ns->ids[IPC_SHM_IDS].next_id)) &&
-	    checkpoint_restore_ns_capable(ns->user_ns))
-		mode = 0666;
-#endif
-	return mode;
-}
-
-static struct ctl_table_root set_root = {
-	.lookup = set_lookup,
-	.permissions = ipc_permissions,
-};
-
-bool setup_ipc_sysctls(struct ipc_namespace *ns)
-{
-	struct ctl_table *tbl;
-
-	setup_sysctl_set(&ns->ipc_set, &set_root, set_is_seen);
-
-	tbl = kmemdup(ipc_sysctls, sizeof(ipc_sysctls), GFP_KERNEL);
-	if (tbl) {
-		int i;
-
-		for (i = 0; i < ARRAY_SIZE(ipc_sysctls); i++) {
-			if (tbl[i].data == &init_ipc_ns.shm_ctlmax)
-				tbl[i].data = &ns->shm_ctlmax;
-
-			else if (tbl[i].data == &init_ipc_ns.shm_ctlall)
-				tbl[i].data = &ns->shm_ctlall;
-
-			else if (tbl[i].data == &init_ipc_ns.shm_ctlmni)
-				tbl[i].data = &ns->shm_ctlmni;
-
-			else if (tbl[i].data == &init_ipc_ns.shm_rmid_forced)
-				tbl[i].data = &ns->shm_rmid_forced;
-
-			else if (tbl[i].data == &init_ipc_ns.msg_ctlmax)
-				tbl[i].data = &ns->msg_ctlmax;
-
-			else if (tbl[i].data == &init_ipc_ns.msg_ctlmni)
-				tbl[i].data = &ns->msg_ctlmni;
-
-			else if (tbl[i].data == &init_ipc_ns.msg_ctlmnb)
-				tbl[i].data = &ns->msg_ctlmnb;
-
-			else if (tbl[i].data == &init_ipc_ns.sem_ctls)
-				tbl[i].data = &ns->sem_ctls;
-#ifdef CONFIG_CHECKPOINT_RESTORE
-			else if (tbl[i].data == &init_ipc_ns.ids[IPC_SEM_IDS].next_id)
-				tbl[i].data = &ns->ids[IPC_SEM_IDS].next_id;
-
-			else if (tbl[i].data == &init_ipc_ns.ids[IPC_MSG_IDS].next_id)
-				tbl[i].data = &ns->ids[IPC_MSG_IDS].next_id;
-
-			else if (tbl[i].data == &init_ipc_ns.ids[IPC_SHM_IDS].next_id)
-				tbl[i].data = &ns->ids[IPC_SHM_IDS].next_id;
-#endif
-			else
-				tbl[i].data = NULL;
-		}
-
-		ns->ipc_sysctls = __register_sysctl_table(&ns->ipc_set, "kernel", tbl);
-	}
-	if (!ns->ipc_sysctls) {
-		kfree(tbl);
-		retire_sysctl_set(&ns->ipc_set);
-		return false;
-	}
-
-	return true;
-}
-
-void retire_ipc_sysctls(struct ipc_namespace *ns)
-{
-	struct ctl_table *tbl;
-
-	tbl = ns->ipc_sysctls->ctl_table_arg;
-	unregister_sysctl_table(ns->ipc_sysctls);
-	retire_sysctl_set(&ns->ipc_set);
-	kfree(tbl);
-}
-
 static int __init ipc_sysctl_init(void)
 {
-	if (!setup_ipc_sysctls(&init_ipc_ns)) {
-		pr_warn("ipc sysctl registration failed\n");
-		return -ENOMEM;
-	}
+	register_sysctl_table(ipc_root_table);
 	return 0;
 }
 

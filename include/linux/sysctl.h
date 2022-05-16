@@ -132,6 +132,7 @@ static inline unsigned long proc_sys_poll_event(struct ctl_table_poll *poll)
 struct ctl_context {
 	struct ctl_table *ctl_table;
 	unsigned long ctl_poll_event;
+	struct ipc_namespace *ipc_ns;
 };
 
 struct inode;
