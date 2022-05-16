@@ -567,6 +567,7 @@ static ssize_t proc_sys_call_handler(struct kiocb *iocb, struct iov_iter *iter,
 	struct inode *inode = file_inode(iocb->ki_filp);
 	struct ctl_table_header *head = grab_header(inode);
 	struct ctl_table *table = PROC_I(inode)->sysctl_entry;
+	struct ctl_fops *fops = table->ctl_fops;
 	size_t count = iov_iter_count(iter);
 	char *kbuf;
 	ssize_t error;
@@ -584,7 +585,7 @@ static ssize_t proc_sys_call_handler(struct kiocb *iocb, struct iov_iter *iter,
 
 	/* if that can happen at all, it should be -EINVAL, not -EISDIR */
 	error = -EINVAL;
-	if (!table->proc_handler)
+	if (!table->proc_handler && !fops)
 		goto out;
 
 	/* don't even try if the size is too large */
@@ -607,8 +608,20 @@ static ssize_t proc_sys_call_handler(struct kiocb *iocb, struct iov_iter *iter,
 	if (error)
 		goto out_free_buf;
 
-	/* careful: calling conventions are nasty here */
-	error = table->proc_handler(table, write, kbuf, &count, &iocb->ki_pos);
+	if (fops) {
+		struct ctl_context *ctx = iocb->ki_filp->private_data;
+
+		if (write && fops->write)
+			error = fops->write(ctx, iocb->ki_filp, kbuf, &count, &iocb->ki_pos);
+		else if (!write && fops->read)
+			error = fops->read(ctx, iocb->ki_filp, kbuf, &count, &iocb->ki_pos);
+		else
+			error = -EINVAL;
+	} else {
+		/* careful: calling conventions are nasty here */
+		error = table->proc_handler(table, write, kbuf, &count, &iocb->ki_pos);
+	}
+
 	if (error)
 		goto out_free_buf;
 
@@ -641,17 +654,71 @@ static int proc_sys_open(struct inode *inode, struct file *filp)
 {
 	struct ctl_table_header *head = grab_header(inode);
 	struct ctl_table *table = PROC_I(inode)->sysctl_entry;
+	struct ctl_context *ctx;
+	int ret = 0;
 
 	/* sysctl was unregistered */
 	if (IS_ERR(head))
 		return PTR_ERR(head);
 
-	if (table->poll)
-		filp->private_data = proc_sys_poll_event(table->poll);
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	if (!ctx)
+		return -ENOMEM;
+
+	ctx->ctl_table = table;
+	filp->private_data = ctx;
+
+	if (table->ctl_fops && table->ctl_fops->open)
+		ret = table->ctl_fops->open(ctx, inode, filp);
+
+	if (!ret && table->poll)
+		ctx->ctl_poll_event = proc_sys_poll_event(table->poll);
 
 	sysctl_head_finish(head);
 
-	return 0;
+	return ret;
+}
+
+static int proc_sys_release(struct inode *inode, struct file *filp)
+{
+	struct ctl_table_header *head = grab_header(inode);
+	struct ctl_table *table = PROC_I(inode)->sysctl_entry;
+	struct ctl_context *ctx = filp->private_data;
+	int ret = 0;
+
+	if (IS_ERR(head))
+		return PTR_ERR(head);
+
+	if (table->ctl_fops && table->ctl_fops->release)
+		ret = table->ctl_fops->release(ctx, inode, filp);
+
+	sysctl_head_finish(head);
+
+	kfree(ctx);
+	filp->private_data =  NULL;
+
+	return ret;
+}
+
+void *proc_sys_get_value(struct ctl_context *ctx, struct file *file)
+{
+	return ctx->ctl_table->data;
+}
+
+ssize_t proc_sys_read_handler(struct ctl_context *ctx, struct file *file,
+			   char *buffer, size_t *lenp, loff_t *ppos)
+{
+	struct ctl_table ctl_table = *ctx->ctl_table;
+	ctl_table.data = ctl_table.ctl_fops->get_value(ctx, file);
+	return ctl_table.proc_handler(&ctl_table, 0, buffer, lenp, ppos);
+}
+
+ssize_t proc_sys_write_handler(struct ctl_context *ctx, struct file *file,
+			    char *buffer, size_t *lenp, loff_t *ppos)
+{
+	struct ctl_table ctl_table = *ctx->ctl_table;
+	ctl_table.data = ctl_table.ctl_fops->get_value(ctx, file);
+	return ctl_table.proc_handler(&ctl_table, 1, buffer, lenp, ppos);
 }
 
 static __poll_t proc_sys_poll(struct file *filp, poll_table *wait)
@@ -660,23 +727,23 @@ static __poll_t proc_sys_poll(struct file *filp, poll_table *wait)
 	struct ctl_table_header *head = grab_header(inode);
 	struct ctl_table *table = PROC_I(inode)->sysctl_entry;
 	__poll_t ret = DEFAULT_POLLMASK;
-	unsigned long event;
+	struct ctl_context *ctx;
 
 	/* sysctl was unregistered */
 	if (IS_ERR(head))
 		return EPOLLERR | EPOLLHUP;
 
-	if (!table->proc_handler)
+	if (!table->proc_handler && !table->ctl_fops)
 		goto out;
 
 	if (!table->poll)
 		goto out;
 
-	event = (unsigned long)filp->private_data;
+	ctx = filp->private_data;
 	poll_wait(filp, &table->poll->wait, wait);
 
-	if (event != atomic_read(&table->poll->event)) {
-		filp->private_data = proc_sys_poll_event(table->poll);
+	if (ctx->ctl_poll_event != atomic_read(&table->poll->event)) {
+		ctx->ctl_poll_event = proc_sys_poll_event(table->poll);
 		ret = EPOLLIN | EPOLLRDNORM | EPOLLERR | EPOLLPRI;
 	}
 
@@ -873,6 +940,7 @@ static int proc_sys_getattr(struct user_namespace *mnt_userns,
 
 static const struct file_operations proc_sys_file_operations = {
 	.open		= proc_sys_open,
+	.release	= proc_sys_release,
 	.poll		= proc_sys_poll,
 	.read_iter	= proc_sys_read,
 	.write_iter	= proc_sys_write,
@@ -1160,7 +1228,7 @@ static int sysctl_check_table(const char *path, struct ctl_table *table)
 			else
 				err |= sysctl_check_table_array(path, entry);
 		}
-		if (!entry->proc_handler)
+		if (!entry->proc_handler && !entry->ctl_fops)
 			err |= sysctl_err(path, entry, "No proc_handler");
 
 		if ((entry->mode & (S_IRUGO|S_IWUGO)) != entry->mode)

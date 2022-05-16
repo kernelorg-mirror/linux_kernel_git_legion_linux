@@ -117,9 +117,9 @@ struct ctl_table_poll {
 	wait_queue_head_t wait;
 };
 
-static inline void *proc_sys_poll_event(struct ctl_table_poll *poll)
+static inline unsigned long proc_sys_poll_event(struct ctl_table_poll *poll)
 {
-	return (void *)(unsigned long)atomic_read(&poll->event);
+	return (unsigned long)atomic_read(&poll->event);
 }
 
 #define __CTL_TABLE_POLL_INITIALIZER(name) {				\
@@ -128,6 +128,27 @@ static inline void *proc_sys_poll_event(struct ctl_table_poll *poll)
 
 #define DEFINE_CTL_TABLE_POLL(name)					\
 	struct ctl_table_poll name = __CTL_TABLE_POLL_INITIALIZER(name)
+
+struct ctl_context {
+	struct ctl_table *ctl_table;
+	unsigned long ctl_poll_event;
+};
+
+struct inode;
+
+struct ctl_fops {
+	int (*open) (struct ctl_context *, struct inode *, struct file *);
+	int (*release) (struct ctl_context *, struct inode *, struct file *);
+	void *(*get_value) (struct ctl_context *ctx, struct file *file);
+	ssize_t (*read) (struct ctl_context *, struct file *, char *, size_t *, loff_t *);
+	ssize_t (*write) (struct ctl_context *, struct file *, char *, size_t *, loff_t *);
+};
+
+extern void *proc_sys_get_value(struct ctl_context *ctx, struct file *file);
+extern ssize_t proc_sys_read_handler(struct ctl_context *ctx, struct file *file,
+				  char *buffer, size_t *lenp, loff_t *ppos);
+extern ssize_t proc_sys_write_handler(struct ctl_context *ctx, struct file *file,
+				   char *buffer, size_t *lenp, loff_t *ppos);
 
 /* A sysctl table is an array of struct ctl_table: */
 struct ctl_table {
@@ -140,6 +161,7 @@ struct ctl_table {
 	struct ctl_table_poll *poll;
 	void *extra1;
 	void *extra2;
+	struct ctl_fops *ctl_fops;
 } __randomize_layout;
 
 struct ctl_node {
