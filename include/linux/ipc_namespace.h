@@ -191,22 +191,4 @@ static inline bool setup_mq_sysctls(struct ipc_namespace *ns)
 }
 
 #endif /* CONFIG_POSIX_MQUEUE_SYSCTL */
-
-#ifdef CONFIG_SYSVIPC_SYSCTL
-
-bool setup_ipc_sysctls(struct ipc_namespace *ns);
-void retire_ipc_sysctls(struct ipc_namespace *ns);
-
-#else /* CONFIG_SYSVIPC_SYSCTL */
-
-static inline void retire_ipc_sysctls(struct ipc_namespace *ns)
-{
-}
-
-static inline bool setup_ipc_sysctls(struct ipc_namespace *ns)
-{
-	return true;
-}
-
-#endif /* CONFIG_SYSVIPC_SYSCTL */
 #endif
