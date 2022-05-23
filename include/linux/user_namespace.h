@@ -93,10 +93,6 @@ struct user_namespace {
 	struct key		*persistent_keyring_register;
 #endif
 	struct work_struct	work;
-#ifdef CONFIG_SYSCTL
-	struct ctl_table_set	set;
-	struct ctl_table_header *sysctls;
-#endif
 	struct ucounts		*ucounts;
 	long ucount_max[UCOUNT_COUNTS];
 } __randomize_layout;
@@ -112,8 +108,6 @@ struct ucounts {
 extern struct user_namespace init_user_ns;
 extern struct ucounts init_ucounts;
 
-bool setup_userns_sysctls(struct user_namespace *ns);
-void retire_userns_sysctls(struct user_namespace *ns);
 struct ucounts *inc_ucount(struct user_namespace *ns, kuid_t uid, enum ucount_type type);
 void dec_ucount(struct ucounts *ucounts, enum ucount_type type);
 struct ucounts *alloc_ucounts(struct user_namespace *ns, kuid_t uid);

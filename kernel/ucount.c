@@ -7,6 +7,7 @@
 #include <linux/hash.h>
 #include <linux/kmemleak.h>
 #include <linux/user_namespace.h>
+#include <linux/fs.h>
 
 struct ucounts init_ucounts = {
 	.ns    = &init_user_ns,
@@ -26,38 +27,18 @@ static DEFINE_SPINLOCK(ucounts_lock);
 
 
 #ifdef CONFIG_SYSCTL
-static struct ctl_table_set *
-set_lookup(struct ctl_table_root *root)
-{
-	return &current_user_ns()->set;
-}
+static int user_sys_open(struct ctl_context *ctx, struct inode *inode,
+		        struct file *file);
+static void *user_sys_get_value(struct ctl_context *ctx, struct file *file);
 
-static int set_is_seen(struct ctl_table_set *set)
-{
-	return &current_user_ns()->set == set;
-}
-
-static int set_permissions(struct ctl_table_header *head,
-				  struct ctl_table *table)
-{
-	struct user_namespace *user_ns =
-		container_of(head->set, struct user_namespace, set);
-	int mode;
-
-	/* Allow users with CAP_SYS_RESOURCE unrestrained access */
-	if (ns_capable(user_ns, CAP_SYS_RESOURCE))
-		mode = (table->mode & S_IRWXU) >> 6;
-	else
-	/* Allow all others at most read-only access */
-		mode = table->mode & S_IROTH;
-	return (mode << 6) | (mode << 3) | mode;
-}
-
-static struct ctl_table_root set_root = {
-	.lookup = set_lookup,
-	.permissions = set_permissions,
+static struct ctl_fops user_sys_fops = {
+	.open		= user_sys_open,
+	.get_value	= user_sys_get_value,
+	.read		= proc_sys_read_handler,
+	.write		= proc_sys_write_handler,
 };
 
+static long ue_dummy = 0;
 static long ue_zero = 0;
 static long ue_int_max = INT_MAX;
 
@@ -66,9 +47,11 @@ static long ue_int_max = INT_MAX;
 		.procname	= name,				\
 		.maxlen		= sizeof(long),			\
 		.mode		= 0644,				\
+		.data		= &ue_dummy,			\
 		.proc_handler	= proc_doulongvec_minmax,	\
 		.extra1		= &ue_zero,			\
 		.extra2		= &ue_int_max,			\
+		.ctl_fops	= &user_sys_fops,		\
 	}
 static struct ctl_table user_table[] = {
 	UCOUNT_ENTRY("max_user_namespaces"),
@@ -93,43 +76,31 @@ static struct ctl_table user_table[] = {
 	{ },
 	{ }
 };
+
+static int user_sys_open(struct ctl_context *ctx, struct inode *inode, struct file *file)
+{
+	/* Allow users with CAP_SYS_RESOURCE unrestrained access */
+	if ((file->f_mode & FMODE_WRITE) &&
+	    !ns_capable(file->f_cred->user_ns, CAP_SYS_RESOURCE))
+		return -EPERM;
+	return 0;
+}
+
+static void *user_sys_get_value(struct ctl_context *ctx, struct file *file)
+{
+	return &file->f_cred->user_ns->ucount_max[ctx->ctl_table - user_table];
+}
+
+static struct ctl_table user_root_table[] = {
+	{
+		.procname       = "user",
+		.mode           = 0555,
+		.child          = user_table,
+	},
+	{}
+};
+
 #endif /* CONFIG_SYSCTL */
-
-bool setup_userns_sysctls(struct user_namespace *ns)
-{
-#ifdef CONFIG_SYSCTL
-	struct ctl_table *tbl;
-
-	BUILD_BUG_ON(ARRAY_SIZE(user_table) != UCOUNT_COUNTS + 1);
-	setup_sysctl_set(&ns->set, &set_root, set_is_seen);
-	tbl = kmemdup(user_table, sizeof(user_table), GFP_KERNEL);
-	if (tbl) {
-		int i;
-		for (i = 0; i < UCOUNT_COUNTS; i++) {
-			tbl[i].data = &ns->ucount_max[i];
-		}
-		ns->sysctls = __register_sysctl_table(&ns->set, "user", tbl);
-	}
-	if (!ns->sysctls) {
-		kfree(tbl);
-		retire_sysctl_set(&ns->set);
-		return false;
-	}
-#endif
-	return true;
-}
-
-void retire_userns_sysctls(struct user_namespace *ns)
-{
-#ifdef CONFIG_SYSCTL
-	struct ctl_table *tbl;
-
-	tbl = ns->sysctls->ctl_table_arg;
-	unregister_sysctl_table(ns->sysctls);
-	retire_sysctl_set(&ns->set);
-	kfree(tbl);
-#endif
-}
 
 static struct ucounts *find_ucounts(struct user_namespace *ns, kuid_t uid, struct hlist_head *hashent)
 {
@@ -361,17 +332,7 @@ bool is_ucounts_overlimit(struct ucounts *ucounts, enum ucount_type type, unsign
 static __init int user_namespace_sysctl_init(void)
 {
 #ifdef CONFIG_SYSCTL
-	static struct ctl_table_header *user_header;
-	static struct ctl_table empty[1];
-	/*
-	 * It is necessary to register the user directory in the
-	 * default set so that registrations in the child sets work
-	 * properly.
-	 */
-	user_header = register_sysctl("user", empty);
-	kmemleak_ignore(user_header);
-	BUG_ON(!user_header);
-	BUG_ON(!setup_userns_sysctls(&init_user_ns));
+	register_sysctl_table(user_root_table);
 #endif
 	hlist_add_ucounts(&init_ucounts);
 	inc_rlimit_ucounts(&init_ucounts, UCOUNT_RLIMIT_NPROC, 1);
