@@ -1725,11 +1725,6 @@ static int __init init_mqueue_fs(void)
 	if (mqueue_inode_cachep == NULL)
 		return -ENOMEM;
 
-	if (!setup_mq_sysctls(&init_ipc_ns)) {
-		pr_warn("sysctl registration failed\n");
-		return -ENOMEM;
-	}
-
 	error = register_filesystem(&mqueue_fs_type);
 	if (error)
 		goto out_sysctl;

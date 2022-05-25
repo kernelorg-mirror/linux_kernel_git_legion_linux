@@ -13,6 +13,25 @@
 #include <linux/capability.h>
 #include <linux/slab.h>
 
+static void *mq_sys_get_value(struct ctl_context *ctx, struct file *file);
+static int mq_sys_open(struct ctl_context *ctx, struct inode *inode, struct file *file);
+
+static struct ctl_fops mq_sys_fops = {
+	.open		= mq_sys_open,
+	.get_value	= mq_sys_get_value,
+	.read		= proc_sys_read_handler,
+	.write		= proc_sys_write_handler,
+};
+
+enum {
+	MQ_SYSCTL_QUEUES_MAX,
+	MQ_SYSCTL_MSG_MAX,
+	MQ_SYSCTL_MSGSIZE_MAX,
+	MQ_SYSCTL_MSG_DEFAULT,
+	MQ_SYSCTL_MSGSIZE_DEFAULT,
+	MQ_SYSCTL_COUNTS
+};
+
 static int msg_max_limit_min = MIN_MSGMAX;
 static int msg_max_limit_max = HARD_MSGMAX;
 
@@ -20,14 +39,15 @@ static int msg_maxsize_limit_min = MIN_MSGSIZEMAX;
 static int msg_maxsize_limit_max = HARD_MSGSIZEMAX;
 
 static struct ctl_table mq_sysctls[] = {
-	{
+	[MQ_SYSCTL_QUEUES_MAX] = {
 		.procname	= "queues_max",
 		.data		= &init_ipc_ns.mq_queues_max,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
+		.ctl_fops	= &mq_sys_fops,
 	},
-	{
+	[MQ_SYSCTL_MSG_MAX] = {
 		.procname	= "msg_max",
 		.data		= &init_ipc_ns.mq_msg_max,
 		.maxlen		= sizeof(int),
@@ -35,8 +55,9 @@ static struct ctl_table mq_sysctls[] = {
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= &msg_max_limit_min,
 		.extra2		= &msg_max_limit_max,
+		.ctl_fops	= &mq_sys_fops,
 	},
-	{
+	[MQ_SYSCTL_MSGSIZE_MAX] = {
 		.procname	= "msgsize_max",
 		.data		= &init_ipc_ns.mq_msgsize_max,
 		.maxlen		= sizeof(int),
@@ -44,8 +65,9 @@ static struct ctl_table mq_sysctls[] = {
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= &msg_maxsize_limit_min,
 		.extra2		= &msg_maxsize_limit_max,
+		.ctl_fops	= &mq_sys_fops,
 	},
-	{
+	[MQ_SYSCTL_MSG_DEFAULT] = {
 		.procname	= "msg_default",
 		.data		= &init_ipc_ns.mq_msg_default,
 		.maxlen		= sizeof(int),
@@ -53,8 +75,9 @@ static struct ctl_table mq_sysctls[] = {
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= &msg_max_limit_min,
 		.extra2		= &msg_max_limit_max,
+		.ctl_fops	= &mq_sys_fops,
 	},
-	{
+	[MQ_SYSCTL_MSGSIZE_DEFAULT] = {
 		.procname	= "msgsize_default",
 		.data		= &init_ipc_ns.mq_msgsize_default,
 		.maxlen		= sizeof(int),
@@ -62,70 +85,51 @@ static struct ctl_table mq_sysctls[] = {
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= &msg_maxsize_limit_min,
 		.extra2		= &msg_maxsize_limit_max,
+		.ctl_fops	= &mq_sys_fops,
 	},
 	{}
 };
 
-static struct ctl_table_set *set_lookup(struct ctl_table_root *root)
+static int mq_sys_open(struct ctl_context *ctx, struct inode *inode, struct file *file)
 {
-	return &current->nsproxy->ipc_ns->mq_set;
+	ctx->ipc_ns = current->nsproxy->ipc_ns;
+	return 0;
 }
 
-static int set_is_seen(struct ctl_table_set *set)
+static void *mq_sys_get_value(struct ctl_context *ctx, struct file *file)
 {
-	return &current->nsproxy->ipc_ns->mq_set == set;
+	switch (ctx->ctl_table - mq_sysctls) {
+		case MQ_SYSCTL_QUEUES_MAX:      return &ctx->ipc_ns->mq_queues_max;
+		case MQ_SYSCTL_MSG_MAX:         return &ctx->ipc_ns->mq_msg_max;
+		case MQ_SYSCTL_MSGSIZE_MAX:     return &ctx->ipc_ns->mq_msgsize_max;
+		case MQ_SYSCTL_MSG_DEFAULT:     return &ctx->ipc_ns->mq_msg_default;
+		case MQ_SYSCTL_MSGSIZE_DEFAULT: return &ctx->ipc_ns->mq_msgsize_default;
+	}
+	return NULL;
 }
 
-static struct ctl_table_root set_root = {
-	.lookup = set_lookup,
+static struct ctl_table mq_sysctl_dir[] = {
+	{
+		.procname       = "mqueue",
+		.mode           = 0555,
+		.child          = mq_sysctls,
+	},
+	{}
 };
 
-bool setup_mq_sysctls(struct ipc_namespace *ns)
+static struct ctl_table mq_sysctl_root[] = {
+	{
+		.procname       = "fs",
+		.mode           = 0555,
+		.child          = mq_sysctl_dir,
+	},
+	{}
+};
+
+static int __init mq_sysctl_init(void)
 {
-	struct ctl_table *tbl;
-
-	setup_sysctl_set(&ns->mq_set, &set_root, set_is_seen);
-
-	tbl = kmemdup(mq_sysctls, sizeof(mq_sysctls), GFP_KERNEL);
-	if (tbl) {
-		int i;
-
-		for (i = 0; i < ARRAY_SIZE(mq_sysctls); i++) {
-			if (tbl[i].data == &init_ipc_ns.mq_queues_max)
-				tbl[i].data = &ns->mq_queues_max;
-
-			else if (tbl[i].data == &init_ipc_ns.mq_msg_max)
-				tbl[i].data = &ns->mq_msg_max;
-
-			else if (tbl[i].data == &init_ipc_ns.mq_msgsize_max)
-				tbl[i].data = &ns->mq_msgsize_max;
-
-			else if (tbl[i].data == &init_ipc_ns.mq_msg_default)
-				tbl[i].data = &ns->mq_msg_default;
-
-			else if (tbl[i].data == &init_ipc_ns.mq_msgsize_default)
-				tbl[i].data = &ns->mq_msgsize_default;
-			else
-				tbl[i].data = NULL;
-		}
-
-		ns->mq_sysctls = __register_sysctl_table(&ns->mq_set, "fs/mqueue", tbl);
-	}
-	if (!ns->mq_sysctls) {
-		kfree(tbl);
-		retire_sysctl_set(&ns->mq_set);
-		return false;
-	}
-
-	return true;
+	register_sysctl_table(mq_sysctl_root);
+	return 0;
 }
 
-void retire_mq_sysctls(struct ipc_namespace *ns)
-{
-	struct ctl_table *tbl;
-
-	tbl = ns->mq_sysctls->ctl_table_arg;
-	unregister_sysctl_table(ns->mq_sysctls);
-	retire_sysctl_set(&ns->mq_set);
-	kfree(tbl);
-}
+device_initcall(mq_sysctl_init);
