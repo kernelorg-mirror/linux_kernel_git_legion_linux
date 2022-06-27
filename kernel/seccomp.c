@@ -2270,53 +2270,6 @@ static bool seccomp_actions_logged_from_names(u32 *actions_logged, char *names)
 	return true;
 }
 
-static int read_actions_logged(struct ctl_table *ro_table, void *buffer,
-			       size_t *lenp, loff_t *ppos)
-{
-	char names[sizeof(seccomp_actions_avail)];
-	struct ctl_table table;
-
-	memset(names, 0, sizeof(names));
-
-	if (!seccomp_names_from_actions_logged(names, sizeof(names),
-					       seccomp_actions_logged, " "))
-		return -EINVAL;
-
-	table = *ro_table;
-	table.data = names;
-	table.maxlen = sizeof(names);
-	return proc_dostring(&table, 0, buffer, lenp, ppos);
-}
-
-static int write_actions_logged(struct ctl_table *ro_table, void *buffer,
-				size_t *lenp, loff_t *ppos, u32 *actions_logged)
-{
-	char names[sizeof(seccomp_actions_avail)];
-	struct ctl_table table;
-	int ret;
-
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
-
-	memset(names, 0, sizeof(names));
-
-	table = *ro_table;
-	table.data = names;
-	table.maxlen = sizeof(names);
-	ret = proc_dostring(&table, 1, buffer, lenp, ppos);
-	if (ret)
-		return ret;
-
-	if (!seccomp_actions_logged_from_names(actions_logged, table.data))
-		return -EINVAL;
-
-	if (*actions_logged & SECCOMP_LOG_ALLOW)
-		return -EINVAL;
-
-	seccomp_actions_logged = *actions_logged;
-	return 0;
-}
-
 static void audit_actions_logged(u32 actions_logged, u32 old_actions_logged,
 				 int ret)
 {
@@ -2349,24 +2302,66 @@ static void audit_actions_logged(u32 actions_logged, u32 old_actions_logged,
 	return audit_seccomp_actions_logged(new, old, !ret);
 }
 
-static int seccomp_actions_logged_handler(struct ctl_table *ro_table, int write,
-					  void *buffer, size_t *lenp,
-					  loff_t *ppos)
+static ssize_t read_actions_logged(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
-	int ret;
+	char names[sizeof(seccomp_actions_avail)];
+	struct ctl_table table;
 
-	if (write) {
-		u32 actions_logged = 0;
-		u32 old_actions_logged = seccomp_actions_logged;
+	memset(names, 0, sizeof(names));
 
-		ret = write_actions_logged(ro_table, buffer, lenp, ppos,
-					   &actions_logged);
-		audit_actions_logged(actions_logged, old_actions_logged, ret);
-	} else
-		ret = read_actions_logged(ro_table, buffer, lenp, ppos);
+	if (!seccomp_names_from_actions_logged(names, sizeof(names),
+					       seccomp_actions_logged, " "))
+		return -EINVAL;
 
+	table = *ctx->ctl_table;
+	table.data = names;
+	table.maxlen = sizeof(names);
+	return proc_dostring(&table, 0, buffer, lenp, ppos);
+}
+
+static ssize_t write_actions_logged(struct ctl_context *ctx, struct file *file,
+				    char *buffer, size_t *lenp, loff_t *ppos)
+{
+	u32 actions_logged = 0;
+	u32 old_actions_logged = seccomp_actions_logged;
+
+	char names[sizeof(seccomp_actions_avail)];
+	struct ctl_table table;
+	int ret = 0;
+
+	if (!capable(CAP_SYS_ADMIN)) {
+		ret = -EPERM;
+		goto fail;
+	}
+
+	memset(names, 0, sizeof(names));
+
+	table = *ctx->ctl_table;
+	table.data = names;
+	table.maxlen = sizeof(names);
+
+	ret = proc_dostring(&table, 1, buffer, lenp, ppos);
+	if (ret)
+		goto fail;
+
+	if (!seccomp_actions_logged_from_names(&actions_logged, table.data) ||
+	    (actions_logged & SECCOMP_LOG_ALLOW)) {
+		ret = -EINVAL;
+		goto fail;
+	}
+
+	seccomp_actions_logged = actions_logged;
+	return 0;
+fail:
+	audit_actions_logged(actions_logged, old_actions_logged, ret);
 	return ret;
 }
+
+static struct ctl_fops seccomp_actions_logged_fops = {
+	.read	= read_actions_logged,
+	.write	= write_actions_logged,
+};
 
 static struct ctl_path seccomp_sysctl_path[] = {
 	{ .procname = "kernel", },
@@ -2385,7 +2380,7 @@ static struct ctl_table seccomp_sysctl_table[] = {
 	{
 		.procname	= "actions_logged",
 		.mode		= 0644,
-		.proc_handler	= seccomp_actions_logged_handler,
+		.ctl_fops	= &seccomp_actions_logged_fops,
 	},
 	{ }
 };
