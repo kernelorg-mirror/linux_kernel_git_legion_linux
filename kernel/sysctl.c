@@ -486,13 +486,31 @@ static int sysctl_conv_intvec(bool *negp, unsigned long *lvalp,
 	return 0;
 }
 
-static int do_proc_douintvec_conv(unsigned long *lvalp,
+/**
+ * struct do_proc_douintvec_minmax_conv_param - proc_douintvec_minmax() range checking structure
+ * @min: pointer to minimum allowable value
+ * @max: pointer to maximum allowable value
+ *
+ * The do_proc_douintvec_minmax_conv_param structure provides the
+ * minimum and maximum values for doing range checking for those sysctl
+ * parameters that use the proc_douintvec_minmax() handler.
+ */
+struct do_proc_douintvec_minmax_conv_param {
+	unsigned int *min;
+	unsigned int *max;
+};
+
+static int sysctl_conv_uintvec(unsigned long *lvalp,
 				  unsigned int *valp,
 				  int write, void *data)
 {
 	if (write) {
+		struct do_proc_douintvec_minmax_conv_param *param = data;
 		if (*lvalp > UINT_MAX)
 			return -EINVAL;
+		if ((param->min && *param->min > *lvalp) ||
+		    (param->max && *param->max < *lvalp))
+			return -ERANGE;
 		*valp = *lvalp;
 	} else {
 		unsigned int val = *valp;
@@ -689,7 +707,7 @@ int do_proc_douintvec(void *tbl_data, struct ctl_table *table,
 	}
 
 	if (!conv)
-		conv = do_proc_douintvec_conv;
+		conv = sysctl_conv_uintvec;
 
 	if (write)
 		return do_proc_douintvec_w(i, table, buffer, lenp, ppos,
@@ -775,7 +793,7 @@ int proc_douintvec(struct ctl_table *table, int write, void *buffer,
 		size_t *lenp, loff_t *ppos)
 {
 	return do_proc_douintvec(table->data, table, write, buffer, lenp, ppos,
-				 do_proc_douintvec_conv, NULL);
+				 sysctl_conv_uintvec, NULL);
 }
 
 /*
@@ -846,45 +864,6 @@ int proc_dointvec_minmax(struct ctl_table *table, int write,
 	};
 	return do_proc_dointvec(table->data, table, write, buffer, lenp, ppos,
 				do_proc_dointvec_minmax_conv, &param);
-}
-
-/**
- * struct do_proc_douintvec_minmax_conv_param - proc_douintvec_minmax() range checking structure
- * @min: pointer to minimum allowable value
- * @max: pointer to maximum allowable value
- *
- * The do_proc_douintvec_minmax_conv_param structure provides the
- * minimum and maximum values for doing range checking for those sysctl
- * parameters that use the proc_douintvec_minmax() handler.
- */
-struct do_proc_douintvec_minmax_conv_param {
-	unsigned int *min;
-	unsigned int *max;
-};
-
-static int do_proc_douintvec_minmax_conv(unsigned long *lvalp,
-					 unsigned int *valp,
-					 int write, void *data)
-{
-	int ret;
-	unsigned int tmp;
-	struct do_proc_douintvec_minmax_conv_param *param = data;
-	/* write via temporary local uint for bounds-checking */
-	unsigned int *up = write ? &tmp : valp;
-
-	ret = do_proc_douintvec_conv(lvalp, up, write, data);
-	if (ret)
-		return ret;
-
-	if (write) {
-		if ((param->min && *param->min > tmp) ||
-		    (param->max && *param->max < tmp))
-			return -ERANGE;
-
-		*valp = tmp;
-	}
-
-	return 0;
 }
 
 /**
