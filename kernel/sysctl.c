@@ -502,9 +502,6 @@ static int do_proc_dointvec(void *tbl_data, struct ctl_table *table,
 	vleft = table->maxlen / sizeof(*i);
 	left = *lenp;
 
-	if (!conv)
-		conv = do_proc_dointvec_conv;
-
 	if (write) {
 		if (proc_first_pos_non_zero_ignore(ppos, table))
 			goto out;
@@ -716,7 +713,7 @@ int proc_dointvec(struct ctl_table *table, int write, void *buffer,
 		  size_t *lenp, loff_t *ppos)
 {
 	return do_proc_dointvec(table->data, table, write, buffer, lenp, ppos,
-				NULL, NULL);
+				do_proc_dointvec_conv, NULL);
 }
 
 #ifdef CONFIG_COMPACTION
@@ -1007,7 +1004,7 @@ static int sysrq_sysctl_handler(struct ctl_table *table, int write,
 	tmp = sysrq_mask();
 
 	ret = do_proc_dointvec(&tmp, table, write, buffer,
-			       lenp, ppos, NULL, NULL);
+			       lenp, ppos, do_proc_dointvec_conv, NULL);
 	if (ret || !write)
 		return ret;
 
@@ -1285,7 +1282,7 @@ static int proc_do_cad_pid(struct ctl_table *table, int write, void *buffer,
 	tmp = pid_vnr(cad_pid);
 
 	r = do_proc_dointvec(&tmp, table, write, buffer,
-			       lenp, ppos, NULL, NULL);
+			       lenp, ppos, do_proc_dointvec_conv, NULL);
 	if (r || !write)
 		return r;
 
