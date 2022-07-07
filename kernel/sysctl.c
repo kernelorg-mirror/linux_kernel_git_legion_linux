@@ -438,17 +438,38 @@ static int do_proc_dobool_conv(bool *negp, unsigned long *lvalp,
 	return 0;
 }
 
-static int do_proc_dointvec_conv(bool *negp, unsigned long *lvalp,
+/**
+ * struct do_proc_dointvec_minmax_conv_param - proc_dointvec_minmax() range checking structure
+ * @min: pointer to minimum allowable value
+ * @max: pointer to maximum allowable value
+ *
+ * The do_proc_dointvec_minmax_conv_param structure provides the
+ * minimum and maximum values for doing range checking for those sysctl
+ * parameters that use the proc_dointvec_minmax() handler.
+ */
+struct do_proc_dointvec_minmax_conv_param {
+	int *min;
+	int *max;
+};
+
+static int sysctl_conv_intvec(bool *negp, unsigned long *lvalp,
 				 int *valp,
 				 int write, void *data)
 {
 	if (write) {
+		struct do_proc_dointvec_minmax_conv_param *param = data;
 		if (*negp) {
 			if (*lvalp > (unsigned long) INT_MAX + 1)
+				return -EINVAL;
+			if ((param->min && *param->min > -*lvalp) ||
+			    (param->max && *param->max < -*lvalp))
 				return -EINVAL;
 			*valp = -*lvalp;
 		} else {
 			if (*lvalp > (unsigned long) INT_MAX)
+				return -EINVAL;
+			if ((param->min && *param->min > *lvalp) ||
+			    (param->max && *param->max < *lvalp))
 				return -EINVAL;
 			*valp = *lvalp;
 		}
@@ -713,7 +734,7 @@ int proc_dointvec(struct ctl_table *table, int write, void *buffer,
 		  size_t *lenp, loff_t *ppos)
 {
 	return do_proc_dointvec(table->data, table, write, buffer, lenp, ppos,
-				do_proc_dointvec_conv, NULL);
+				sysctl_conv_intvec, NULL);
 }
 
 #ifdef CONFIG_COMPACTION
@@ -798,46 +819,6 @@ static int proc_taint(struct ctl_table *table, int write,
 	}
 
 	return err;
-}
-
-/**
- * struct do_proc_dointvec_minmax_conv_param - proc_dointvec_minmax() range checking structure
- * @min: pointer to minimum allowable value
- * @max: pointer to maximum allowable value
- *
- * The do_proc_dointvec_minmax_conv_param structure provides the
- * minimum and maximum values for doing range checking for those sysctl
- * parameters that use the proc_dointvec_minmax() handler.
- */
-struct do_proc_dointvec_minmax_conv_param {
-	int *min;
-	int *max;
-};
-
-static int do_proc_dointvec_minmax_conv(bool *negp, unsigned long *lvalp,
-					int *valp,
-					int write, void *data)
-{
-	int tmp, ret;
-	struct do_proc_dointvec_minmax_conv_param *param = data;
-	/*
-	 * If writing, first do so via a temporary local int so we can
-	 * bounds-check it before touching *valp.
-	 */
-	int *ip = write ? &tmp : valp;
-
-	ret = do_proc_dointvec_conv(negp, lvalp, ip, write, data);
-	if (ret)
-		return ret;
-
-	if (write) {
-		if ((param->min && *param->min > tmp) ||
-		    (param->max && *param->max < tmp))
-			return -EINVAL;
-		*valp = tmp;
-	}
-
-	return 0;
 }
 
 /**
@@ -1004,7 +985,7 @@ static int sysrq_sysctl_handler(struct ctl_table *table, int write,
 	tmp = sysrq_mask();
 
 	ret = do_proc_dointvec(&tmp, table, write, buffer,
-			       lenp, ppos, do_proc_dointvec_conv, NULL);
+			       lenp, ppos, sysctl_conv_intvec, NULL);
 	if (ret || !write)
 		return ret;
 
@@ -1282,7 +1263,7 @@ static int proc_do_cad_pid(struct ctl_table *table, int write, void *buffer,
 	tmp = pid_vnr(cad_pid);
 
 	r = do_proc_dointvec(&tmp, table, write, buffer,
-			       lenp, ppos, do_proc_dointvec_conv, NULL);
+			       lenp, ppos, sysctl_conv_intvec, NULL);
 	if (r || !write)
 		return r;
 
