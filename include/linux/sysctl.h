@@ -256,8 +256,8 @@ int do_proc_douintvec(void *tbl_data, struct ctl_table *table, int write,
 		      void *buffer, size_t *lenp, loff_t *ppos,
 		      int (*conv)(unsigned long *lvalp,
 				  unsigned int *valp,
-				  int write, void *data),
-		      void *data);
+				  int write, unsigned int *min, unsigned int *max),
+		      unsigned int *min, unsigned int *max);
 
 extern int pwrsw_enabled;
 extern int unaligned_enabled;

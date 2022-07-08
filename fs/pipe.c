@@ -1440,7 +1440,9 @@ static struct file_system_type pipe_fs_type = {
 #ifdef CONFIG_SYSCTL
 static int do_proc_dopipe_max_size_conv(unsigned long *lvalp,
 					unsigned int *valp,
-					int write, void *data)
+					int write,
+					unsigned int *min,
+					unsigned int *max)
 {
 	if (write) {
 		unsigned int val;
@@ -1462,7 +1464,7 @@ static int proc_dopipe_max_size(struct ctl_table *table, int write,
 				void *buffer, size_t *lenp, loff_t *ppos)
 {
 	return do_proc_douintvec(table->data, table, write, buffer, lenp, ppos,
-				 do_proc_dopipe_max_size_conv, NULL);
+				 do_proc_dopipe_max_size_conv, NULL, NULL);
 }
 
 static struct ctl_table fs_pipe_sysctls[] = {
