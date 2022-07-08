@@ -425,7 +425,7 @@ static void proc_put_char(void **buf, size_t *size, char c)
 
 static int do_proc_dobool_conv(bool *negp, unsigned long *lvalp,
 				int *valp,
-				int write, void *data)
+				int write, int *min, int *max)
 {
 	if (write) {
 		*(bool *)valp = *lvalp;
@@ -438,38 +438,23 @@ static int do_proc_dobool_conv(bool *negp, unsigned long *lvalp,
 	return 0;
 }
 
-/**
- * struct do_proc_dointvec_minmax_conv_param - proc_dointvec_minmax() range checking structure
- * @min: pointer to minimum allowable value
- * @max: pointer to maximum allowable value
- *
- * The do_proc_dointvec_minmax_conv_param structure provides the
- * minimum and maximum values for doing range checking for those sysctl
- * parameters that use the proc_dointvec_minmax() handler.
- */
-struct do_proc_dointvec_minmax_conv_param {
-	int *min;
-	int *max;
-};
-
 static int sysctl_conv_intvec(bool *negp, unsigned long *lvalp,
 				 int *valp,
-				 int write, void *data)
+				 int write, int *min, int *max)
 {
 	if (write) {
-		struct do_proc_dointvec_minmax_conv_param *param = data;
 		if (*negp) {
 			if (*lvalp > (unsigned long) INT_MAX + 1)
 				return -EINVAL;
-			if ((param->min && *param->min > -*lvalp) ||
-			    (param->max && *param->max < -*lvalp))
+			if ((min && *min > -*lvalp) ||
+			    (max && *max < -*lvalp))
 				return -EINVAL;
 			*valp = -*lvalp;
 		} else {
 			if (*lvalp > (unsigned long) INT_MAX)
 				return -EINVAL;
-			if ((param->min && *param->min > *lvalp) ||
-			    (param->max && *param->max < *lvalp))
+			if ((min && *min > *lvalp) ||
+			    (max && *max < *lvalp))
 				return -EINVAL;
 			*valp = *lvalp;
 		}
@@ -486,30 +471,15 @@ static int sysctl_conv_intvec(bool *negp, unsigned long *lvalp,
 	return 0;
 }
 
-/**
- * struct do_proc_douintvec_minmax_conv_param - proc_douintvec_minmax() range checking structure
- * @min: pointer to minimum allowable value
- * @max: pointer to maximum allowable value
- *
- * The do_proc_douintvec_minmax_conv_param structure provides the
- * minimum and maximum values for doing range checking for those sysctl
- * parameters that use the proc_douintvec_minmax() handler.
- */
-struct do_proc_douintvec_minmax_conv_param {
-	unsigned int *min;
-	unsigned int *max;
-};
-
 static int sysctl_conv_uintvec(unsigned long *lvalp,
 				  unsigned int *valp,
-				  int write, void *data)
+				  int write, unsigned int *min, unsigned int *max)
 {
 	if (write) {
-		struct do_proc_douintvec_minmax_conv_param *param = data;
 		if (*lvalp > UINT_MAX)
 			return -EINVAL;
-		if ((param->min && *param->min > *lvalp) ||
-		    (param->max && *param->max < *lvalp))
+		if ((min && *min > *lvalp) ||
+		    (max && *max < *lvalp))
 			return -ERANGE;
 		*valp = *lvalp;
 	} else {
@@ -525,8 +495,8 @@ static int do_proc_dointvec(void *tbl_data, struct ctl_table *table,
 		  int write, void *buffer,
 		  size_t *lenp, loff_t *ppos,
 		  int (*conv)(bool *negp, unsigned long *lvalp, int *valp,
-			      int write, void *data),
-		  void *data)
+			      int write, int *min, int *max),
+		  int *min, int *max)
 {
 	int *i, vleft, first = 1, err = 0;
 	size_t left;
@@ -564,12 +534,12 @@ static int do_proc_dointvec(void *tbl_data, struct ctl_table *table,
 					     sizeof(proc_wspace_sep), NULL);
 			if (err)
 				break;
-			if (conv(&neg, &lval, i, 1, data)) {
+			if (conv(&neg, &lval, i, 1, min, max)) {
 				err = -EINVAL;
 				break;
 			}
 		} else {
-			if (conv(&neg, &lval, i, 0, data)) {
+			if (conv(&neg, &lval, i, 0, min, max)) {
 				err = -EINVAL;
 				break;
 			}
@@ -597,8 +567,10 @@ static int do_proc_douintvec_w(unsigned int *tbl_data,
 			       size_t *lenp, loff_t *ppos,
 			       int (*conv)(unsigned long *lvalp,
 					   unsigned int *valp,
-					   int write, void *data),
-			       void *data)
+					   int write,
+					   unsigned int *min,
+					   unsigned int *max),
+			       unsigned int *min, unsigned int *max)
 {
 	unsigned long lval;
 	int err = 0;
@@ -628,7 +600,7 @@ static int do_proc_douintvec_w(unsigned int *tbl_data,
 		goto out_free;
 	}
 
-	if (conv(&lval, tbl_data, 1, data)) {
+	if (conv(&lval, tbl_data, 1, min, max)) {
 		err = -EINVAL;
 		goto out_free;
 	}
@@ -652,8 +624,10 @@ static int do_proc_douintvec_r(unsigned int *tbl_data, void *buffer,
 			       size_t *lenp, loff_t *ppos,
 			       int (*conv)(unsigned long *lvalp,
 					   unsigned int *valp,
-					   int write, void *data),
-			       void *data)
+					   int write,
+					   unsigned int *min,
+					   unsigned int *max),
+			       unsigned int *min, unsigned int *max)
 {
 	unsigned long lval;
 	int err = 0;
@@ -661,7 +635,7 @@ static int do_proc_douintvec_r(unsigned int *tbl_data, void *buffer,
 
 	left = *lenp;
 
-	if (conv(&lval, tbl_data, 0, data)) {
+	if (conv(&lval, tbl_data, 0, min, max)) {
 		err = -EINVAL;
 		goto out;
 	}
@@ -684,8 +658,10 @@ int do_proc_douintvec(void *tbl_data, struct ctl_table *table,
 			       size_t *lenp, loff_t *ppos,
 			       int (*conv)(unsigned long *lvalp,
 					   unsigned int *valp,
-					   int write, void *data),
-			       void *data)
+					   int write,
+					   unsigned int *min,
+					   unsigned int *max),
+			       unsigned int *min, unsigned int *max)
 {
 	unsigned int *i, vleft;
 
@@ -711,8 +687,8 @@ int do_proc_douintvec(void *tbl_data, struct ctl_table *table,
 
 	if (write)
 		return do_proc_douintvec_w(i, table, buffer, lenp, ppos,
-					   conv, data);
-	return do_proc_douintvec_r(i, buffer, lenp, ppos, conv, data);
+					   conv, min, max);
+	return do_proc_douintvec_r(i, buffer, lenp, ppos, conv, min, max);
 }
 
 /**
@@ -732,7 +708,7 @@ int proc_dobool(struct ctl_table *table, int write, void *buffer,
 		size_t *lenp, loff_t *ppos)
 {
 	return do_proc_dointvec(table->data, table, write, buffer, lenp, ppos,
-				do_proc_dobool_conv, NULL);
+				do_proc_dobool_conv, NULL, NULL);
 }
 
 /**
@@ -752,7 +728,7 @@ int proc_dointvec(struct ctl_table *table, int write, void *buffer,
 		  size_t *lenp, loff_t *ppos)
 {
 	return do_proc_dointvec(table->data, table, write, buffer, lenp, ppos,
-				sysctl_conv_intvec, NULL);
+				sysctl_conv_intvec, NULL, NULL);
 }
 
 #ifdef CONFIG_COMPACTION
@@ -793,7 +769,7 @@ int proc_douintvec(struct ctl_table *table, int write, void *buffer,
 		size_t *lenp, loff_t *ppos)
 {
 	return do_proc_douintvec(table->data, table, write, buffer, lenp, ppos,
-				 sysctl_conv_uintvec, NULL);
+				 sysctl_conv_uintvec, NULL, NULL);
 }
 
 /*
@@ -858,12 +834,8 @@ static int proc_taint(struct ctl_table *table, int write,
 int proc_dointvec_minmax(struct ctl_table *table, int write,
 		  void *buffer, size_t *lenp, loff_t *ppos)
 {
-	struct do_proc_dointvec_minmax_conv_param param = {
-		.min = (int *) table->extra1,
-		.max = (int *) table->extra2,
-	};
 	return do_proc_dointvec(table->data, table, write, buffer, lenp, ppos,
-				do_proc_dointvec_minmax_conv, &param);
+				sysctl_conv_intvec, table->extra1, table->extra2);
 }
 
 /**
@@ -888,12 +860,8 @@ int proc_dointvec_minmax(struct ctl_table *table, int write,
 int proc_douintvec_minmax(struct ctl_table *table, int write,
 			  void *buffer, size_t *lenp, loff_t *ppos)
 {
-	struct do_proc_douintvec_minmax_conv_param param = {
-		.min = (unsigned int *) table->extra1,
-		.max = (unsigned int *) table->extra2,
-	};
 	return do_proc_douintvec(table->data, table, write, buffer, lenp, ppos,
-				 do_proc_douintvec_minmax_conv, &param);
+				 sysctl_conv_uintvec, table->extra1, table->extra2);
 }
 
 /**
@@ -919,10 +887,6 @@ int proc_dou8vec_minmax(struct ctl_table *table, int write,
 	struct ctl_table tmp;
 	unsigned int min = 0, max = 255U, val;
 	u8 *data = table->data;
-	struct do_proc_douintvec_minmax_conv_param param = {
-		.min = &min,
-		.max = &max,
-	};
 	int res;
 
 	/* Do not support arrays yet. */
@@ -946,7 +910,7 @@ int proc_dou8vec_minmax(struct ctl_table *table, int write,
 	tmp.data = &val;
 	val = *data;
 	res = do_proc_douintvec(tmp.data, &tmp, write, buffer, lenp, ppos,
-				do_proc_douintvec_minmax_conv, &param);
+				sysctl_conv_uintvec, &min, &max);
 	if (res)
 		return res;
 	if (write)
@@ -964,7 +928,7 @@ static int sysrq_sysctl_handler(struct ctl_table *table, int write,
 	tmp = sysrq_mask();
 
 	ret = do_proc_dointvec(&tmp, table, write, buffer,
-			       lenp, ppos, sysctl_conv_intvec, NULL);
+			       lenp, ppos, sysctl_conv_intvec, NULL, NULL);
 	if (ret || !write)
 		return ret;
 
@@ -1096,7 +1060,7 @@ int proc_doulongvec_ms_jiffies_minmax(struct ctl_table *table, int write,
 
 static int do_proc_dointvec_jiffies_conv(bool *negp, unsigned long *lvalp,
 					 int *valp,
-					 int write, void *data)
+					 int write, int *min, int *max)
 {
 	if (write) {
 		if (*lvalp > INT_MAX / HZ)
@@ -1119,7 +1083,7 @@ static int do_proc_dointvec_jiffies_conv(bool *negp, unsigned long *lvalp,
 
 static int do_proc_dointvec_userhz_jiffies_conv(bool *negp, unsigned long *lvalp,
 						int *valp,
-						int write, void *data)
+						int write, int *min, int *max)
 {
 	if (write) {
 		if (USER_HZ < HZ && *lvalp > (LONG_MAX / HZ) * USER_HZ)
@@ -1142,7 +1106,7 @@ static int do_proc_dointvec_userhz_jiffies_conv(bool *negp, unsigned long *lvalp
 
 static int do_proc_dointvec_ms_jiffies_conv(bool *negp, unsigned long *lvalp,
 					    int *valp,
-					    int write, void *data)
+					    int write, int *min, int *max)
 {
 	if (write) {
 		unsigned long jif = msecs_to_jiffies(*negp ? -*lvalp : *lvalp);
@@ -1184,7 +1148,7 @@ int proc_dointvec_jiffies(struct ctl_table *table, int write,
 			  void *buffer, size_t *lenp, loff_t *ppos)
 {
 	return do_proc_dointvec(table->data, table, write, buffer, lenp, ppos,
-				do_proc_dointvec_jiffies_conv, NULL);
+				do_proc_dointvec_jiffies_conv, NULL, NULL);
 }
 
 /**
@@ -1206,7 +1170,7 @@ int proc_dointvec_userhz_jiffies(struct ctl_table *table, int write,
 				 void *buffer, size_t *lenp, loff_t *ppos)
 {
 	return do_proc_dointvec(table->data, table, write, buffer, lenp, ppos,
-				do_proc_dointvec_userhz_jiffies_conv, NULL);
+				do_proc_dointvec_userhz_jiffies_conv, NULL, NULL);
 }
 
 /**
@@ -1229,7 +1193,7 @@ int proc_dointvec_ms_jiffies(struct ctl_table *table, int write, void *buffer,
 		size_t *lenp, loff_t *ppos)
 {
 	return do_proc_dointvec(table->data, table, write, buffer, lenp, ppos,
-				do_proc_dointvec_ms_jiffies_conv, NULL);
+				do_proc_dointvec_ms_jiffies_conv, NULL, NULL);
 }
 
 static int proc_do_cad_pid(struct ctl_table *table, int write, void *buffer,
@@ -1242,7 +1206,7 @@ static int proc_do_cad_pid(struct ctl_table *table, int write, void *buffer,
 	tmp = pid_vnr(cad_pid);
 
 	r = do_proc_dointvec(&tmp, table, write, buffer,
-			       lenp, ppos, sysctl_conv_intvec, NULL);
+			       lenp, ppos, sysctl_conv_intvec, NULL, NULL);
 	if (r || !write)
 		return r;
 
