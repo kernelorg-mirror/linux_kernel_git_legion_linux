@@ -237,6 +237,31 @@ ssize_t proc_douintvec_minmax_r(struct ctl_context *ctx, struct file *file,
 ssize_t proc_douintvec_minmax_w(struct ctl_context *ctx, struct file *file,
 				char *buffer, size_t *lenp, loff_t *ppos);
 
+extern struct ctl_fops proc_dointvec_minmax_fops;
+
+int do_proc_dobool_conv(bool *negp, unsigned long *lvalp, int *valp,
+		int write, int *min, int *max);
+int do_proc_dointvec_minmax_conv(bool *negp, unsigned long *lvalp,  int *valp,
+		int write, int *min, int *max);
+
+ssize_t proc_dointvec_minmax_r(struct ctl_context *ctx, struct file *file,
+			       char *buffer, size_t *lenp, loff_t *ppos);
+
+ssize_t proc_dointvec_minmax_w(struct ctl_context *ctx, struct file *file,
+			       char *buffer, size_t *lenp, loff_t *ppos);
+
+int do_proc_dointvec_r(void *tbl_data, struct ctl_table *table,
+		       void *buffer, size_t *lenp, loff_t *ppos,
+		       int (*conv)(bool *negp, unsigned long *lvalp, int *valp,
+				   int write, int *min, int *max),
+		       int *min, int *max);
+
+int do_proc_dointvec_w(void *tbl_data, struct ctl_table *table,
+		       void *buffer, size_t *lenp, loff_t *ppos,
+		       int (*conv)(bool *negp, unsigned long *lvalp, int *valp,
+				   int write, int *min, int *max),
+		       int *min, int *max);
+
 #ifdef CONFIG_SYSCTL
 
 #define DECLARE_SYSCTL_BASE(_name, _table)				\
