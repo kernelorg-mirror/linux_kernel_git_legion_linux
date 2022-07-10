@@ -820,7 +820,7 @@ list_tests()
 	echo "0003 x $(get_test_count 0003) - tests proc_dointvec()"
 	echo "0004 x $(get_test_count 0004) - tests proc_douintvec()"
 	echo "0005 x $(get_test_count 0005) - tests proc_douintvec() array"
-	echo "0006 x $(get_test_count 0006) - tests proc_do_large_bitmap()"
+	echo "0006 x $(get_test_count 0006) - tests proc_large_bitmap_r/w()"
 	echo "0007 x $(get_test_count 0007) - tests setting sysctl from kernel boot param"
 	echo "0008 x $(get_test_count 0008) - tests sysctl macro values match"
 }

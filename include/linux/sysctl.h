@@ -82,9 +82,10 @@ int proc_dointvec_ms_jiffies(struct ctl_table *, int, void *, size_t *,
 int proc_doulongvec_minmax(struct ctl_table *, int, void *, size_t *, loff_t *);
 int proc_doulongvec_ms_jiffies_minmax(struct ctl_table *table, int, void *,
 		size_t *, loff_t *);
-int proc_do_large_bitmap(struct ctl_table *, int, void *, size_t *, loff_t *);
 int proc_do_static_key(struct ctl_table *table, int write, void *buffer,
 		size_t *lenp, loff_t *ppos);
+
+extern struct ctl_fops proc_large_bitmap_fops;
 
 /*
  * Register a set of sysctl names by calling register_sysctl_table
@@ -208,6 +209,13 @@ struct ctl_table_root {
 struct ctl_path {
 	const char *procname;
 };
+
+extern struct ctl_fops proc_large_bitmap_fops;
+
+ssize_t proc_large_bitmap_r(struct ctl_context *ctx, struct file *file,
+			    char *buffer, size_t *lenp, loff_t *ppos);
+ssize_t proc_large_bitmap_w(struct ctl_context *ctx, struct file *file,
+			    char *buffer, size_t *lenp, loff_t *ppos);
 
 #ifdef CONFIG_SYSCTL
 
