@@ -45,21 +45,27 @@ static int proc_rt6_multipath_hash_policy(struct ctl_table *table, int write,
 	return ret;
 }
 
-static int
-proc_rt6_multipath_hash_fields(struct ctl_table *table, int write, void *buffer,
-			       size_t *lenp, loff_t *ppos)
+static ssize_t proc_rt6_multipath_hash_fields_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct net *net;
-	int ret;
+	ssize_t ret;
 
-	net = container_of(table->data, struct net,
-			   ipv6.sysctl.multipath_hash_fields);
-	ret = proc_douintvec_minmax(table, write, buffer, lenp, ppos);
-	if (write && ret == 0)
+	ret = sysctl_write_uintvec(ctx, file, buffer, lenp, ppos);
+	if (ret == 0) {
+		net = container_of(ctx->ctl_table->data, struct net,
+				   ipv6.sysctl.multipath_hash_fields);
+
 		call_netevent_notifiers(NETEVENT_IPV6_MPATH_HASH_UPDATE, net);
+	}
 
 	return ret;
 }
+
+static struct ctl_fops proc_rt6_multipath_hash_fields_fops = {
+	.read  = sysctl_read_uintvec,
+	.write = proc_rt6_multipath_hash_fields_write,
+};
 
 static struct ctl_table ipv6_table_template[] = {
 	{
@@ -177,7 +183,7 @@ static struct ctl_table ipv6_table_template[] = {
 		.data		= &init_net.ipv6.sysctl.multipath_hash_fields,
 		.maxlen		= sizeof(u32),
 		.mode		= 0644,
-		.proc_handler	= proc_rt6_multipath_hash_fields,
+		.ctl_fops	= &proc_rt6_multipath_hash_fields_fops,
 		.extra1		= SYSCTL_ONE,
 		.extra2		= &rt6_multipath_hash_fields_all_mask,
 	},
@@ -202,7 +208,7 @@ static struct ctl_table ipv6_table_template[] = {
 		.data		= &init_net.ipv6.sysctl.ioam6_id,
 		.maxlen		= sizeof(u32),
 		.mode		= 0644,
-		.proc_handler	= proc_douintvec_minmax,
+		.ctl_fops	= &sysctl_uintvec_fops,
 		.extra2		= &ioam6_id_max,
 	},
 	{

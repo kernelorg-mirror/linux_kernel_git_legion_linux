@@ -118,7 +118,7 @@ static struct ctl_table mptcp_sysctl_table[] = {
 		.procname = "stale_loss_cnt",
 		.maxlen = sizeof(unsigned int),
 		.mode = 0644,
-		.proc_handler = proc_douintvec_minmax,
+		.ctl_fops = &sysctl_uintvec_fops,
 	},
 	{
 		.procname = "pm_type",
