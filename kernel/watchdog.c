@@ -726,20 +726,38 @@ int proc_watchdog_thresh(struct ctl_table *table, int write,
  * user to specify a mask that will include cpus that have not yet
  * been brought online, if desired.
  */
-int proc_watchdog_cpumask(struct ctl_table *table, int write,
-			  void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t watchdog_cpumask_bits_read(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
-	int err;
+	ssize_t err;
 
 	mutex_lock(&watchdog_mutex);
 
-	err = proc_do_large_bitmap(table, write, buffer, lenp, ppos);
-	if (!err && write)
+	err = sysctl_read_large_bitmap(ctx, file, buffer, lenp, ppos);
+
+	mutex_unlock(&watchdog_mutex);
+	return err;
+}
+
+static ssize_t watchdog_cpumask_bits_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	ssize_t err;
+
+	mutex_lock(&watchdog_mutex);
+
+	err = sysctl_write_large_bitmap(ctx, file, buffer, lenp, ppos);
+	if (!err)
 		proc_watchdog_update();
 
 	mutex_unlock(&watchdog_mutex);
 	return err;
 }
+
+struct ctl_fops watchdog_cpumask_bits_fops = {
+	.read = watchdog_cpumask_bits_read,
+	.write = watchdog_cpumask_bits_write,
+};
 
 static const int sixty = 60;
 
@@ -776,7 +794,7 @@ static struct ctl_table watchdog_sysctls[] = {
 		.data		= &watchdog_cpumask_bits,
 		.maxlen		= NR_CPUS,
 		.mode		= 0644,
-		.proc_handler	= proc_watchdog_cpumask,
+		.ctl_fops	= &watchdog_cpumask_bits_fops,
 	},
 #ifdef CONFIG_SOFTLOCKUP_DETECTOR
 	{

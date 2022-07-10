@@ -36,6 +36,7 @@ struct nsproxy;
 struct ctl_table_root;
 struct ctl_table_header;
 struct ctl_dir;
+struct ctl_context;
 
 /* Keep the same order as in fs/proc/proc_sysctl.c */
 #define SYSCTL_ZERO			((void *)&sysctl_vals[0])
@@ -85,6 +86,13 @@ int proc_doulongvec_ms_jiffies_minmax(struct ctl_table *table, int, void *,
 int proc_do_large_bitmap(struct ctl_table *, int, void *, size_t *, loff_t *);
 int proc_do_static_key(struct ctl_table *table, int write, void *buffer,
 		size_t *lenp, loff_t *ppos);
+
+ssize_t sysctl_read_large_bitmap(struct ctl_context *ctx, struct file *file,
+			    char *buffer, size_t *lenp, loff_t *ppos);
+ssize_t sysctl_write_large_bitmap(struct ctl_context *ctx, struct file *file,
+			    char *buffer, size_t *lenp, loff_t *ppos);
+
+extern struct ctl_fops sysctl_large_bitmap_fops;
 
 /*
  * Register a set of sysctl names by calling register_sysctl_table

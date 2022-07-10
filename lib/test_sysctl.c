@@ -131,7 +131,7 @@ static struct ctl_table test_table[] = {
 		.data		= &test_data.bitmap_0001,
 		.maxlen		= SYSCTL_TEST_BITMAP_SIZE,
 		.mode		= 0644,
-		.proc_handler	= proc_do_large_bitmap,
+		.ctl_fops	= &sysctl_large_bitmap_fops,
 	},
 	{ }
 };

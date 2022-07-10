@@ -1219,14 +1219,204 @@ static int proc_do_cad_pid(struct ctl_table *table, int write, void *buffer,
 }
 
 /**
- * proc_do_large_bitmap - read/write from/to a large bitmap
+ * sysctl_write_large_bitmap_data - write to a large bitmap
+ * @data: the bitmap
  * @table: the sysctl table
- * @write: %TRUE if this is a write to the sysctl file
  * @buffer: the user buffer
  * @lenp: the size of the user buffer
  * @ppos: file position
  *
- * The bitmap is stored at table->data and the bitmap length (in bits)
+ * The bitmap is stored at data and the bitmap length (in bits)
+ * in table->maxlen.
+ *
+ * We use a range comma separated format (e.g. 1,3-4,10-10) so that
+ * large bitmaps may be represented in a compact manner.
+ *
+ * Returns 0 on success.
+ */
+int sysctl_write_large_bitmap_data(void *data, struct ctl_table *table,
+				   void *buffer, size_t *lenp, loff_t *ppos)
+{
+	int err = 0;
+	size_t left = *lenp;
+	unsigned long bitmap_len = table->maxlen;
+	unsigned long *bitmap = *(unsigned long **) data;
+	unsigned long *tmp_bitmap = NULL;
+	char tr_a[] = { '-', ',', '\n' }, tr_b[] = { ',', '\n', 0 }, c;
+	char *p = buffer;
+	size_t skipped = 0;
+
+	if (!bitmap || !bitmap_len || !left) {
+		*lenp = 0;
+		return 0;
+	}
+
+	if (left > PAGE_SIZE - 1) {
+		left = PAGE_SIZE - 1;
+		/* How much of the buffer we'll skip this pass */
+		skipped = *lenp - left;
+	}
+
+	tmp_bitmap = bitmap_zalloc(bitmap_len, GFP_KERNEL);
+	if (!tmp_bitmap)
+		return -ENOMEM;
+
+	proc_skip_char(&p, &left, '\n');
+	while (!err && left) {
+		unsigned long val_a, val_b;
+		bool neg;
+		size_t saved_left;
+
+		/* In case we stop parsing mid-number, we can reset */
+		saved_left = left;
+		err = proc_get_long(&p, &left, &val_a, &neg, tr_a,
+				     sizeof(tr_a), &c);
+		/*
+		 * If we consumed the entirety of a truncated buffer or
+		 * only one char is left (may be a "-"), then stop here,
+		 * reset, & come back for more.
+		 */
+		if ((left <= 1) && skipped) {
+			left = saved_left;
+			break;
+		}
+
+		if (err)
+			break;
+		if (val_a >= bitmap_len || neg) {
+			err = -EINVAL;
+			break;
+		}
+
+		val_b = val_a;
+		if (left) {
+			p++;
+			left--;
+		}
+
+		if (c == '-') {
+			err = proc_get_long(&p, &left, &val_b,
+					     &neg, tr_b, sizeof(tr_b),
+					     &c);
+			/*
+			 * If we consumed all of a truncated buffer or
+			 * then stop here, reset, & come back for more.
+			 */
+			if (!left && skipped) {
+				left = saved_left;
+				break;
+			}
+
+			if (err)
+				break;
+			if (val_b >= bitmap_len || neg ||
+			    val_a > val_b) {
+				err = -EINVAL;
+				break;
+			}
+			if (left) {
+				p++;
+				left--;
+			}
+		}
+
+		bitmap_set(tmp_bitmap, val_a, val_b - val_a + 1);
+		proc_skip_char(&p, &left, '\n');
+	}
+	left += skipped;
+
+	if (!err) {
+		if (*ppos)
+			bitmap_or(bitmap, bitmap, tmp_bitmap, bitmap_len);
+		else
+			bitmap_copy(bitmap, tmp_bitmap, bitmap_len);
+		*lenp -= left;
+		*ppos += *lenp;
+	}
+
+	bitmap_free(tmp_bitmap);
+	return err;
+}
+
+/**
+ * sysctl_read_large_bitmap_data - read from a large bitmap
+ * @data: the bitmap
+ * @table: the sysctl table
+ * @buffer: the user buffer
+ * @lenp: the size of the user buffer
+ * @ppos: file position
+ *
+ * The bitmap is stored at data and the bitmap length (in bits)
+ * in table->maxlen.
+ *
+ * We use a range comma separated format (e.g. 1,3-4,10-10) so that
+ * large bitmaps may be represented in a compact manner.
+ *
+ * Returns 0 on success.
+ */
+static int sysctl_read_large_bitmap_data(void *data, struct ctl_table *table,
+					 void *buffer, size_t *lenp, loff_t *ppos)
+{
+	size_t left = *lenp;
+	unsigned long bitmap_len = table->maxlen;
+	unsigned long *bitmap = *(unsigned long **) data;
+	unsigned long bit_a, bit_b = 0;
+	bool first = 1;
+
+
+	if (!bitmap || !bitmap_len || !left || *ppos) {
+		*lenp = 0;
+		return 0;
+	}
+
+	while (left) {
+		bit_a = find_next_bit(bitmap, bitmap_len, bit_b);
+		if (bit_a >= bitmap_len)
+			break;
+		bit_b = find_next_zero_bit(bitmap, bitmap_len,
+					   bit_a + 1) - 1;
+
+		if (!first)
+			proc_put_char(&buffer, &left, ',');
+		proc_put_long(&buffer, &left, bit_a, false);
+		if (bit_a != bit_b) {
+			proc_put_char(&buffer, &left, '-');
+			proc_put_long(&buffer, &left, bit_b, false);
+		}
+
+		first = 0; bit_b++;
+	}
+	proc_put_char(&buffer, &left, '\n');
+
+	*lenp -= left;
+	*ppos += *lenp;
+
+	return 0;
+}
+
+ssize_t sysctl_read_large_bitmap(struct ctl_context *ctx, struct file *file,
+			    char *buffer, size_t *lenp, loff_t *ppos)
+{
+	return sysctl_read_large_bitmap_data(ctx->ctl_table->data, ctx->ctl_table,
+					     buffer, lenp, ppos);
+}
+
+ssize_t sysctl_write_large_bitmap(struct ctl_context *ctx, struct file *file,
+			    char *buffer, size_t *lenp, loff_t *ppos)
+{
+	return sysctl_write_large_bitmap_data(ctx->ctl_table->data, ctx->ctl_table,
+					      buffer, lenp, ppos);
+}
+
+/**
+ * proc_do_large_bitmap - write to a large bitmap
+ * @data: the bitmap
+ * @table: the sysctl table
+ * @buffer: the user buffer
+ * @lenp: the size of the user buffer
+ * @ppos: file position
+ *
+ * The bitmap is stored at data and the bitmap length (in bits)
  * in table->maxlen.
  *
  * We use a range comma separated format (e.g. 1,3-4,10-10) so that
@@ -1236,133 +1426,11 @@ static int proc_do_cad_pid(struct ctl_table *table, int write, void *buffer,
  * Returns 0 on success.
  */
 int proc_do_large_bitmap(struct ctl_table *table, int write,
-			 void *buffer, size_t *lenp, loff_t *ppos)
+                        void *buffer, size_t *lenp, loff_t *ppos)
 {
-	int err = 0;
-	size_t left = *lenp;
-	unsigned long bitmap_len = table->maxlen;
-	unsigned long *bitmap = *(unsigned long **) table->data;
-	unsigned long *tmp_bitmap = NULL;
-	char tr_a[] = { '-', ',', '\n' }, tr_b[] = { ',', '\n', 0 }, c;
-
-	if (!bitmap || !bitmap_len || !left || (*ppos && !write)) {
-		*lenp = 0;
-		return 0;
-	}
-
-	if (write) {
-		char *p = buffer;
-		size_t skipped = 0;
-
-		if (left > PAGE_SIZE - 1) {
-			left = PAGE_SIZE - 1;
-			/* How much of the buffer we'll skip this pass */
-			skipped = *lenp - left;
-		}
-
-		tmp_bitmap = bitmap_zalloc(bitmap_len, GFP_KERNEL);
-		if (!tmp_bitmap)
-			return -ENOMEM;
-		proc_skip_char(&p, &left, '\n');
-		while (!err && left) {
-			unsigned long val_a, val_b;
-			bool neg;
-			size_t saved_left;
-
-			/* In case we stop parsing mid-number, we can reset */
-			saved_left = left;
-			err = proc_get_long(&p, &left, &val_a, &neg, tr_a,
-					     sizeof(tr_a), &c);
-			/*
-			 * If we consumed the entirety of a truncated buffer or
-			 * only one char is left (may be a "-"), then stop here,
-			 * reset, & come back for more.
-			 */
-			if ((left <= 1) && skipped) {
-				left = saved_left;
-				break;
-			}
-
-			if (err)
-				break;
-			if (val_a >= bitmap_len || neg) {
-				err = -EINVAL;
-				break;
-			}
-
-			val_b = val_a;
-			if (left) {
-				p++;
-				left--;
-			}
-
-			if (c == '-') {
-				err = proc_get_long(&p, &left, &val_b,
-						     &neg, tr_b, sizeof(tr_b),
-						     &c);
-				/*
-				 * If we consumed all of a truncated buffer or
-				 * then stop here, reset, & come back for more.
-				 */
-				if (!left && skipped) {
-					left = saved_left;
-					break;
-				}
-
-				if (err)
-					break;
-				if (val_b >= bitmap_len || neg ||
-				    val_a > val_b) {
-					err = -EINVAL;
-					break;
-				}
-				if (left) {
-					p++;
-					left--;
-				}
-			}
-
-			bitmap_set(tmp_bitmap, val_a, val_b - val_a + 1);
-			proc_skip_char(&p, &left, '\n');
-		}
-		left += skipped;
-	} else {
-		unsigned long bit_a, bit_b = 0;
-		bool first = 1;
-
-		while (left) {
-			bit_a = find_next_bit(bitmap, bitmap_len, bit_b);
-			if (bit_a >= bitmap_len)
-				break;
-			bit_b = find_next_zero_bit(bitmap, bitmap_len,
-						   bit_a + 1) - 1;
-
-			if (!first)
-				proc_put_char(&buffer, &left, ',');
-			proc_put_long(&buffer, &left, bit_a, false);
-			if (bit_a != bit_b) {
-				proc_put_char(&buffer, &left, '-');
-				proc_put_long(&buffer, &left, bit_b, false);
-			}
-
-			first = 0; bit_b++;
-		}
-		proc_put_char(&buffer, &left, '\n');
-	}
-
-	if (!err) {
-		if (write) {
-			if (*ppos)
-				bitmap_or(bitmap, bitmap, tmp_bitmap, bitmap_len);
-			else
-				bitmap_copy(bitmap, tmp_bitmap, bitmap_len);
-		}
-		*lenp -= left;
-		*ppos += *lenp;
-	}
-
-	bitmap_free(tmp_bitmap);
-	return err;
+	if (write)
+		return sysctl_write_large_bitmap_data(table->data, table, buffer, lenp, ppos);
+	return sysctl_read_large_bitmap_data(table->data, table, buffer, lenp, ppos);
 }
 
 #else /* CONFIG_PROC_SYSCTL */
@@ -1439,13 +1507,24 @@ int proc_doulongvec_ms_jiffies_minmax(struct ctl_table *table, int write,
 	return -ENOSYS;
 }
 
-int proc_do_large_bitmap(struct ctl_table *table, int write,
-			 void *buffer, size_t *lenp, loff_t *ppos)
+ssize_t sysctl_read_large_bitmap(struct ctl_context *ctx, struct file *file,
+			    char *buffer, size_t *lenp, loff_t *ppos)
+{
+	return -ENOSYS;
+}
+
+ssize_t sysctl_write_large_bitmap(struct ctl_context *ctx, struct file *file,
+			    char *buffer, size_t *lenp, loff_t *ppos)
 {
 	return -ENOSYS;
 }
 
 #endif /* CONFIG_PROC_SYSCTL */
+
+struct ctl_fops sysctl_large_bitmap_fops = {
+	.read = sysctl_read_large_bitmap,
+	.write = sysctl_write_large_bitmap,
+};
 
 #if defined(CONFIG_SYSCTL)
 int proc_do_static_key(struct ctl_table *table, int write,
@@ -2352,3 +2431,6 @@ EXPORT_SYMBOL(proc_dostring);
 EXPORT_SYMBOL(proc_doulongvec_minmax);
 EXPORT_SYMBOL(proc_doulongvec_ms_jiffies_minmax);
 EXPORT_SYMBOL(proc_do_large_bitmap);
+EXPORT_SYMBOL(sysctl_large_bitmap_fops);
+EXPORT_SYMBOL(sysctl_read_large_bitmap);
+EXPORT_SYMBOL(sysctl_write_large_bitmap);
