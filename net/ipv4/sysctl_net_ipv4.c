@@ -734,7 +734,7 @@ static struct ctl_table ipv4_net_table[] = {
 		.data		= &init_net.ipv4.sysctl_local_reserved_ports,
 		.maxlen		= 65536,
 		.mode		= 0644,
-		.proc_handler	= proc_do_large_bitmap,
+		.ctl_fops	= &proc_large_bitmap_fops,
 	},
 	{
 		.procname	= "ip_no_pmtu_disc",

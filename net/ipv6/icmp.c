@@ -1180,7 +1180,7 @@ static struct ctl_table ipv6_icmp_table_template[] = {
 		.data		= &init_net.ipv6.sysctl.icmpv6_ratemask_ptr,
 		.maxlen		= ICMPV6_MSG_MAX + 1,
 		.mode		= 0644,
-		.proc_handler = proc_do_large_bitmap,
+		.ctl_fops	= &proc_large_bitmap_fops,
 	},
 	{ },
 };

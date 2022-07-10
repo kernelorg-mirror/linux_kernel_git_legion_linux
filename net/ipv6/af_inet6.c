@@ -955,7 +955,7 @@ static int __net_init inet6_net_init(struct net *net)
 
 	/* By default, rate limit error messages.
 	 * Except for pmtu discovery, it would break it.
-	 * proc_do_large_bitmap needs pointer to the bitmap.
+	 * sysctl_read_large_bitmap/w needs pointer to the bitmap.
 	 */
 	bitmap_set(net->ipv6.sysctl.icmpv6_ratemask, 0, ICMPV6_ERRMSG_MAX + 1);
 	bitmap_clear(net->ipv6.sysctl.icmpv6_ratemask, ICMPV6_PKT_TOOBIG, 1);
