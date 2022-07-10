@@ -18,13 +18,13 @@ static struct ctl_table xfrm_table[] = {
 		.procname	= "xfrm_aevent_etime",
 		.maxlen		= sizeof(u32),
 		.mode		= 0644,
-		.proc_handler	= proc_douintvec
+		.ctl_fops	= &sysctl_uintvec_fops,
 	},
 	{
 		.procname	= "xfrm_aevent_rseqth",
 		.maxlen		= sizeof(u32),
 		.mode		= 0644,
-		.proc_handler	= proc_douintvec
+		.ctl_fops	= &sysctl_uintvec_fops,
 	},
 	{
 		.procname	= "xfrm_larval_drop",

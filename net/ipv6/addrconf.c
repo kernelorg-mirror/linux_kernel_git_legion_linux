@@ -6356,67 +6356,82 @@ static int addrconf_sysctl_proxy_ndp(struct ctl_table *ctl, int write,
 	return ret;
 }
 
-static int addrconf_sysctl_addr_gen_mode(struct ctl_table *ctl, int write,
-					 void *buffer, size_t *lenp,
-					 loff_t *ppos)
+static ssize_t addrconf_addr_gen_mode_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
-	int ret = 0;
 	u32 new_val;
-	struct inet6_dev *idev = (struct inet6_dev *)ctl->extra1;
-	struct net *net = (struct net *)ctl->extra2;
-	struct ctl_table tmp = {
-		.data = &new_val,
-		.maxlen = sizeof(new_val),
-		.mode = ctl->mode,
-	};
+	struct inet6_dev *idev = (struct inet6_dev *)ctx->ctl_table->extra1;
+	struct net *net = (struct net *)ctx->ctl_table->extra2;
+	ssize_t ret = 0;
 
 	if (!rtnl_trylock())
 		return restart_syscall();
 
-	new_val = *((u32 *)ctl->data);
+	new_val = *((u32 *)ctx->ctl_table->data);
 
-	ret = proc_douintvec(&tmp, write, buffer, lenp, ppos);
+	ret = sysctl_write_uintvec_data(&new_val, ctx->ctl_table,
+			buffer, lenp, ppos,
+			sysctl_conv_uintvec, NULL, NULL);
+
 	if (ret != 0)
 		goto out;
 
-	if (write) {
-		if (check_addr_gen_mode(new_val) < 0) {
+	if (check_addr_gen_mode(new_val) < 0) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (idev) {
+		if (check_stable_privacy(idev, net, new_val) < 0) {
 			ret = -EINVAL;
 			goto out;
 		}
 
-		if (idev) {
-			if (check_stable_privacy(idev, net, new_val) < 0) {
-				ret = -EINVAL;
-				goto out;
-			}
+		if (idev->cnf.addr_gen_mode != new_val) {
+			idev->cnf.addr_gen_mode = new_val;
+			addrconf_dev_config(idev->dev);
+		}
+	} else if (&net->ipv6.devconf_all->addr_gen_mode == ctx->ctl_table->data) {
+		struct net_device *dev;
 
-			if (idev->cnf.addr_gen_mode != new_val) {
+		net->ipv6.devconf_dflt->addr_gen_mode = new_val;
+		for_each_netdev(net, dev) {
+			idev = __in6_dev_get(dev);
+			if (idev &&
+			    idev->cnf.addr_gen_mode != new_val) {
 				idev->cnf.addr_gen_mode = new_val;
 				addrconf_dev_config(idev->dev);
 			}
-		} else if (&net->ipv6.devconf_all->addr_gen_mode == ctl->data) {
-			struct net_device *dev;
-
-			net->ipv6.devconf_dflt->addr_gen_mode = new_val;
-			for_each_netdev(net, dev) {
-				idev = __in6_dev_get(dev);
-				if (idev &&
-				    idev->cnf.addr_gen_mode != new_val) {
-					idev->cnf.addr_gen_mode = new_val;
-					addrconf_dev_config(idev->dev);
-				}
-			}
 		}
-
-		*((u32 *)ctl->data) = new_val;
 	}
+
+	*((u32 *)ctx->ctl_table->data) = new_val;
 
 out:
 	rtnl_unlock();
 
 	return ret;
 }
+
+static ssize_t addrconf_addr_gen_mode_read(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	ssize_t ret;
+
+	if (!rtnl_trylock())
+		return restart_syscall();
+
+	ret = sysctl_read_uintvec(ctx, file, buffer, lenp, ppos);
+
+	rtnl_unlock();
+
+	return ret;
+}
+
+struct ctl_fops addrconf_addr_gen_mode_fops = {
+	.read  = addrconf_addr_gen_mode_read,
+	.write = addrconf_addr_gen_mode_write,
+};
 
 static int addrconf_sysctl_stable_secret(struct ctl_table *ctl, int write,
 					 void *buffer, size_t *lenp,
@@ -6978,7 +6993,7 @@ static const struct ctl_table addrconf_sysctl[] = {
 		.data		= &ipv6_devconf.addr_gen_mode,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= addrconf_sysctl_addr_gen_mode,
+		.ctl_fops	= &addrconf_addr_gen_mode_fops,
 	},
 	{
 		.procname       = "disable_policy",
@@ -7026,7 +7041,7 @@ static const struct ctl_table addrconf_sysctl[] = {
 		.data		= &ipv6_devconf.ioam6_id_wide,
 		.maxlen		= sizeof(u32),
 		.mode		= 0644,
-		.proc_handler	= proc_douintvec,
+		.ctl_fops	= &sysctl_uintvec_fops,
 	},
 	{
 		.procname	= "ndisc_evict_nocarrier",

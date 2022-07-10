@@ -1001,7 +1001,7 @@ static struct ctl_table ipv4_net_table[] = {
 		.data		= &init_net.ipv4.sysctl_tcp_notsent_lowat,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_douintvec,
+		.ctl_fops	= &sysctl_uintvec_fops,
 	},
 	{
 		.procname	= "tcp_tw_reuse",

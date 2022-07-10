@@ -117,7 +117,7 @@ static struct ctl_table test_table[] = {
 		.data		= &test_data.uint_0001,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_douintvec,
+		.ctl_fops	= &sysctl_uintvec_fops,
 	},
 	{
 		.procname	= "string_0001",

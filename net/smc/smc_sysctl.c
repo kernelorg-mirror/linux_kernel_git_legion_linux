@@ -23,7 +23,7 @@ static struct ctl_table smc_table[] = {
 		.data           = &init_net.smc.sysctl_autocorking_size,
 		.maxlen         = sizeof(unsigned int),
 		.mode           = 0644,
-		.proc_handler	= proc_douintvec,
+		.ctl_fops       = &sysctl_uintvec_fops,
 	},
 	{  }
 };
