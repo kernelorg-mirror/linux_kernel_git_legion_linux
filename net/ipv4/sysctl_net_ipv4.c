@@ -453,21 +453,29 @@ static int proc_fib_multipath_hash_policy(struct ctl_table *table, int write,
 	return ret;
 }
 
-static int proc_fib_multipath_hash_fields(struct ctl_table *table, int write,
-					  void *buffer, size_t *lenp,
-					  loff_t *ppos)
+static ssize_t proc_fib_multipath_hash_fields_w(struct ctl_context *ctx,
+		struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct net *net;
-	int ret;
+	ssize_t ret;
 
-	net = container_of(table->data, struct net,
-			   ipv4.sysctl_fib_multipath_hash_fields);
-	ret = proc_douintvec_minmax(table, write, buffer, lenp, ppos);
-	if (write && ret == 0)
+	ret = proc_douintvec_minmax_w(ctx, file, buffer, lenp, ppos);
+	if (ret == 0) {
+		net = container_of(ctx->ctl_table->data, struct net,
+				   ipv4.sysctl_fib_multipath_hash_fields);
+
 		call_netevent_notifiers(NETEVENT_IPV4_MPATH_HASH_UPDATE, net);
+	}
 
 	return ret;
 }
+
+static struct ctl_fops proc_fib_multipath_hash_fields_fops = {
+	.read  = proc_douintvec_minmax_r,
+	.write = proc_fib_multipath_hash_fields_w,
+};
+
 #endif
 
 static struct ctl_table ipv4_table[] = {
@@ -577,7 +585,7 @@ static struct ctl_table ipv4_table[] = {
 		.data		= &sysctl_fib_sync_mem,
 		.maxlen		= sizeof(sysctl_fib_sync_mem),
 		.mode		= 0644,
-		.proc_handler	= proc_douintvec_minmax,
+		.ctl_fops	= &proc_douintvec_minmax_fops,
 		.extra1		= &sysctl_fib_sync_mem_min,
 		.extra2		= &sysctl_fib_sync_mem_max,
 	},
@@ -844,7 +852,7 @@ static struct ctl_table ipv4_net_table[] = {
 		.data		= &init_net.ipv4.sysctl_tcp_probe_interval,
 		.maxlen		= sizeof(u32),
 		.mode		= 0644,
-		.proc_handler	= proc_douintvec_minmax,
+		.ctl_fops	= &proc_douintvec_minmax_fops,
 		.extra2		= &u32_max_div_HZ,
 	},
 	{
@@ -1062,7 +1070,7 @@ static struct ctl_table ipv4_net_table[] = {
 		.data		= &init_net.ipv4.sysctl_fib_multipath_hash_fields,
 		.maxlen		= sizeof(u32),
 		.mode		= 0644,
-		.proc_handler	= proc_fib_multipath_hash_fields,
+		.ctl_fops	= &proc_fib_multipath_hash_fields_fops,
 		.extra1		= SYSCTL_ONE,
 		.extra2		= &fib_multipath_hash_fields_all_mask,
 	},

@@ -1460,12 +1460,26 @@ static int do_proc_dopipe_max_size_conv(unsigned long *lvalp,
 	return 0;
 }
 
-static int proc_dopipe_max_size(struct ctl_table *table, int write,
-				void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t pipe_max_size_read(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
-	return do_proc_douintvec(table->data, table, write, buffer, lenp, ppos,
-				 do_proc_dopipe_max_size_conv, NULL, NULL);
+	return do_proc_douintvec_r(ctx->ctl_table->data, ctx->ctl_table,
+				   buffer, lenp, ppos,
+				   do_proc_dopipe_max_size_conv, NULL, NULL);
 }
+
+static ssize_t pipe_max_size_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	return do_proc_douintvec_w(ctx->ctl_table->data, ctx->ctl_table,
+				   buffer, lenp, ppos,
+				   do_proc_dopipe_max_size_conv, NULL, NULL);
+}
+
+static struct ctl_fops pipe_max_size_fops = {
+	.read = pipe_max_size_read,
+	.write = pipe_max_size_write,
+};
 
 static struct ctl_table fs_pipe_sysctls[] = {
 	{
@@ -1473,7 +1487,7 @@ static struct ctl_table fs_pipe_sysctls[] = {
 		.data		= &pipe_max_size,
 		.maxlen		= sizeof(pipe_max_size),
 		.mode		= 0644,
-		.proc_handler	= proc_dopipe_max_size,
+		.ctl_fops	= &pipe_max_size_fops,
 	},
 	{
 		.procname	= "pipe-user-pages-hard",

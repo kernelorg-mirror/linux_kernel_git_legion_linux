@@ -70,8 +70,6 @@ int proc_dobool(struct ctl_table *table, int write, void *buffer,
 int proc_dointvec(struct ctl_table *, int, void *, size_t *, loff_t *);
 int proc_douintvec(struct ctl_table *, int, void *, size_t *, loff_t *);
 int proc_dointvec_minmax(struct ctl_table *, int, void *, size_t *, loff_t *);
-int proc_douintvec_minmax(struct ctl_table *table, int write, void *buffer,
-		size_t *lenp, loff_t *ppos);
 int proc_dou8vec_minmax(struct ctl_table *table, int write, void *buffer,
 			size_t *lenp, loff_t *ppos);
 int proc_dointvec_jiffies(struct ctl_table *, int, void *, size_t *, loff_t *);
@@ -217,6 +215,29 @@ ssize_t proc_large_bitmap_r(struct ctl_context *ctx, struct file *file,
 ssize_t proc_large_bitmap_w(struct ctl_context *ctx, struct file *file,
 			    char *buffer, size_t *lenp, loff_t *ppos);
 
+extern struct ctl_fops proc_douintvec_minmax_fops;
+
+int do_proc_douintvec_minmax_conv(unsigned long *lvalp, unsigned int *valp,
+		int write, unsigned int *min, unsigned int *max);
+
+int do_proc_douintvec_r(unsigned int *tbl_data, struct ctl_table *table,
+		void *buffer, size_t *lenp, loff_t *ppos,
+		int (*conv)(unsigned long *lvalp, unsigned int *valp,
+			int write, unsigned int *min, unsigned int *max),
+		unsigned int *min, unsigned int *max);
+
+int do_proc_douintvec_w(unsigned int *tbl_data, struct ctl_table *table,
+		void *buffer, size_t *lenp, loff_t *ppos,
+		int (*conv)(unsigned long *lvalp, unsigned int *valp,
+			int write, unsigned int *min, unsigned int *max),
+		unsigned int *min, unsigned int *max);
+
+ssize_t proc_douintvec_minmax_r(struct ctl_context *ctx, struct file *file,
+				char *buffer, size_t *lenp, loff_t *ppos);
+
+ssize_t proc_douintvec_minmax_w(struct ctl_context *ctx, struct file *file,
+				char *buffer, size_t *lenp, loff_t *ppos);
+
 #ifdef CONFIG_SYSCTL
 
 #define DECLARE_SYSCTL_BASE(_name, _table)				\
@@ -260,12 +281,6 @@ extern void __register_sysctl_init(const char *path, struct ctl_table *table,
 extern struct ctl_table_header *register_sysctl_mount_point(const char *path);
 
 void do_sysctl_args(void);
-int do_proc_douintvec(void *tbl_data, struct ctl_table *table, int write,
-		      void *buffer, size_t *lenp, loff_t *ppos,
-		      int (*conv)(unsigned long *lvalp,
-				  unsigned int *valp,
-				  int write, unsigned int *min, unsigned int *max),
-		      unsigned int *min, unsigned int *max);
 
 extern int pwrsw_enabled;
 extern int unaligned_enabled;
