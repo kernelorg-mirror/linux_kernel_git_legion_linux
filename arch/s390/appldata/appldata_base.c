@@ -228,7 +228,7 @@ appldata_timer_handler(struct ctl_table *ctl, int write,
 		.extra2		= SYSCTL_ONE,
 	};
 
-	rc = proc_douintvec_minmax(&ctl_entry, write, buffer, lenp, ppos);
+	rc = proc_dointvec_minmax(&ctl_entry, write, buffer, lenp, ppos);
 	if (rc < 0 || !write)
 		return rc;
 
@@ -312,7 +312,7 @@ appldata_generic_handler(struct ctl_table *ctl, int write,
 	mutex_unlock(&appldata_ops_mutex);
 
 	active = ops->active;
-	rc = proc_douintvec_minmax(&ctl_entry, write, buffer, lenp, ppos);
+	rc = proc_dointvec_minmax(&ctl_entry, write, buffer, lenp, ppos);
 	if (rc < 0 || !write) {
 		module_put(ops->owner);
 		return rc;
