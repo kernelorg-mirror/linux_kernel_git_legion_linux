@@ -88,6 +88,13 @@ ssize_t sysctl_read_large_bitmap(struct ctl_context *ctx, struct file *file,
 ssize_t sysctl_write_large_bitmap(struct ctl_context *ctx, struct file *file,
 			    char *buffer, size_t *lenp, loff_t *ppos);
 
+int sysctl_conv_bool(bool *negp, unsigned long *lvalp, int *valp,
+		int write, int *min, int *max);
+int sysctl_conv_intvec(bool *negp, unsigned long *lvalp, int *valp,
+		int write, int *min, int *max);
+int sysctl_conv_uintvec(unsigned long *lvalp, unsigned int *valp,
+		int write, unsigned int *min, unsigned int *max);
+
 int sysctl_read_uintvec_data(unsigned int *tbl_data, struct ctl_table *table,
 			     void *buffer, size_t *lenp, loff_t *ppos,
 			     int (*conv)(unsigned long *lvalp, unsigned int *valp,
@@ -102,9 +109,24 @@ int sysctl_write_uintvec_data(unsigned int *tbl_data, struct ctl_table *table,
 					  unsigned int *min, unsigned int *max),
 			      unsigned int *min, unsigned int *max);
 
+int sysctl_read_intvec_data(void *tbl_data, struct ctl_table *table,
+			    void *buffer, size_t *lenp, loff_t *ppos,
+			    int (*conv)(bool *negp, unsigned long *lvalp, int *valp,
+					int write, int *min, int *max),
+			    int *min, int *max);
+
+int sysctl_write_intvec_data(void *tbl_data, struct ctl_table *table,
+			     void *buffer, size_t *lenp, loff_t *ppos,
+			     int (*conv)(bool *negp, unsigned long *lvalp, int *valp,
+					 int write, int *min, int *max),
+			     int *min, int *max);
+
 ssize_t sysctl_read_uintvec(struct ctl_context *, struct file *, char *, size_t *, loff_t *);
 ssize_t sysctl_write_uintvec(struct ctl_context *, struct file *, char *, size_t *, loff_t *);
+ssize_t sysctl_read_intvec(struct ctl_context *, struct file *, char *, size_t *, loff_t *);
+ssize_t sysctl_write_intvec(struct ctl_context *, struct file *, char *, size_t *, loff_t *);
 
+extern struct ctl_fops proc_dointvec_minmax_fops;
 extern struct ctl_fops proc_douintvec_minmax_fops;
 extern struct ctl_fops proc_large_bitmap_fops;
 
