@@ -71,8 +71,6 @@ int proc_dobool(struct ctl_table *table, int write, void *buffer,
 int proc_dointvec(struct ctl_table *, int, void *, size_t *, loff_t *);
 int proc_douintvec(struct ctl_table *, int, void *, size_t *, loff_t *);
 int proc_dointvec_minmax(struct ctl_table *, int, void *, size_t *, loff_t *);
-int proc_douintvec_minmax(struct ctl_table *table, int write, void *buffer,
-		size_t *lenp, loff_t *ppos);
 int proc_dou8vec_minmax(struct ctl_table *table, int write, void *buffer,
 			size_t *lenp, loff_t *ppos);
 int proc_dointvec_jiffies(struct ctl_table *, int, void *, size_t *, loff_t *);
@@ -91,6 +89,24 @@ ssize_t sysctl_read_large_bitmap(struct ctl_context *ctx, struct file *file,
 ssize_t sysctl_write_large_bitmap(struct ctl_context *ctx, struct file *file,
 			    char *buffer, size_t *lenp, loff_t *ppos);
 
+int sysctl_read_uintvec_data(unsigned int *tbl_data, struct ctl_table *table,
+			     void *buffer, size_t *lenp, loff_t *ppos,
+			     int (*conv)(unsigned long *lvalp, unsigned int *valp,
+					 int write,
+					 unsigned int *min, unsigned int *max),
+			     unsigned int *min, unsigned int *max);
+
+int sysctl_write_uintvec_data(unsigned int *tbl_data, struct ctl_table *table,
+			      void *buffer, size_t *lenp, loff_t *ppos,
+			      int (*conv)(unsigned long *lvalp, unsigned int *valp,
+					  int write,
+					  unsigned int *min, unsigned int *max),
+			      unsigned int *min, unsigned int *max);
+
+ssize_t sysctl_read_uintvec(struct ctl_context *, struct file *, char *, size_t *, loff_t *);
+ssize_t sysctl_write_uintvec(struct ctl_context *, struct file *, char *, size_t *, loff_t *);
+
+extern struct ctl_fops proc_douintvec_minmax_fops;
 extern struct ctl_fops proc_large_bitmap_fops;
 
 /*
@@ -259,12 +275,6 @@ extern void __register_sysctl_init(const char *path, struct ctl_table *table,
 extern struct ctl_table_header *register_sysctl_mount_point(const char *path);
 
 void do_sysctl_args(void);
-int do_proc_douintvec(void *tbl_data, struct ctl_table *table, int write,
-		      void *buffer, size_t *lenp, loff_t *ppos,
-		      int (*conv)(unsigned long *lvalp,
-				  unsigned int *valp,
-				  int write, unsigned int *min, unsigned int *max),
-		      unsigned int *min, unsigned int *max);
 
 extern int pwrsw_enabled;
 extern int unaligned_enabled;

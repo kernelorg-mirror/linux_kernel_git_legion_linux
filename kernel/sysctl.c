@@ -471,7 +471,7 @@ static int sysctl_conv_intvec(bool *negp, unsigned long *lvalp,
 	return 0;
 }
 
-static int sysctl_conv_uintvec(unsigned long *lvalp,
+int sysctl_conv_uintvec(unsigned long *lvalp,
 				  unsigned int *valp,
 				  int write, unsigned int *min, unsigned int *max)
 {
@@ -561,7 +561,7 @@ out:
 	return err;
 }
 
-static int do_proc_douintvec_w(unsigned int *tbl_data,
+int sysctl_write_uintvec_data(unsigned int *tbl_data,
 			       struct ctl_table *table,
 			       void *buffer,
 			       size_t *lenp, loff_t *ppos,
@@ -576,8 +576,27 @@ static int do_proc_douintvec_w(unsigned int *tbl_data,
 	int err = 0;
 	size_t left;
 	bool neg;
-	char *p = buffer;
+	char *p;
+	unsigned int *i, vleft;
 
+	if (!tbl_data || !table->maxlen || !*lenp) {
+		*lenp = 0;
+		return 0;
+	}
+
+	i = (unsigned int *) tbl_data;
+	vleft = table->maxlen / sizeof(*i);
+
+	/*
+	 * Arrays are not supported, keep this simple. *Do not* add
+	 * support for them.
+	 */
+	if (vleft != 1) {
+		*lenp = 0;
+		return -EINVAL;
+	}
+
+	p = buffer;
 	left = *lenp;
 
 	if (proc_first_pos_non_zero_ignore(ppos, table))
@@ -620,8 +639,8 @@ bail_early:
 	return err;
 }
 
-static int do_proc_douintvec_r(unsigned int *tbl_data, void *buffer,
-			       size_t *lenp, loff_t *ppos,
+int sysctl_read_uintvec_data(unsigned int *tbl_data, struct ctl_table *table,
+			       void *buffer, size_t *lenp, loff_t *ppos,
 			       int (*conv)(unsigned long *lvalp,
 					   unsigned int *valp,
 					   int write,
@@ -632,6 +651,24 @@ static int do_proc_douintvec_r(unsigned int *tbl_data, void *buffer,
 	unsigned long lval;
 	int err = 0;
 	size_t left;
+	unsigned int *i, vleft;
+
+	if (!tbl_data || !table->maxlen || !*lenp || *ppos) {
+		*lenp = 0;
+		return 0;
+	}
+
+	i = (unsigned int *) tbl_data;
+	vleft = table->maxlen / sizeof(*i);
+
+	/*
+	 * Arrays are not supported, keep this simple. *Do not* add
+	 * support for them.
+	 */
+	if (vleft != 1) {
+		*lenp = 0;
+		return -EINVAL;
+	}
 
 	left = *lenp;
 
@@ -651,44 +688,6 @@ out:
 	*ppos += *lenp;
 
 	return err;
-}
-
-int do_proc_douintvec(void *tbl_data, struct ctl_table *table,
-			       int write, void *buffer,
-			       size_t *lenp, loff_t *ppos,
-			       int (*conv)(unsigned long *lvalp,
-					   unsigned int *valp,
-					   int write,
-					   unsigned int *min,
-					   unsigned int *max),
-			       unsigned int *min, unsigned int *max)
-{
-	unsigned int *i, vleft;
-
-	if (!tbl_data || !table->maxlen || !*lenp || (*ppos && !write)) {
-		*lenp = 0;
-		return 0;
-	}
-
-	i = (unsigned int *) tbl_data;
-	vleft = table->maxlen / sizeof(*i);
-
-	/*
-	 * Arrays are not supported, keep this simple. *Do not* add
-	 * support for them.
-	 */
-	if (vleft != 1) {
-		*lenp = 0;
-		return -EINVAL;
-	}
-
-	if (!conv)
-		conv = sysctl_conv_uintvec;
-
-	if (write)
-		return do_proc_douintvec_w(i, table, buffer, lenp, ppos,
-					   conv, min, max);
-	return do_proc_douintvec_r(i, buffer, lenp, ppos, conv, min, max);
 }
 
 /**
@@ -768,7 +767,10 @@ static int proc_dointvec_minmax_warn_RT_change(struct ctl_table *table,
 int proc_douintvec(struct ctl_table *table, int write, void *buffer,
 		size_t *lenp, loff_t *ppos)
 {
-	return do_proc_douintvec(table->data, table, write, buffer, lenp, ppos,
+	if (write)
+		return sysctl_write_uintvec_data(table->data, table, buffer, lenp, ppos,
+				 sysctl_conv_uintvec, NULL, NULL);
+	return sysctl_read_uintvec_data(table->data, table, buffer, lenp, ppos,
 				 sysctl_conv_uintvec, NULL, NULL);
 }
 
@@ -839,29 +841,51 @@ int proc_dointvec_minmax(struct ctl_table *table, int write,
 }
 
 /**
- * proc_douintvec_minmax - read a vector of unsigned ints with min/max values
- * @table: the sysctl table
- * @write: %TRUE if this is a write to the sysctl file
+ * sysctl_read_uintvec - read a vector of unsigned ints with min/max values
+ * sysctl_read_intvec - read a vector of integers
+ * @ctx: the operation context which contains sysctl table
+ * @file: the opened sysctl file
  * @buffer: the user buffer
  * @lenp: the size of the user buffer
  * @ppos: file position
  *
- * Reads/writes up to table->maxlen/sizeof(unsigned int) unsigned integer
- * values from/to the user buffer, treated as an ASCII string. Negative
- * strings are not allowed.
+ * Writes up to table->maxlen/sizeof(unsigned int) integer
+ * values to the user buffer, treated as an ASCII string.
+ *
+ * Returns 0 on success or -EINVAL on write when the range check fails.
+ */
+ssize_t sysctl_read_uintvec(struct ctl_context *ctx, struct file *file,
+				char *buffer, size_t *lenp, loff_t *ppos)
+{
+	return sysctl_read_uintvec_data(ctx->ctl_table->data, ctx->ctl_table,
+			buffer, lenp, ppos,
+			sysctl_conv_uintvec, NULL, NULL);
+}
+
+/**
+ * sysctl_write_intvec - read a vector of integers with min/max values
+ * @ctx: the operation context which contains sysctl table
+ * @file: the opened sysctl file
+ * @buffer: the user buffer
+ * @lenp: the size of the user buffer
+ * @ppos: file position
+ *
+ * Reads up to table->maxlen/sizeof(unsigned int) integer
+ * values from the user buffer, treated as an ASCII string.
  *
  * This routine will ensure the values are within the range specified by
- * table->extra1 (min) and table->extra2 (max). There is a final sanity
- * check for UINT_MAX to avoid having to support wrap around uses from
- * userspace.
+ * table->extra1 (min) and table->extra2 (max).
  *
- * Returns 0 on success or -ERANGE on write when the range check fails.
+ * Returns 0 on success or -EINVAL on write when the range check fails.
  */
-int proc_douintvec_minmax(struct ctl_table *table, int write,
-			  void *buffer, size_t *lenp, loff_t *ppos)
+ssize_t sysctl_write_uintvec(struct ctl_context *ctx, struct file *file,
+			     char *buffer, size_t *lenp, loff_t *ppos)
 {
-	return do_proc_douintvec(table->data, table, write, buffer, lenp, ppos,
-				 sysctl_conv_uintvec, table->extra1, table->extra2);
+	return sysctl_write_uintvec_data(ctx->ctl_table->data, ctx->ctl_table,
+			buffer, lenp, ppos,
+			sysctl_conv_uintvec,
+			ctx->ctl_table->extra1,
+			ctx->ctl_table->extra2);
 }
 
 /**
@@ -907,10 +931,13 @@ int proc_dou8vec_minmax(struct ctl_table *table, int write,
 	tmp = *table;
 
 	tmp.maxlen = sizeof(val);
-	tmp.data = &val;
 	val = *data;
-	res = do_proc_douintvec(tmp.data, &tmp, write, buffer, lenp, ppos,
-				sysctl_conv_uintvec, &min, &max);
+	if (write)
+		res = sysctl_write_uintvec_data(&val, &tmp, buffer, lenp, ppos,
+					  sysctl_conv_uintvec, &min, &max);
+	else
+		res = sysctl_read_uintvec_data(&val, &tmp, buffer, lenp, ppos,
+					  sysctl_conv_uintvec, &min, &max);
 	if (res)
 		return res;
 	if (write)
@@ -1441,12 +1468,6 @@ int proc_dointvec_minmax(struct ctl_table *table, int write,
 	return -ENOSYS;
 }
 
-int proc_douintvec_minmax(struct ctl_table *table, int write,
-			  void *buffer, size_t *lenp, loff_t *ppos)
-{
-	return -ENOSYS;
-}
-
 int proc_dou8vec_minmax(struct ctl_table *table, int write,
 			void *buffer, size_t *lenp, loff_t *ppos)
 {
@@ -1477,6 +1498,49 @@ int proc_doulongvec_minmax(struct ctl_table *table, int write,
 	return -ENOSYS;
 }
 
+int sysctl_conv_uintvec(unsigned long *lvalp,
+				  unsigned int *valp,
+				  int write, unsigned int *min, unsigned int *max)
+{
+	return -EINVAL;
+}
+
+int sysctl_read_uintvec_data(unsigned int *tbl_data, struct ctl_table *table,
+			void *buffer, size_t *lenp, loff_t *ppos,
+			int (*conv)(unsigned long *lvalp,
+				    unsigned int *valp,
+				    int write,
+				    unsigned int *min,
+				    unsigned int *max),
+			unsigned int *min, unsigned int *max)
+{
+	return -ENOSYS;
+}
+
+int sysctl_write_uintvec_data(unsigned int *tbl_data, struct ctl_table *table,
+			void *buffer, size_t *lenp, loff_t *ppos,
+			int (*conv)(unsigned long *lvalp,
+				    unsigned int *valp,
+				    int write,
+				    unsigned int *min,
+				    unsigned int *max),
+			unsigned int *min, unsigned int *max)
+{
+	return -ENOSYS;
+}
+
+ssize_t sysctl_read_uintvec(struct ctl_context *ctx, struct file *file,
+				char *buffer, size_t *lenp, loff_t *ppos)
+{
+	return -ENOSYS;
+}
+
+ssize_t sysctl_write_uintvec(struct ctl_context *ctx, struct file *file,
+				char *buffer, size_t *lenp, loff_t *ppos)
+{
+	return -ENOSYS;
+}
+
 int proc_doulongvec_ms_jiffies_minmax(struct ctl_table *table, int write,
 				      void *buffer, size_t *lenp, loff_t *ppos)
 {
@@ -1496,6 +1560,11 @@ ssize_t sysctl_write_large_bitmap(struct ctl_context *ctx, struct file *file,
 }
 
 #endif /* CONFIG_PROC_SYSCTL */
+
+struct ctl_fops proc_douintvec_minmax_fops = {
+	.read  = sysctl_read_uintvec,
+	.write = sysctl_write_uintvec,
+};
 
 struct ctl_fops proc_large_bitmap_fops = {
 	.read = sysctl_read_large_bitmap,
@@ -2400,7 +2469,12 @@ EXPORT_SYMBOL(proc_dointvec);
 EXPORT_SYMBOL(proc_douintvec);
 EXPORT_SYMBOL(proc_dointvec_jiffies);
 EXPORT_SYMBOL(proc_dointvec_minmax);
-EXPORT_SYMBOL_GPL(proc_douintvec_minmax);
+EXPORT_SYMBOL(sysctl_conv_uintvec);
+EXPORT_SYMBOL(sysctl_read_uintvec_data);
+EXPORT_SYMBOL(sysctl_write_uintvec_data);
+EXPORT_SYMBOL(proc_douintvec_minmax_fops);
+EXPORT_SYMBOL(sysctl_read_uintvec);
+EXPORT_SYMBOL(sysctl_write_uintvec);
 EXPORT_SYMBOL(proc_dointvec_userhz_jiffies);
 EXPORT_SYMBOL(proc_dointvec_ms_jiffies);
 EXPORT_SYMBOL(proc_dostring);

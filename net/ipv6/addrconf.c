@@ -6770,7 +6770,7 @@ static const struct ctl_table addrconf_sysctl[] = {
 		.data		= &ipv6_devconf.ra_defrtr_metric,
 		.maxlen		= sizeof(u32),
 		.mode		= 0644,
-		.proc_handler	= proc_douintvec_minmax,
+		.ctl_fops	= &proc_douintvec_minmax_fops,
 		.extra1		= (void *)SYSCTL_ONE,
 	},
 	{
@@ -7017,7 +7017,7 @@ static const struct ctl_table addrconf_sysctl[] = {
 		.data		= &ipv6_devconf.ioam6_id,
 		.maxlen		= sizeof(u32),
 		.mode		= 0644,
-		.proc_handler	= proc_douintvec_minmax,
+		.ctl_fops	= &proc_douintvec_minmax_fops,
 		.extra1		= (void *)SYSCTL_ZERO,
 		.extra2		= (void *)&ioam6_if_id_max,
 	},
