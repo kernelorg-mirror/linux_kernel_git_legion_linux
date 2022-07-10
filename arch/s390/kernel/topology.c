@@ -612,7 +612,7 @@ static int topology_ctl_handler(struct ctl_table *ctl, int write,
 		.extra2		= SYSCTL_ONE,
 	};
 
-	rc = proc_douintvec_minmax(&ctl_entry, write, buffer, lenp, ppos);
+	rc = proc_dointvec_minmax(&ctl_entry, write, buffer, lenp, ppos);
 	if (rc < 0 || !write)
 		return rc;
 
