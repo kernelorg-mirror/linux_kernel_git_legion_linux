@@ -749,29 +749,6 @@ static int proc_dointvec_minmax_warn_RT_change(struct ctl_table *table,
 }
 #endif
 
-/**
- * proc_douintvec - read a vector of unsigned integers
- * @table: the sysctl table
- * @write: %TRUE if this is a write to the sysctl file
- * @buffer: the user buffer
- * @lenp: the size of the user buffer
- * @ppos: file position
- *
- * Reads/writes up to table->maxlen/sizeof(unsigned int) unsigned integer
- * values from/to the user buffer, treated as an ASCII string.
- *
- * Returns 0 on success.
- */
-int proc_douintvec(struct ctl_table *table, int write, void *buffer,
-		size_t *lenp, loff_t *ppos)
-{
-	if (write)
-		return do_proc_douintvec_w(table->data, table, buffer, lenp, ppos,
-				 do_proc_douintvec_minmax_conv, NULL, NULL);
-	return do_proc_douintvec_r(table->data, table, buffer, lenp, ppos,
-				 do_proc_douintvec_minmax_conv, NULL, NULL);
-}
-
 /*
  * Taint values can only be increased
  * This means we can safely use a temporary.
@@ -1450,12 +1427,6 @@ int proc_dobool(struct ctl_table *table, int write,
 }
 
 int proc_dointvec(struct ctl_table *table, int write,
-		  void *buffer, size_t *lenp, loff_t *ppos)
-{
-	return -ENOSYS;
-}
-
-int proc_douintvec(struct ctl_table *table, int write,
 		  void *buffer, size_t *lenp, loff_t *ppos)
 {
 	return -ENOSYS;
@@ -2465,7 +2436,6 @@ int __init sysctl_init_bases(void)
  */
 EXPORT_SYMBOL(proc_dobool);
 EXPORT_SYMBOL(proc_dointvec);
-EXPORT_SYMBOL(proc_douintvec);
 EXPORT_SYMBOL(proc_dointvec_jiffies);
 EXPORT_SYMBOL(proc_dointvec_minmax);
 EXPORT_SYMBOL(do_proc_douintvec_minmax_conv);
