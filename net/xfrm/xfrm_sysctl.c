@@ -30,13 +30,13 @@ static struct ctl_table xfrm_table[] = {
 		.procname	= "xfrm_larval_drop",
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.ctl_fops	= &proc_dointvec_minmax_fops
 	},
 	{
 		.procname	= "xfrm_acq_expires",
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.ctl_fops	= &proc_dointvec_minmax_fops
 	},
 	{}
 };

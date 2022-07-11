@@ -82,7 +82,7 @@ static struct ctl_table kern_acct_table[] = {
 		.data           = &acct_parm,
 		.maxlen         = 3*sizeof(int),
 		.mode           = 0644,
-		.proc_handler   = proc_dointvec,
+		.ctl_fops       = &proc_dointvec_minmax_fops,
 	},
 	{ }
 };

@@ -223,14 +223,14 @@ static struct ctl_table kdump_ctl_table[] = {
 		.data = &kdump_on_init,
 		.maxlen = sizeof(int),
 		.mode = 0644,
-		.proc_handler = proc_dointvec,
+		.ctl_fops = &proc_dointvec_minmax_fops,
 	},
 	{
 		.procname = "kdump_on_fatal_mca",
 		.data = &kdump_on_fatal_mca,
 		.maxlen = sizeof(int),
 		.mode = 0644,
-		.proc_handler = proc_dointvec,
+		.ctl_fops = &proc_dointvec_minmax_fops,
 	},
 	{ }
 };

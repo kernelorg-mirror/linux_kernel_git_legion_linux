@@ -484,14 +484,14 @@ static struct ctl_table ipv4_table[] = {
 		.data		= &sysctl_tcp_max_orphans,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.ctl_fops	= &proc_dointvec_minmax_fops
 	},
 	{
 		.procname	= "inet_peer_threshold",
 		.data		= &inet_peer_threshold,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.ctl_fops	= &proc_dointvec_minmax_fops
 	},
 	{
 		.procname	= "inet_peer_minttl",
@@ -519,7 +519,7 @@ static struct ctl_table ipv4_table[] = {
 		.data		= &sysctl_tcp_low_latency,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.ctl_fops	= &proc_dointvec_minmax_fops
 	},
 #ifdef CONFIG_NETLABEL
 	{
@@ -527,28 +527,28 @@ static struct ctl_table ipv4_table[] = {
 		.data		= &cipso_v4_cache_enabled,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 	},
 	{
 		.procname	= "cipso_cache_bucket_size",
 		.data		= &cipso_v4_cache_bucketsize,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 	},
 	{
 		.procname	= "cipso_rbm_optfmt",
 		.data		= &cipso_v4_rbm_optfmt,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 	},
 	{
 		.procname	= "cipso_rbm_strictvalid",
 		.data		= &cipso_v4_rbm_strictvalid,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 	},
 #endif /* CONFIG_NETLABEL */
 	{
@@ -599,7 +599,7 @@ static struct ctl_table ipv4_net_table[] = {
 /*		.data		= &init_net.ipv4.tcp_death_row.sysctl_max_tw_buckets, */
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.ctl_fops	= &proc_dointvec_minmax_fops
 	},
 	{
 		.procname	= "icmp_echo_ignore_all",
@@ -650,7 +650,7 @@ static struct ctl_table ipv4_net_table[] = {
 		.data		= &init_net.ipv4.sysctl_icmp_ratemask,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.ctl_fops	= &proc_dointvec_minmax_fops
 	},
 	{
 		.procname	= "ping_group_range",
@@ -820,7 +820,7 @@ static struct ctl_table ipv4_net_table[] = {
 		.data		= &init_net.ipv4.sysctl_tcp_base_mss,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 	},
 	{
 		.procname	= "tcp_min_snd_mss",
@@ -845,7 +845,7 @@ static struct ctl_table ipv4_net_table[] = {
 		.data		= &init_net.ipv4.sysctl_tcp_probe_threshold,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 	},
 	{
 		.procname	= "tcp_probe_interval",
@@ -867,14 +867,14 @@ static struct ctl_table ipv4_net_table[] = {
 		.data		= &init_net.ipv4.sysctl_igmp_max_memberships,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.ctl_fops	= &proc_dointvec_minmax_fops
 	},
 	{
 		.procname	= "igmp_max_msf",
 		.data		= &init_net.ipv4.sysctl_igmp_max_msf,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.ctl_fops	= &proc_dointvec_minmax_fops
 	},
 #ifdef CONFIG_IP_MULTICAST
 	{
@@ -965,7 +965,7 @@ static struct ctl_table ipv4_net_table[] = {
 		.data		= &init_net.ipv4.sysctl_tcp_reordering,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.ctl_fops	= &proc_dointvec_minmax_fops
 	},
 	{
 		.procname	= "tcp_retries1",
@@ -1017,14 +1017,14 @@ static struct ctl_table ipv4_net_table[] = {
 		.data		= &init_net.ipv4.sysctl_max_syn_backlog,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.ctl_fops	= &proc_dointvec_minmax_fops
 	},
 	{
 		.procname	= "tcp_fastopen",
 		.data		= &init_net.ipv4.sysctl_tcp_fastopen,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 	},
 	{
 		.procname	= "tcp_fastopen_key",
@@ -1184,7 +1184,7 @@ static struct ctl_table ipv4_net_table[] = {
 		.data		= &init_net.ipv4.sysctl_tcp_max_reordering,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.ctl_fops	= &proc_dointvec_minmax_fops
 	},
 	{
 		.procname	= "tcp_dsack",
@@ -1258,14 +1258,14 @@ static struct ctl_table ipv4_net_table[] = {
 		.data		= &init_net.ipv4.sysctl_tcp_limit_output_bytes,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.ctl_fops	= &proc_dointvec_minmax_fops
 	},
 	{
 		.procname	= "tcp_challenge_ack_limit",
 		.data		= &init_net.ipv4.sysctl_tcp_challenge_ack_limit,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.ctl_fops	= &proc_dointvec_minmax_fops
 	},
 	{
 		.procname	= "tcp_min_tso_segs",

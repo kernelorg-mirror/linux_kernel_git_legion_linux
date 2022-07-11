@@ -726,7 +726,7 @@ static struct ctl_table hpet_table[] = {
 	 .data = &hpet_max_freq,
 	 .maxlen = sizeof(int),
 	 .mode = 0644,
-	 .proc_handler = proc_dointvec,
+	 .ctl_fops = &proc_dointvec_minmax_fops,
 	 },
 	{}
 };
