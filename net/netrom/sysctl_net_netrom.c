@@ -37,7 +37,7 @@ static struct ctl_table nr_table[] = {
 		.data		= &sysctl_netrom_default_path_quality,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 		.extra1		= &min_quality,
 		.extra2		= &max_quality
 	},
@@ -46,7 +46,7 @@ static struct ctl_table nr_table[] = {
 		.data		= &sysctl_netrom_obsolescence_count_initialiser,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 		.extra1		= &min_obs,
 		.extra2		= &max_obs
 	},
@@ -55,7 +55,7 @@ static struct ctl_table nr_table[] = {
 		.data		= &sysctl_netrom_network_ttl_initialiser,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 		.extra1		= &min_ttl,
 		.extra2		= &max_ttl
 	},
@@ -64,7 +64,7 @@ static struct ctl_table nr_table[] = {
 		.data		= &sysctl_netrom_transport_timeout,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 		.extra1		= &min_t1,
 		.extra2		= &max_t1
 	},
@@ -73,7 +73,7 @@ static struct ctl_table nr_table[] = {
 		.data		= &sysctl_netrom_transport_maximum_tries,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 		.extra1		= &min_n2,
 		.extra2		= &max_n2
 	},
@@ -82,7 +82,7 @@ static struct ctl_table nr_table[] = {
 		.data		= &sysctl_netrom_transport_acknowledge_delay,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 		.extra1		= &min_t2,
 		.extra2		= &max_t2
 	},
@@ -91,7 +91,7 @@ static struct ctl_table nr_table[] = {
 		.data		= &sysctl_netrom_transport_busy_delay,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 		.extra1		= &min_t4,
 		.extra2		= &max_t4
 	},
@@ -100,7 +100,7 @@ static struct ctl_table nr_table[] = {
 		.data		= &sysctl_netrom_transport_requested_window_size,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 		.extra1		= &min_window,
 		.extra2		= &max_window
 	},
@@ -109,7 +109,7 @@ static struct ctl_table nr_table[] = {
 		.data		= &sysctl_netrom_transport_no_activity_timeout,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 		.extra1		= &min_idle,
 		.extra2		= &max_idle
 	},
@@ -118,7 +118,7 @@ static struct ctl_table nr_table[] = {
 		.data		= &sysctl_netrom_routing_control,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 		.extra1		= &min_route,
 		.extra2		= &max_route
 	},
@@ -127,7 +127,7 @@ static struct ctl_table nr_table[] = {
 		.data		= &sysctl_netrom_link_fails_count,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 		.extra1		= &min_fails,
 		.extra2		= &max_fails
 	},
@@ -136,7 +136,7 @@ static struct ctl_table nr_table[] = {
 		.data		= &sysctl_netrom_reset_circuit,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 		.extra1		= &min_reset,
 		.extra2		= &max_reset
 	},

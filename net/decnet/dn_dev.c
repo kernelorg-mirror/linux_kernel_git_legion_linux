@@ -180,7 +180,7 @@ static struct dn_dev_sysctl_table {
 		.data = (void *)DN_DEV_PARMS_OFFSET(priority),
 		.maxlen = sizeof(int),
 		.mode = 0644,
-		.proc_handler = proc_dointvec_minmax,
+		.ctl_fops = &proc_dointvec_minmax_fops,
 		.extra1 = &min_priority,
 		.extra2 = &max_priority
 	},
@@ -189,7 +189,7 @@ static struct dn_dev_sysctl_table {
 		.data = (void *)DN_DEV_PARMS_OFFSET(t2),
 		.maxlen = sizeof(int),
 		.mode = 0644,
-		.proc_handler = proc_dointvec_minmax,
+		.ctl_fops = &proc_dointvec_minmax_fops,
 		.extra1 = &min_t2,
 		.extra2 = &max_t2
 	},
@@ -198,7 +198,7 @@ static struct dn_dev_sysctl_table {
 		.data = (void *)DN_DEV_PARMS_OFFSET(t3),
 		.maxlen = sizeof(int),
 		.mode = 0644,
-		.proc_handler = proc_dointvec_minmax,
+		.ctl_fops = &proc_dointvec_minmax_fops,
 		.extra1 = &min_t3,
 		.extra2 = &max_t3
 	},

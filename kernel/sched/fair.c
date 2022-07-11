@@ -192,7 +192,7 @@ static struct ctl_table sched_fair_sysctls[] = {
 		.data           = &sysctl_sched_cfs_bandwidth_slice,
 		.maxlen         = sizeof(unsigned int),
 		.mode           = 0644,
-		.proc_handler   = proc_dointvec_minmax,
+		.ctl_fops       = &proc_dointvec_minmax_fops,
 		.extra1         = SYSCTL_ONE,
 	},
 #endif

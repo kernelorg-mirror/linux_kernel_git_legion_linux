@@ -570,7 +570,7 @@ static struct ctl_table ip4_frags_ns_ctl_table[] = {
 		.procname	= "ipfrag_max_dist",
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 		.extra1		= &dist_min,
 	},
 	{ }

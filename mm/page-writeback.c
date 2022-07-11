@@ -2132,7 +2132,7 @@ static struct ctl_table vm_page_writeback_sysctls[] = {
 		.data       = &dirty_expire_interval,
 		.maxlen     = sizeof(dirty_expire_interval),
 		.mode       = 0644,
-		.proc_handler   = proc_dointvec_minmax,
+		.ctl_fops   = &proc_dointvec_minmax_fops,
 		.extra1     = SYSCTL_ZERO,
 	},
 #ifdef CONFIG_HIGHMEM
@@ -2141,7 +2141,7 @@ static struct ctl_table vm_page_writeback_sysctls[] = {
 		.data		= &vm_highmem_is_dirtyable,
 		.maxlen		= sizeof(vm_highmem_is_dirtyable),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_ONE,
 	},

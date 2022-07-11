@@ -1428,7 +1428,7 @@ static struct ctl_table hv_ctl_table[] = {
 		.data           = &sysctl_record_panic_msg,
 		.maxlen         = sizeof(int),
 		.mode           = 0644,
-		.proc_handler   = proc_dointvec_minmax,
+		.ctl_fops   = &proc_dointvec_minmax_fops,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_ONE
 	},

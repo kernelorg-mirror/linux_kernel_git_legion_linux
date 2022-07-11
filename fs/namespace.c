@@ -4698,7 +4698,7 @@ static struct ctl_table fs_namespace_sysctls[] = {
 		.data		= &sysctl_mount_max,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 		.extra1		= SYSCTL_ONE,
 	},
 	{ }
