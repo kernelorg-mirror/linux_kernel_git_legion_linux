@@ -6656,28 +6656,28 @@ static const struct ctl_table addrconf_sysctl[] = {
 		.data		= &ipv6_devconf.accept_ra,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.ctl_fops	= &sysctl_intvec_fops,
 	},
 	{
 		.procname	= "accept_redirects",
 		.data		= &ipv6_devconf.accept_redirects,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.ctl_fops	= &sysctl_intvec_fops,
 	},
 	{
 		.procname	= "autoconf",
 		.data		= &ipv6_devconf.autoconf,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.ctl_fops	= &sysctl_intvec_fops,
 	},
 	{
 		.procname	= "dad_transmits",
 		.data		= &ipv6_devconf.dad_transmits,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.ctl_fops	= &sysctl_intvec_fops,
 	},
 	{
 		.procname	= "router_solicitations",
@@ -6713,7 +6713,7 @@ static const struct ctl_table addrconf_sysctl[] = {
 		.data		= &ipv6_devconf.force_mld_version,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.ctl_fops	= &sysctl_intvec_fops,
 	},
 	{
 		.procname	= "mldv1_unsolicited_report_interval",
@@ -6736,49 +6736,49 @@ static const struct ctl_table addrconf_sysctl[] = {
 		.data		= &ipv6_devconf.use_tempaddr,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.ctl_fops	= &sysctl_intvec_fops,
 	},
 	{
 		.procname	= "temp_valid_lft",
 		.data		= &ipv6_devconf.temp_valid_lft,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.ctl_fops	= &sysctl_intvec_fops,
 	},
 	{
 		.procname	= "temp_prefered_lft",
 		.data		= &ipv6_devconf.temp_prefered_lft,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.ctl_fops	= &sysctl_intvec_fops,
 	},
 	{
 		.procname	= "regen_max_retry",
 		.data		= &ipv6_devconf.regen_max_retry,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.ctl_fops	= &sysctl_intvec_fops,
 	},
 	{
 		.procname	= "max_desync_factor",
 		.data		= &ipv6_devconf.max_desync_factor,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.ctl_fops	= &sysctl_intvec_fops,
 	},
 	{
 		.procname	= "max_addresses",
 		.data		= &ipv6_devconf.max_addresses,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.ctl_fops	= &sysctl_intvec_fops,
 	},
 	{
 		.procname	= "accept_ra_defrtr",
 		.data		= &ipv6_devconf.accept_ra_defrtr,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.ctl_fops	= &sysctl_intvec_fops,
 	},
 	{
 		.procname	= "ra_defrtr_metric",
@@ -6793,14 +6793,14 @@ static const struct ctl_table addrconf_sysctl[] = {
 		.data		= &ipv6_devconf.accept_ra_min_hop_limit,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.ctl_fops	= &sysctl_intvec_fops,
 	},
 	{
 		.procname	= "accept_ra_pinfo",
 		.data		= &ipv6_devconf.accept_ra_pinfo,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.ctl_fops	= &sysctl_intvec_fops,
 	},
 #ifdef CONFIG_IPV6_ROUTER_PREF
 	{
@@ -6808,7 +6808,7 @@ static const struct ctl_table addrconf_sysctl[] = {
 		.data		= &ipv6_devconf.accept_ra_rtr_pref,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.ctl_fops	= &sysctl_intvec_fops,
 	},
 	{
 		.procname	= "router_probe_interval",
@@ -6823,14 +6823,14 @@ static const struct ctl_table addrconf_sysctl[] = {
 		.data		= &ipv6_devconf.accept_ra_rt_info_min_plen,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.ctl_fops	= &sysctl_intvec_fops,
 	},
 	{
 		.procname	= "accept_ra_rt_info_max_plen",
 		.data		= &ipv6_devconf.accept_ra_rt_info_max_plen,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.ctl_fops	= &sysctl_intvec_fops,
 	},
 #endif
 #endif
@@ -6846,7 +6846,7 @@ static const struct ctl_table addrconf_sysctl[] = {
 		.data		= &ipv6_devconf.accept_source_route,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.ctl_fops	= &sysctl_intvec_fops,
 	},
 #ifdef CONFIG_IPV6_OPTIMISTIC_DAD
 	{
@@ -6854,14 +6854,14 @@ static const struct ctl_table addrconf_sysctl[] = {
 		.data		= &ipv6_devconf.optimistic_dad,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler   = proc_dointvec,
+		.ctl_fops   = &sysctl_intvec_fops,
 	},
 	{
 		.procname	= "use_optimistic",
 		.data		= &ipv6_devconf.use_optimistic,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.ctl_fops	= &sysctl_intvec_fops,
 	},
 #endif
 #ifdef CONFIG_IPV6_MROUTE
@@ -6870,7 +6870,7 @@ static const struct ctl_table addrconf_sysctl[] = {
 		.data		= &ipv6_devconf.mc_forwarding,
 		.maxlen		= sizeof(int),
 		.mode		= 0444,
-		.proc_handler	= proc_dointvec,
+		.ctl_fops	= &sysctl_intvec_fops,
 	},
 #endif
 	{
@@ -6885,42 +6885,42 @@ static const struct ctl_table addrconf_sysctl[] = {
 		.data		= &ipv6_devconf.accept_dad,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.ctl_fops	= &sysctl_intvec_fops,
 	},
 	{
 		.procname	= "force_tllao",
 		.data		= &ipv6_devconf.force_tllao,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.ctl_fops	= &sysctl_intvec_fops
 	},
 	{
 		.procname	= "ndisc_notify",
 		.data		= &ipv6_devconf.ndisc_notify,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.ctl_fops	= &sysctl_intvec_fops
 	},
 	{
 		.procname	= "suppress_frag_ndisc",
 		.data		= &ipv6_devconf.suppress_frag_ndisc,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.ctl_fops	= &sysctl_intvec_fops
 	},
 	{
 		.procname	= "accept_ra_from_local",
 		.data		= &ipv6_devconf.accept_ra_from_local,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.ctl_fops	= &sysctl_intvec_fops,
 	},
 	{
 		.procname	= "accept_ra_mtu",
 		.data		= &ipv6_devconf.accept_ra_mtu,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.ctl_fops	= &sysctl_intvec_fops,
 	},
 	{
 		.procname	= "stable_secret",
@@ -6934,7 +6934,7 @@ static const struct ctl_table addrconf_sysctl[] = {
 		.data		= &ipv6_devconf.use_oif_addrs_only,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.ctl_fops	= &sysctl_intvec_fops,
 	},
 	{
 		.procname	= "ignore_routes_with_linkdown",
@@ -6948,21 +6948,21 @@ static const struct ctl_table addrconf_sysctl[] = {
 		.data		= &ipv6_devconf.drop_unicast_in_l2_multicast,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.ctl_fops	= &sysctl_intvec_fops,
 	},
 	{
 		.procname	= "drop_unsolicited_na",
 		.data		= &ipv6_devconf.drop_unsolicited_na,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.ctl_fops	= &sysctl_intvec_fops,
 	},
 	{
 		.procname	= "keep_addr_on_down",
 		.data		= &ipv6_devconf.keep_addr_on_down,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.ctl_fops	= &sysctl_intvec_fops,
 
 	},
 	{
@@ -6970,7 +6970,7 @@ static const struct ctl_table addrconf_sysctl[] = {
 		.data		= &ipv6_devconf.seg6_enabled,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.ctl_fops	= &sysctl_intvec_fops,
 	},
 #ifdef CONFIG_IPV6_SEG6_HMAC
 	{
@@ -6978,7 +6978,7 @@ static const struct ctl_table addrconf_sysctl[] = {
 		.data		= &ipv6_devconf.seg6_require_hmac,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.ctl_fops	= &sysctl_intvec_fops,
 	},
 #endif
 	{
@@ -6986,7 +6986,7 @@ static const struct ctl_table addrconf_sysctl[] = {
 		.data           = &ipv6_devconf.enhanced_dad,
 		.maxlen         = sizeof(int),
 		.mode           = 0644,
-		.proc_handler   = proc_dointvec,
+		.ctl_fops       = &sysctl_intvec_fops,
 	},
 	{
 		.procname	= "addr_gen_mode",
@@ -7016,7 +7016,7 @@ static const struct ctl_table addrconf_sysctl[] = {
 		.data		= &ipv6_devconf.rpl_seg_enabled,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.ctl_fops	= &sysctl_intvec_fops,
 	},
 	{
 		.procname	= "ioam6_enabled",

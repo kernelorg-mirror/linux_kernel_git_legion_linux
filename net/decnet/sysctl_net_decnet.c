@@ -322,21 +322,21 @@ static struct ctl_table dn_table[] = {
 		.data = &sysctl_decnet_rmem,
 		.maxlen = sizeof(sysctl_decnet_rmem),
 		.mode = 0644,
-		.proc_handler = proc_dointvec,
+		.ctl_fops = &sysctl_intvec_fops,
 	},
 	{
 		.procname = "decnet_wmem",
 		.data = &sysctl_decnet_wmem,
 		.maxlen = sizeof(sysctl_decnet_wmem),
 		.mode = 0644,
-		.proc_handler = proc_dointvec,
+		.ctl_fops = &sysctl_intvec_fops,
 	},
 	{
 		.procname = "debug",
 		.data = &decnet_debug_level,
 		.maxlen = sizeof(int),
 		.mode = 0644,
-		.proc_handler = proc_dointvec,
+		.ctl_fops = &sysctl_intvec_fops,
 	},
 	{ }
 };

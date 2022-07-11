@@ -69,7 +69,7 @@ static struct ctl_table ucma_ctl_table[] = {
 		.data		= &max_backlog,
 		.maxlen		= sizeof max_backlog,
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.ctl_fops	= &sysctl_intvec_fops,
 	},
 	{ }
 };

@@ -372,7 +372,7 @@ static struct ctl_table net_core_table[] = {
 		.data		= &netdev_max_backlog,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.ctl_fops	= &sysctl_intvec_fops
 	},
 	{
 		.procname	= "netdev_rss_key",
@@ -431,7 +431,7 @@ static struct ctl_table net_core_table[] = {
 		.data		= &netdev_tstamp_prequeue,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.ctl_fops	= &sysctl_intvec_fops
 	},
 	{
 		.procname	= "message_cost",
@@ -445,14 +445,14 @@ static struct ctl_table net_core_table[] = {
 		.data		= &net_ratelimit_state.burst,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.ctl_fops	= &sysctl_intvec_fops,
 	},
 	{
 		.procname	= "optmem_max",
 		.data		= &sysctl_optmem_max,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.ctl_fops	= &sysctl_intvec_fops
 	},
 	{
 		.procname	= "tstamp_allow_data",
@@ -516,14 +516,14 @@ static struct ctl_table net_core_table[] = {
 		.data		= &netdev_budget,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.ctl_fops	= &sysctl_intvec_fops
 	},
 	{
 		.procname	= "warnings",
 		.data		= &net_msg_warn,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.ctl_fops	= &sysctl_intvec_fops
 	},
 	{
 		.procname	= "max_skb_frags",

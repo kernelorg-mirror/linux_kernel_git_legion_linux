@@ -22,19 +22,19 @@ static struct ctl_table ctl_isa_vars[4] = {
 		.data		= &isa_membase, 
 		.maxlen		= sizeof(isa_membase),
 		.mode		= 0444,
-		.proc_handler	= proc_dointvec,
+		.ctl_fops	= &sysctl_intvec_fops,
 	}, {
 		.procname	= "portbase",
 		.data		= &isa_portbase, 
 		.maxlen		= sizeof(isa_portbase),
 		.mode		= 0444,
-		.proc_handler	= proc_dointvec,
+		.ctl_fops	= &sysctl_intvec_fops,
 	}, {
 		.procname	= "portshift",
 		.data		= &isa_portshift, 
 		.maxlen		= sizeof(isa_portshift),
 		.mode		= 0444,
-		.proc_handler	= proc_dointvec,
+		.ctl_fops	= &sysctl_intvec_fops,
 	}, {}
 };
 

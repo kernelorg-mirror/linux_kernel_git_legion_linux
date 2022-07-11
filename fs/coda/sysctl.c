@@ -20,21 +20,21 @@ static struct ctl_table coda_table[] = {
 		.data		= &coda_timeout,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.ctl_fops	= &sysctl_intvec_fops
 	},
 	{
 		.procname	= "hard",
 		.data		= &coda_hard,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.ctl_fops	= &sysctl_intvec_fops
 	},
 	{
 		.procname	= "fake_statfs",
 		.data		= &coda_fake_statfs,
 		.maxlen		= sizeof(int),
 		.mode		= 0600,
-		.proc_handler	= proc_dointvec
+		.ctl_fops	= &sysctl_intvec_fops
 	},
 	{}
 };

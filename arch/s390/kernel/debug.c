@@ -969,7 +969,7 @@ static struct ctl_table s390dbf_table[] = {
 		.data		= &debug_stoppable,
 		.maxlen		= sizeof(int),
 		.mode		= S_IRUGO | S_IWUSR,
-		.proc_handler	= proc_dointvec,
+		.ctl_fops	= &sysctl_intvec_fops,
 	},
 	{
 		.procname	= "debug_active",

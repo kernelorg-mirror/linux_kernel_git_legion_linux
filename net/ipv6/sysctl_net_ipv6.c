@@ -109,7 +109,7 @@ static struct ctl_table ipv6_table_template[] = {
 		.data		= &init_net.ipv6.sysctl.idgen_retries,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.ctl_fops	= &sysctl_intvec_fops,
 	},
 	{
 		.procname	= "idgen_delay",
@@ -146,28 +146,28 @@ static struct ctl_table ipv6_table_template[] = {
 		.data		= &init_net.ipv6.sysctl.max_dst_opts_cnt,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.ctl_fops	= &sysctl_intvec_fops
 	},
 	{
 		.procname	= "max_hbh_opts_number",
 		.data		= &init_net.ipv6.sysctl.max_hbh_opts_cnt,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.ctl_fops	= &sysctl_intvec_fops
 	},
 	{
 		.procname	= "max_dst_opts_length",
 		.data		= &init_net.ipv6.sysctl.max_dst_opts_len,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.ctl_fops	= &sysctl_intvec_fops
 	},
 	{
 		.procname	= "max_hbh_length",
 		.data		= &init_net.ipv6.sysctl.max_hbh_opts_len,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.ctl_fops	= &sysctl_intvec_fops
 	},
 	{
 		.procname	= "fib_multipath_hash_policy",
@@ -192,7 +192,7 @@ static struct ctl_table ipv6_table_template[] = {
 		.data		= &init_net.ipv6.sysctl.seg6_flowlabel,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.ctl_fops	= &sysctl_intvec_fops
 	},
 	{
 		.procname	= "fib_notify_on_flag_change",
@@ -228,7 +228,7 @@ static struct ctl_table ipv6_rotable[] = {
 		.data		= &sysctl_mld_max_msf,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.ctl_fops	= &sysctl_intvec_fops
 	},
 	{
 		.procname	= "mld_qrv",
@@ -244,14 +244,14 @@ static struct ctl_table ipv6_rotable[] = {
 		.data		= &calipso_cache_enabled,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.ctl_fops	= &sysctl_intvec_fops,
 	},
 	{
 		.procname	= "calipso_cache_bucket_size",
 		.data		= &calipso_cache_bucketsize,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.ctl_fops	= &sysctl_intvec_fops,
 	},
 #endif /* CONFIG_NETLABEL */
 	{ }

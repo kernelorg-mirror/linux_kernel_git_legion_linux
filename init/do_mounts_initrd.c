@@ -27,7 +27,7 @@ static struct ctl_table kern_do_mounts_initrd_table[] = {
 		.data           = &real_root_dev,
 		.maxlen         = sizeof(int),
 		.mode           = 0644,
-		.proc_handler   = proc_dointvec,
+		.ctl_fops       = &sysctl_intvec_fops,
 	},
 	{ }
 };
