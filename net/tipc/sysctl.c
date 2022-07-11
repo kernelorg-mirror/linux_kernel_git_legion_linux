@@ -47,7 +47,7 @@ static struct ctl_table tipc_table[] = {
 		.data		= &sysctl_tipc_rmem,
 		.maxlen		= sizeof(sysctl_tipc_rmem),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &sysctl_intvec_fops,
 		.extra1         = SYSCTL_ONE,
 	},
 	{
@@ -55,7 +55,7 @@ static struct ctl_table tipc_table[] = {
 		.data		= &sysctl_tipc_named_timeout,
 		.maxlen		= sizeof(sysctl_tipc_named_timeout),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &sysctl_intvec_fops,
 		.extra1         = SYSCTL_ZERO,
 	},
 	{
@@ -71,7 +71,7 @@ static struct ctl_table tipc_table[] = {
 		.data		= &sysctl_tipc_max_tfms,
 		.maxlen		= sizeof(sysctl_tipc_max_tfms),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &sysctl_intvec_fops,
 		.extra1         = SYSCTL_ONE,
 	},
 	{
@@ -79,7 +79,7 @@ static struct ctl_table tipc_table[] = {
 		.data		= &sysctl_tipc_key_exchange_enabled,
 		.maxlen		= sizeof(sysctl_tipc_key_exchange_enabled),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &sysctl_intvec_fops,
 		.extra1         = SYSCTL_ZERO,
 		.extra2         = SYSCTL_ONE,
 	},

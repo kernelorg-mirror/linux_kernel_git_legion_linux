@@ -562,7 +562,7 @@ static struct ctl_table ipv4_table[] = {
 		.data		= &sysctl_icmp_msgs_per_sec,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &sysctl_intvec_fops,
 		.extra1		= SYSCTL_ZERO,
 	},
 	{
@@ -570,7 +570,7 @@ static struct ctl_table ipv4_table[] = {
 		.data		= &sysctl_icmp_msgs_burst,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &sysctl_intvec_fops,
 		.extra1		= SYSCTL_ZERO,
 	},
 	{
@@ -827,7 +827,7 @@ static struct ctl_table ipv4_net_table[] = {
 		.data		= &init_net.ipv4.sysctl_tcp_min_snd_mss,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &sysctl_intvec_fops,
 		.extra1		= &tcp_min_snd_mss_min,
 		.extra2		= &tcp_min_snd_mss_max,
 	},
@@ -836,7 +836,7 @@ static struct ctl_table ipv4_net_table[] = {
 		.data		= &init_net.ipv4.sysctl_tcp_mtu_probe_floor,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &sysctl_intvec_fops,
 		.extra1		= &tcp_min_snd_mss_min,
 		.extra2		= &tcp_min_snd_mss_max,
 	},
@@ -882,7 +882,7 @@ static struct ctl_table ipv4_net_table[] = {
 		.data		= &init_net.ipv4.sysctl_igmp_qrv,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &sysctl_intvec_fops,
 		.extra1		= SYSCTL_ONE
 	},
 #endif
@@ -1205,7 +1205,7 @@ static struct ctl_table ipv4_net_table[] = {
 		.data		= &init_net.ipv4.sysctl_tcp_adv_win_scale,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &sysctl_intvec_fops,
 		.extra1		= &tcp_adv_win_scale_min,
 		.extra2		= &tcp_adv_win_scale_max,
 	},
@@ -1287,7 +1287,7 @@ static struct ctl_table ipv4_net_table[] = {
 		.data		= &init_net.ipv4.sysctl_tcp_min_rtt_wlen,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &sysctl_intvec_fops,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= &one_day_secs
 	},
@@ -1312,7 +1312,7 @@ static struct ctl_table ipv4_net_table[] = {
 		.data		= &init_net.ipv4.sysctl_tcp_pacing_ss_ratio,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &sysctl_intvec_fops,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_ONE_THOUSAND,
 	},
@@ -1321,7 +1321,7 @@ static struct ctl_table ipv4_net_table[] = {
 		.data		= &init_net.ipv4.sysctl_tcp_pacing_ca_ratio,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &sysctl_intvec_fops,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_ONE_THOUSAND,
 	},
@@ -1330,7 +1330,7 @@ static struct ctl_table ipv4_net_table[] = {
 		.data		= &init_net.ipv4.sysctl_tcp_wmem,
 		.maxlen		= sizeof(init_net.ipv4.sysctl_tcp_wmem),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &sysctl_intvec_fops,
 		.extra1		= SYSCTL_ONE,
 	},
 	{
@@ -1338,7 +1338,7 @@ static struct ctl_table ipv4_net_table[] = {
 		.data		= &init_net.ipv4.sysctl_tcp_rmem,
 		.maxlen		= sizeof(init_net.ipv4.sysctl_tcp_rmem),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &sysctl_intvec_fops,
 		.extra1		= SYSCTL_ONE,
 	},
 	{
@@ -1377,7 +1377,7 @@ static struct ctl_table ipv4_net_table[] = {
 		.data		= &init_net.ipv4.sysctl_udp_rmem_min,
 		.maxlen		= sizeof(init_net.ipv4.sysctl_udp_rmem_min),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &sysctl_intvec_fops,
 		.extra1		= SYSCTL_ONE
 	},
 	{
@@ -1385,7 +1385,7 @@ static struct ctl_table ipv4_net_table[] = {
 		.data		= &init_net.ipv4.sysctl_udp_wmem_min,
 		.maxlen		= sizeof(init_net.ipv4.sysctl_udp_wmem_min),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &sysctl_intvec_fops,
 		.extra1		= SYSCTL_ONE
 	},
 	{

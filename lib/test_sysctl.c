@@ -78,7 +78,7 @@ static struct ctl_table test_table[] = {
 		.data		= &test_data.int_0001,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &sysctl_intvec_fops,
 		.extra1		= &i_zero,
 		.extra2         = &i_one_hundred,
 	},

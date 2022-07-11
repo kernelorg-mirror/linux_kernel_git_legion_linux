@@ -942,7 +942,7 @@ static struct ctl_table kexec_core_sysctls[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		/* only handle a transition from default "0" to "1" */
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &sysctl_intvec_fops,
 		.extra1		= SYSCTL_ONE,
 		.extra2		= SYSCTL_ONE,
 	},

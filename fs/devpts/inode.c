@@ -51,7 +51,7 @@ static struct ctl_table pty_table[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.data		= &pty_limit,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &sysctl_intvec_fops,
 		.extra1		= &pty_limit_min,
 		.extra2		= &pty_limit_max,
 	}, {
@@ -59,7 +59,7 @@ static struct ctl_table pty_table[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.data		= &pty_reserve,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &sysctl_intvec_fops,
 		.extra1		= &pty_limit_min,
 		.extra2		= &pty_limit_max,
 	}, {

@@ -137,7 +137,7 @@ static struct ctl_table ipv6_table_template[] = {
 		.data		= &init_net.ipv6.sysctl.flowlabel_reflect,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &sysctl_intvec_fops,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= &flowlabel_reflect_max,
 	},
@@ -235,7 +235,7 @@ static struct ctl_table ipv6_rotable[] = {
 		.data		= &sysctl_mld_qrv,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &sysctl_intvec_fops,
 		.extra1		= SYSCTL_ONE
 	},
 #ifdef CONFIG_NETLABEL

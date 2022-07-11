@@ -721,7 +721,7 @@ static struct ctl_table tagged_addr_sysctl_table[] = {
 		.mode		= 0644,
 		.data		= &tagged_addr_disabled,
 		.maxlen		= sizeof(int),
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &sysctl_intvec_fops,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_ONE,
 	},

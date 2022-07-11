@@ -261,7 +261,7 @@ static struct ctl_table dn_table[] = {
 		.data = &decnet_time_wait,
 		.maxlen = sizeof(int),
 		.mode = 0644,
-		.proc_handler = proc_dointvec_minmax,
+		.ctl_fops = &sysctl_intvec_fops,
 		.extra1 = &min_decnet_time_wait,
 		.extra2 = &max_decnet_time_wait
 	},
@@ -270,7 +270,7 @@ static struct ctl_table dn_table[] = {
 		.data = &decnet_dn_count,
 		.maxlen = sizeof(int),
 		.mode = 0644,
-		.proc_handler = proc_dointvec_minmax,
+		.ctl_fops = &sysctl_intvec_fops,
 		.extra1 = &min_state_count,
 		.extra2 = &max_state_count
 	},
@@ -279,7 +279,7 @@ static struct ctl_table dn_table[] = {
 		.data = &decnet_di_count,
 		.maxlen = sizeof(int),
 		.mode = 0644,
-		.proc_handler = proc_dointvec_minmax,
+		.ctl_fops = &sysctl_intvec_fops,
 		.extra1 = &min_state_count,
 		.extra2 = &max_state_count
 	},
@@ -288,7 +288,7 @@ static struct ctl_table dn_table[] = {
 		.data = &decnet_dr_count,
 		.maxlen = sizeof(int),
 		.mode = 0644,
-		.proc_handler = proc_dointvec_minmax,
+		.ctl_fops = &sysctl_intvec_fops,
 		.extra1 = &min_state_count,
 		.extra2 = &max_state_count
 	},
@@ -297,7 +297,7 @@ static struct ctl_table dn_table[] = {
 		.data = &decnet_dst_gc_interval,
 		.maxlen = sizeof(int),
 		.mode = 0644,
-		.proc_handler = proc_dointvec_minmax,
+		.ctl_fops = &sysctl_intvec_fops,
 		.extra1 = &min_decnet_dst_gc_interval,
 		.extra2 = &max_decnet_dst_gc_interval
 	},
@@ -306,7 +306,7 @@ static struct ctl_table dn_table[] = {
 		.data = &decnet_no_fc_max_cwnd,
 		.maxlen = sizeof(int),
 		.mode = 0644,
-		.proc_handler = proc_dointvec_minmax,
+		.ctl_fops = &sysctl_intvec_fops,
 		.extra1 = &min_decnet_no_fc_max_cwnd,
 		.extra2 = &max_decnet_no_fc_max_cwnd
 	},

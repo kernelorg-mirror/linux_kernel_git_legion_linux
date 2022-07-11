@@ -3697,7 +3697,7 @@ static struct neigh_sysctl_table {
 			.mode		= 0644,
 			.extra1		= SYSCTL_ZERO,
 			.extra2		= SYSCTL_INT_MAX,
-			.proc_handler	= proc_dointvec_minmax,
+			.ctl_fops	= &sysctl_intvec_fops,
 		},
 		[NEIGH_VAR_GC_THRESH2] = {
 			.procname	= "gc_thresh2",
@@ -3705,7 +3705,7 @@ static struct neigh_sysctl_table {
 			.mode		= 0644,
 			.extra1		= SYSCTL_ZERO,
 			.extra2		= SYSCTL_INT_MAX,
-			.proc_handler	= proc_dointvec_minmax,
+			.ctl_fops	= &sysctl_intvec_fops,
 		},
 		[NEIGH_VAR_GC_THRESH3] = {
 			.procname	= "gc_thresh3",
@@ -3713,7 +3713,7 @@ static struct neigh_sysctl_table {
 			.mode		= 0644,
 			.extra1		= SYSCTL_ZERO,
 			.extra2		= SYSCTL_INT_MAX,
-			.proc_handler	= proc_dointvec_minmax,
+			.ctl_fops	= &sysctl_intvec_fops,
 		},
 		{},
 	},

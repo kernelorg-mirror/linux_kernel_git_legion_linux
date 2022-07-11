@@ -3582,7 +3582,7 @@ static struct ctl_table ipv4_route_netns_table[] = {
 		.data           = &init_net.ipv4.ip_rt_min_pmtu,
 		.maxlen         = sizeof(int),
 		.mode           = 0644,
-		.proc_handler   = proc_dointvec_minmax,
+		.ctl_fops       = &sysctl_intvec_fops,
 		.extra1         = &ip_min_valid_pmtu,
 	},
 	{

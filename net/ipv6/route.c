@@ -6414,7 +6414,7 @@ static struct ctl_table ipv6_route_table_template[] = {
 		.data		=	&init_net.ipv6.sysctl.skip_notify_on_dev_down,
 		.maxlen		=	sizeof(int),
 		.mode		=	0644,
-		.proc_handler	=	proc_dointvec_minmax,
+		.ctl_fops	=	&sysctl_intvec_fops,
 		.extra1		=	SYSCTL_ZERO,
 		.extra2		=	SYSCTL_ONE,
 	},
