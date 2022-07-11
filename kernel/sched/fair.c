@@ -184,7 +184,7 @@ static struct ctl_table sched_fair_sysctls[] = {
 		.data           = &sysctl_sched_child_runs_first,
 		.maxlen         = sizeof(unsigned int),
 		.mode           = 0644,
-		.proc_handler   = proc_dointvec,
+		.ctl_fops       = &proc_dointvec_minmax_fops,
 	},
 #ifdef CONFIG_CFS_BANDWIDTH
 	{

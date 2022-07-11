@@ -930,7 +930,7 @@ static struct ctl_table coredump_sysctls[] = {
 		.data		= &core_uses_pid,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 	},
 	{
 		.procname	= "core_pattern",
@@ -944,7 +944,7 @@ static struct ctl_table coredump_sysctls[] = {
 		.data		= &core_pipe_limit,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 	},
 	{ }
 };

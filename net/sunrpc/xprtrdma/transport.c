@@ -135,7 +135,7 @@ static struct ctl_table xr_tunables_table[] = {
 		.data		= &xprt_rdma_pad_optimize,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 	},
 	{ },
 };

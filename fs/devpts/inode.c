@@ -67,7 +67,7 @@ static struct ctl_table pty_table[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0444,
 		.data		= &pty_count,
-		.proc_handler	= proc_dointvec,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 	},
 	{}
 };

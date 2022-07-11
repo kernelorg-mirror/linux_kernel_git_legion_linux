@@ -505,7 +505,7 @@ static struct ctl_table nlm_sysctls[] = {
 		.data		= &nsm_local_state,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 	},
 	{ }
 };
