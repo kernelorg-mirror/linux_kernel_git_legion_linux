@@ -319,7 +319,7 @@ static struct ctl_table net_core_table[] = {
 		.data		= &sysctl_wmem_max,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 		.extra1		= &min_sndbuf,
 	},
 	{
@@ -327,7 +327,7 @@ static struct ctl_table net_core_table[] = {
 		.data		= &sysctl_rmem_max,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 		.extra1		= &min_rcvbuf,
 	},
 	{
@@ -335,7 +335,7 @@ static struct ctl_table net_core_table[] = {
 		.data		= &sysctl_wmem_default,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 		.extra1		= &min_sndbuf,
 	},
 	{
@@ -343,7 +343,7 @@ static struct ctl_table net_core_table[] = {
 		.data		= &sysctl_rmem_default,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 		.extra1		= &min_rcvbuf,
 	},
 	{
@@ -459,7 +459,7 @@ static struct ctl_table net_core_table[] = {
 		.data		= &sysctl_tstamp_allow_data,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_ONE
 	},
@@ -491,7 +491,7 @@ static struct ctl_table net_core_table[] = {
 		.data		= &sysctl_net_busy_poll,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 		.extra1		= SYSCTL_ZERO,
 	},
 	{
@@ -499,7 +499,7 @@ static struct ctl_table net_core_table[] = {
 		.data		= &sysctl_net_busy_read,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 		.extra1		= SYSCTL_ZERO,
 	},
 #endif
@@ -530,7 +530,7 @@ static struct ctl_table net_core_table[] = {
 		.data		= &sysctl_max_skb_frags,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 		.extra1		= SYSCTL_ONE,
 		.extra2		= &max_skb_frags,
 	},
@@ -539,7 +539,7 @@ static struct ctl_table net_core_table[] = {
 		.data		= &netdev_budget_usecs,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 		.extra1		= SYSCTL_ZERO,
 	},
 	{
@@ -547,7 +547,7 @@ static struct ctl_table net_core_table[] = {
 		.data		= &sysctl_fb_tunnels_only_for_init_net,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_TWO,
 	},
@@ -556,7 +556,7 @@ static struct ctl_table net_core_table[] = {
 		.data		= &sysctl_devconf_inherit_init_net,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_THREE,
 	},
@@ -572,7 +572,7 @@ static struct ctl_table net_core_table[] = {
 		.data		= &gro_normal_batch,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 		.extra1		= SYSCTL_ONE,
 	},
 	{
@@ -580,7 +580,7 @@ static struct ctl_table net_core_table[] = {
 		.data		= &netdev_unregister_timeout_secs,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 		.extra1		= SYSCTL_ONE,
 		.extra2		= &int_3600,
 	},
@@ -589,7 +589,7 @@ static struct ctl_table net_core_table[] = {
 		.data		= &sysctl_skb_defer_max,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 		.extra1		= SYSCTL_ZERO,
 	},
 	{ }
@@ -602,7 +602,7 @@ static struct ctl_table netns_core_table[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.extra1		= SYSCTL_ZERO,
-		.proc_handler	= proc_dointvec_minmax
+		.ctl_fops	= &proc_dointvec_minmax_fops
 	},
 	{
 		.procname	= "txrehash",

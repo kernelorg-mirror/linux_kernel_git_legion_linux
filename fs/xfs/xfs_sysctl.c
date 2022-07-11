@@ -100,7 +100,7 @@ static struct ctl_table xfs_table[] = {
 		.data		= &xfs_params.error_level.val,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 		.extra1		= &xfs_params.error_level.min,
 		.extra2		= &xfs_params.error_level.max
 	},
@@ -109,7 +109,7 @@ static struct ctl_table xfs_table[] = {
 		.data		= &xfs_params.syncd_timer.val,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 		.extra1		= &xfs_params.syncd_timer.min,
 		.extra2		= &xfs_params.syncd_timer.max
 	},
@@ -118,7 +118,7 @@ static struct ctl_table xfs_table[] = {
 		.data		= &xfs_params.inherit_sync.val,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 		.extra1		= &xfs_params.inherit_sync.min,
 		.extra2		= &xfs_params.inherit_sync.max
 	},
@@ -127,7 +127,7 @@ static struct ctl_table xfs_table[] = {
 		.data		= &xfs_params.inherit_nodump.val,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 		.extra1		= &xfs_params.inherit_nodump.min,
 		.extra2		= &xfs_params.inherit_nodump.max
 	},
@@ -136,7 +136,7 @@ static struct ctl_table xfs_table[] = {
 		.data		= &xfs_params.inherit_noatim.val,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 		.extra1		= &xfs_params.inherit_noatim.min,
 		.extra2		= &xfs_params.inherit_noatim.max
 	},
@@ -145,7 +145,7 @@ static struct ctl_table xfs_table[] = {
 		.data		= &xfs_params.inherit_nosym.val,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 		.extra1		= &xfs_params.inherit_nosym.min,
 		.extra2		= &xfs_params.inherit_nosym.max
 	},
@@ -154,7 +154,7 @@ static struct ctl_table xfs_table[] = {
 		.data		= &xfs_params.rotorstep.val,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 		.extra1		= &xfs_params.rotorstep.min,
 		.extra2		= &xfs_params.rotorstep.max
 	},
@@ -163,7 +163,7 @@ static struct ctl_table xfs_table[] = {
 		.data		= &xfs_params.inherit_nodfrg.val,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 		.extra1		= &xfs_params.inherit_nodfrg.min,
 		.extra2		= &xfs_params.inherit_nodfrg.max
 	},
@@ -172,7 +172,7 @@ static struct ctl_table xfs_table[] = {
 		.data		= &xfs_params.fstrm_timer.val,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 		.extra1		= &xfs_params.fstrm_timer.min,
 		.extra2		= &xfs_params.fstrm_timer.max,
 	},
@@ -181,7 +181,7 @@ static struct ctl_table xfs_table[] = {
 		.data		= &xfs_params.blockgc_timer.val,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 		.extra1		= &xfs_params.blockgc_timer.min,
 		.extra2		= &xfs_params.blockgc_timer.max,
 	},

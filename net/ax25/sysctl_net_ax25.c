@@ -31,7 +31,7 @@ static const struct ctl_table ax25_param_table[] = {
 		.procname	= "ip_default_mode",
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 		.extra1		= &min_ipdefmode,
 		.extra2		= &max_ipdefmode
 	},
@@ -39,7 +39,7 @@ static const struct ctl_table ax25_param_table[] = {
 		.procname	= "ax25_default_mode",
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 		.extra1		= &min_axdefmode,
 		.extra2		= &max_axdefmode
 	},
@@ -47,7 +47,7 @@ static const struct ctl_table ax25_param_table[] = {
 		.procname	= "backoff_type",
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 		.extra1		= &min_backoff,
 		.extra2		= &max_backoff
 	},
@@ -55,7 +55,7 @@ static const struct ctl_table ax25_param_table[] = {
 		.procname	= "connect_mode",
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 		.extra1		= &min_conmode,
 		.extra2		= &max_conmode
 	},
@@ -63,7 +63,7 @@ static const struct ctl_table ax25_param_table[] = {
 		.procname	= "standard_window_size",
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 		.extra1		= &min_window,
 		.extra2		= &max_window
 	},
@@ -71,7 +71,7 @@ static const struct ctl_table ax25_param_table[] = {
 		.procname	= "extended_window_size",
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 		.extra1		= &min_ewindow,
 		.extra2		= &max_ewindow
 	},
@@ -79,7 +79,7 @@ static const struct ctl_table ax25_param_table[] = {
 		.procname	= "t1_timeout",
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 		.extra1		= &min_t1,
 		.extra2		= &max_t1
 	},
@@ -87,7 +87,7 @@ static const struct ctl_table ax25_param_table[] = {
 		.procname	= "t2_timeout",
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 		.extra1		= &min_t2,
 		.extra2		= &max_t2
 	},
@@ -95,7 +95,7 @@ static const struct ctl_table ax25_param_table[] = {
 		.procname	= "t3_timeout",
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 		.extra1		= &min_t3,
 		.extra2		= &max_t3
 	},
@@ -103,7 +103,7 @@ static const struct ctl_table ax25_param_table[] = {
 		.procname	= "idle_timeout",
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 		.extra1		= &min_idle,
 		.extra2		= &max_idle
 	},
@@ -111,7 +111,7 @@ static const struct ctl_table ax25_param_table[] = {
 		.procname	= "maximum_retry_count",
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 		.extra1		= &min_n2,
 		.extra2		= &max_n2
 	},
@@ -119,7 +119,7 @@ static const struct ctl_table ax25_param_table[] = {
 		.procname	= "maximum_packet_length",
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 		.extra1		= &min_paclen,
 		.extra2		= &max_paclen
 	},
@@ -127,7 +127,7 @@ static const struct ctl_table ax25_param_table[] = {
 		.procname	= "protocol",
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 		.extra1		= &min_proto,
 		.extra2		= &max_proto
 	},
@@ -136,7 +136,7 @@ static const struct ctl_table ax25_param_table[] = {
 		.procname	= "dama_slave_timeout",
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 		.extra1		= &min_ds_timeout,
 		.extra2		= &max_ds_timeout
 	},

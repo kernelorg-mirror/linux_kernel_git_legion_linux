@@ -82,7 +82,7 @@ static struct ctl_table kern_panic_table[] = {
 		.data           = &sysctl_oops_all_cpu_backtrace,
 		.maxlen         = sizeof(int),
 		.mode           = 0644,
-		.proc_handler   = proc_dointvec_minmax,
+		.ctl_fops       = &proc_dointvec_minmax_fops,
 		.extra1         = SYSCTL_ZERO,
 		.extra2         = SYSCTL_ONE,
 	},

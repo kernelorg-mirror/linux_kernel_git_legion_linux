@@ -82,7 +82,7 @@ static struct ctl_table inotify_table[] = {
 		.data		= &inotify_max_queued_events,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 		.extra1		= SYSCTL_ZERO
 	},
 	{ }

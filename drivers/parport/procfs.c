@@ -273,7 +273,7 @@ static const struct parport_sysctl_table parport_sysctl_template = {
 			.data		= NULL,
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
-			.proc_handler	= proc_dointvec_minmax,
+			.ctl_fops	= &proc_dointvec_minmax_fops,
 			.extra1		= (void*) &parport_min_spintime_value,
 			.extra2		= (void*) &parport_max_spintime_value
 		},
@@ -449,7 +449,7 @@ parport_default_sysctl_table = {
 			.data		= &parport_default_spintime,
 			.maxlen		= sizeof(parport_default_spintime),
 			.mode		= 0644,
-			.proc_handler	= proc_dointvec_minmax,
+			.ctl_fops	= &proc_dointvec_minmax_fops,
 			.extra1		= (void*) &parport_min_spintime_value,
 			.extra2		= (void*) &parport_max_spintime_value
 		},
