@@ -8737,7 +8737,7 @@ int sysctl_min_unmapped_ratio_sysctl_handler(struct ctl_table *table, int write,
 	int rc;
 
 	rc = proc_dointvec_minmax(table, write, buffer, length, ppos);
-	if (rc)
+	if (rc || !write)
 		return rc;
 
 	setup_min_unmapped_ratio();
@@ -8764,7 +8764,7 @@ int sysctl_min_slab_ratio_sysctl_handler(struct ctl_table *table, int write,
 	int rc;
 
 	rc = proc_dointvec_minmax(table, write, buffer, length, ppos);
-	if (rc)
+	if (rc || !write)
 		return rc;
 
 	setup_min_slab_ratio();
@@ -8785,9 +8785,11 @@ int sysctl_min_slab_ratio_sysctl_handler(struct ctl_table *table, int write,
 int lowmem_reserve_ratio_sysctl_handler(struct ctl_table *table, int write,
 		void *buffer, size_t *length, loff_t *ppos)
 {
-	int i;
+	int i, rc;
 
-	proc_dointvec_minmax(table, write, buffer, length, ppos);
+	rc = proc_dointvec_minmax(table, write, buffer, length, ppos);
+	if (rc || !write)
+		return rc;
 
 	for (i = 0; i < MAX_NR_ZONES; i++) {
 		if (sysctl_lowmem_reserve_ratio[i] < 1)
