@@ -3483,24 +3483,6 @@ EXPORT_SYMBOL(neigh_app_ns);
 #ifdef CONFIG_SYSCTL
 static int unres_qlen_max = INT_MAX / SKB_TRUESIZE(ETH_FRAME_LEN);
 
-static int proc_unres_qlen(struct ctl_table *ctl, int write,
-			   void *buffer, size_t *lenp, loff_t *ppos)
-{
-	int size, ret;
-	struct ctl_table tmp = *ctl;
-
-	tmp.extra1 = SYSCTL_ZERO;
-	tmp.extra2 = &unres_qlen_max;
-	tmp.data = &size;
-
-	size = *(int *)ctl->data / SKB_TRUESIZE(ETH_FRAME_LEN);
-	ret = proc_dointvec_minmax(&tmp, write, buffer, lenp, ppos);
-
-	if (write && !ret)
-		*(int *)ctl->data = size * SKB_TRUESIZE(ETH_FRAME_LEN);
-	return ret;
-}
-
 static struct neigh_parms *neigh_get_dev_parms_rcu(struct net_device *dev,
 						   int family)
 {
@@ -3606,7 +3588,18 @@ static int neigh_proc_dointvec_unres_qlen(struct ctl_table *ctl, int write,
 					  void *buffer, size_t *lenp,
 					  loff_t *ppos)
 {
-	int ret = proc_unres_qlen(ctl, write, buffer, lenp, ppos);
+	int size, ret;
+	struct ctl_table tmp = *ctl;
+
+	tmp.extra1 = SYSCTL_ZERO;
+	tmp.extra2 = &unres_qlen_max;
+	tmp.data = &size;
+
+	size = *(int *)ctl->data / SKB_TRUESIZE(ETH_FRAME_LEN);
+	ret = proc_dointvec_minmax(&tmp, write, buffer, lenp, ppos);
+
+	if (write && !ret)
+		*(int *)ctl->data = size * SKB_TRUESIZE(ETH_FRAME_LEN);
 
 	neigh_proc_update(ctl, write);
 	return ret;
