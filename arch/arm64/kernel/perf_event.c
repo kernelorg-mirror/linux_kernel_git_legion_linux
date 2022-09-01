@@ -1200,16 +1200,20 @@ static void armv8pmu_disable_user_access_ipi(void *unused)
 	armv8pmu_disable_user_access();
 }
 
-static int armv8pmu_proc_user_access_handler(struct ctl_table *table, int write,
-		void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t armv8pmu_proc_user_access_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
-	int ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
-	if (ret || !write || sysctl_perf_user_access)
+	ssize_t ret = sysctl_write_intvec(ctx, file, buffer, lenp, ppos);
+	if (ret || sysctl_perf_user_access)
 		return ret;
-
 	on_each_cpu(armv8pmu_disable_user_access_ipi, NULL, 1);
 	return 0;
 }
+
+struct ctl_fops armv8pmu_proc_user_access_fops = {
+	.read  = sysctl_read_intvec,
+	.write = armv8pmu_proc_user_access_write,
+};
 
 static struct ctl_table armv8_pmu_sysctl_table[] = {
 	{
@@ -1217,7 +1221,7 @@ static struct ctl_table armv8_pmu_sysctl_table[] = {
 		.data		= &sysctl_perf_user_access,
 		.maxlen		= sizeof(unsigned int),
 		.mode           = 0644,
-		.proc_handler	= armv8pmu_proc_user_access_handler,
+		.ctl_fops	= &armv8pmu_proc_user_access_fops,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_ONE,
 	},
