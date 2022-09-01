@@ -50,35 +50,6 @@ static struct platform_device *appldata_pdev;
  * /proc entries (sysctl)
  */
 static const char appldata_proc_name[APPLDATA_PROC_NAME_LENGTH] = "appldata";
-static int appldata_timer_handler(struct ctl_table *ctl, int write,
-				  void *buffer, size_t *lenp, loff_t *ppos);
-static int appldata_interval_handler(struct ctl_table *ctl, int write,
-				     void *buffer, size_t *lenp, loff_t *ppos);
-
-static struct ctl_table_header *appldata_sysctl_header;
-static struct ctl_table appldata_table[] = {
-	{
-		.procname	= "timer",
-		.mode		= S_IRUGO | S_IWUSR,
-		.proc_handler	= appldata_timer_handler,
-	},
-	{
-		.procname	= "interval",
-		.mode		= S_IRUGO | S_IWUSR,
-		.proc_handler	= appldata_interval_handler,
-	},
-	{ },
-};
-
-static struct ctl_table appldata_dir_table[] = {
-	{
-		.procname	= appldata_proc_name,
-		.maxlen		= 0,
-		.mode		= S_IRUGO | S_IXUGO,
-		.child		= appldata_table,
-	},
-	{ },
-};
 
 /*
  * Timer
@@ -210,26 +181,23 @@ static void __appldata_vtimer_setup(int cmd)
 }
 
 /*
- * appldata_timer_handler()
+ * appldata_timer_write()
  *
  * Start/Stop timer, show status of timer (0 = not active, 1 = active)
  */
-static int
-appldata_timer_handler(struct ctl_table *ctl, int write,
-			   void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t
+appldata_timer_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
 	int timer_active = appldata_timer_active;
-	int rc;
-	struct ctl_table ctl_entry = {
-		.procname	= ctl->procname,
-		.data		= &timer_active,
-		.maxlen		= sizeof(int),
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_ONE,
-	};
+	ssize_t rc;
 
-	rc = proc_dointvec_minmax(&ctl_entry, write, buffer, lenp, ppos);
-	if (rc < 0 || !write)
+	rc = do_proc_dointvec_w(&timer_active, ctx->ctl_table,
+			buffer, lenp, ppos,
+			do_proc_dointvec_minmax_conv,
+			SYSCTL_ZERO,
+			SYSCTL_ONE);
+	if (rc < 0)
 		return rc;
 
 	spin_lock(&appldata_timer_lock);
@@ -241,27 +209,38 @@ appldata_timer_handler(struct ctl_table *ctl, int write,
 	return 0;
 }
 
+static ssize_t
+appldata_timer_read(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	int timer_active = appldata_timer_active;
+
+	return do_proc_dointvec_r(&timer_active, ctx->ctl_table,
+			buffer, lenp, ppos,
+			do_proc_dointvec_minmax_conv, NULL, NULL);
+}
+
+
 /*
- * appldata_interval_handler()
+ * appldata_interval_write()
  *
  * Set (CPU) timer interval for collection of data (in milliseconds), show
  * current timer interval.
  */
-static int
-appldata_interval_handler(struct ctl_table *ctl, int write,
-			   void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t
+appldata_interval_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
 	int interval = appldata_interval;
-	int rc;
-	struct ctl_table ctl_entry = {
-		.procname	= ctl->procname,
-		.data		= &interval,
-		.maxlen		= sizeof(int),
-		.extra1		= SYSCTL_ONE,
-	};
+	ssize_t rc;
 
-	rc = proc_dointvec_minmax(&ctl_entry, write, buffer, lenp, ppos);
-	if (rc < 0 || !write)
+	rc = do_proc_dointvec_w(&interval, ctx->ctl_table,
+			buffer, lenp, ppos,
+			do_proc_dointvec_minmax_conv,
+			SYSCTL_ONE,
+			NULL);
+
+	if (rc < 0)
 		return rc;
 
 	spin_lock(&appldata_timer_lock);
@@ -271,32 +250,72 @@ appldata_interval_handler(struct ctl_table *ctl, int write,
 	return 0;
 }
 
+static ssize_t
+appldata_interval_read(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	int interval = appldata_interval;
+
+	return do_proc_dointvec_r(&interval, ctx->ctl_table,
+			buffer, lenp, ppos,
+			do_proc_dointvec_minmax_conv, NULL, NULL);
+}
+
+static struct ctl_fops appldata_timer_fops = {
+	.read  = appldata_timer_read,
+	.write = appldata_timer_write,
+};
+
+static struct ctl_fops appldata_interval_fops = {
+	.read  = appldata_interval_read,
+	.write = appldata_interval_write,
+};
+
+static struct ctl_table_header *appldata_sysctl_header;
+static struct ctl_table appldata_table[] = {
+	{
+		.procname	= "timer",
+		.mode		= S_IRUGO | S_IWUSR,
+		.ctl_fops	= &appldata_timer_fops,
+	},
+	{
+		.procname	= "interval",
+		.mode		= S_IRUGO | S_IWUSR,
+		.ctl_fops	= &appldata_interval_fops,
+	},
+	{ },
+};
+
+static struct ctl_table appldata_dir_table[] = {
+	{
+		.procname	= appldata_proc_name,
+		.maxlen		= 0,
+		.mode		= S_IRUGO | S_IXUGO,
+		.child		= appldata_table,
+	},
+	{ },
+};
+
 /*
- * appldata_generic_handler()
+ * appldata_generic_read()
  *
  * Generic start/stop monitoring and DIAG, show status of
  * monitoring (0 = not in process, 1 = in process)
  */
-static int
-appldata_generic_handler(struct ctl_table *ctl, int write,
-			   void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t
+appldata_generic_read(struct ctl_context *ctx, struct file *file,
+		      char *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct appldata_ops *ops = NULL, *tmp_ops;
 	struct list_head *lh;
-	int rc, found;
-	int active;
-	struct ctl_table ctl_entry = {
-		.data		= &active,
-		.maxlen		= sizeof(int),
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_ONE,
-	};
+	ssize_t rc;
+	int found, active;
 
 	found = 0;
 	mutex_lock(&appldata_ops_mutex);
 	list_for_each(lh, &appldata_ops_list) {
 		tmp_ops = list_entry(lh, struct appldata_ops, list);
-		if (&tmp_ops->ctl_table[2] == ctl) {
+		if (&tmp_ops->ctl_table[2] == ctx->ctl_table) {
 			found = 1;
 		}
 	}
@@ -304,7 +323,7 @@ appldata_generic_handler(struct ctl_table *ctl, int write,
 		mutex_unlock(&appldata_ops_mutex);
 		return -ENODEV;
 	}
-	ops = ctl->data;
+	ops = ctx->ctl_table->data;
 	if (!try_module_get(ops->owner)) {	// protect this function
 		mutex_unlock(&appldata_ops_mutex);
 		return -ENODEV;
@@ -312,8 +331,56 @@ appldata_generic_handler(struct ctl_table *ctl, int write,
 	mutex_unlock(&appldata_ops_mutex);
 
 	active = ops->active;
-	rc = proc_dointvec_minmax(&ctl_entry, write, buffer, lenp, ppos);
-	if (rc < 0 || !write) {
+
+	rc = do_proc_dointvec_r(&active, ctx->ctl_table,
+			buffer, lenp, ppos,
+			do_proc_dointvec_minmax_conv, NULL, NULL);
+
+	module_put(ops->owner);
+	return rc;
+}
+
+/*
+ * appldata_generic_write()
+ *
+ * Generic start/stop monitoring and DIAG, show status of
+ * monitoring (0 = not in process, 1 = in process)
+ */
+static ssize_t
+appldata_generic_write(struct ctl_context *ctx, struct file *file,
+		       char *buffer, size_t *lenp, loff_t *ppos)
+{
+	struct appldata_ops *ops = NULL, *tmp_ops;
+	struct list_head *lh;
+	ssize_t rc;
+	int active, found;
+
+	found = 0;
+	mutex_lock(&appldata_ops_mutex);
+	list_for_each(lh, &appldata_ops_list) {
+		tmp_ops = list_entry(lh, struct appldata_ops, list);
+		if (&tmp_ops->ctl_table[2] == ctx->ctl_table) {
+			found = 1;
+		}
+	}
+	if (!found) {
+		mutex_unlock(&appldata_ops_mutex);
+		return -ENODEV;
+	}
+	ops = ctx->ctl_table->data;
+	if (!try_module_get(ops->owner)) {	// protect this function
+		mutex_unlock(&appldata_ops_mutex);
+		return -ENODEV;
+	}
+	mutex_unlock(&appldata_ops_mutex);
+
+	active = ops->active;
+
+	rc = do_proc_dointvec_w(&active, ctx->ctl_table,
+			buffer, lenp, ppos,
+			do_proc_dointvec_minmax_conv, SYSCTL_ZERO, SYSCTL_ONE);
+
+	if (rc < 0) {
 		module_put(ops->owner);
 		return rc;
 	}
@@ -352,6 +419,11 @@ appldata_generic_handler(struct ctl_table *ctl, int write,
 	return 0;
 }
 
+static struct ctl_fops appldata_generic_fops = {
+	.read  = appldata_generic_read,
+	.write = appldata_generic_write,
+};
+
 /*************************** /proc stuff <END> *******************************/
 
 
@@ -381,7 +453,7 @@ int appldata_register_ops(struct appldata_ops *ops)
 
 	ops->ctl_table[2].procname = ops->name;
 	ops->ctl_table[2].mode     = S_IRUGO | S_IWUSR;
-	ops->ctl_table[2].proc_handler = appldata_generic_handler;
+	ops->ctl_table[2].ctl_fops = &appldata_generic_fops;
 	ops->ctl_table[2].data = ops;
 
 	ops->sysctl_header = register_sysctl_table(ops->ctl_table);

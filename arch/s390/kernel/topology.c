@@ -598,22 +598,31 @@ static int __init topology_setup(char *str)
 }
 early_param("topology", topology_setup);
 
-static int topology_ctl_handler(struct ctl_table *ctl, int write,
-				void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t topology_ctl_read(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	int enabled = topology_is_enabled();
+
+	return do_proc_dointvec_r(&enabled, ctx->ctl_table,
+			buffer, lenp, ppos,
+			do_proc_dointvec_minmax_conv,
+			ctx->ctl_table->extra1,
+			ctx->ctl_table->extra2);
+}
+
+static ssize_t topology_ctl_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
 	int enabled = topology_is_enabled();
 	int new_mode;
-	int rc;
-	struct ctl_table ctl_entry = {
-		.procname	= ctl->procname,
-		.data		= &enabled,
-		.maxlen		= sizeof(int),
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_ONE,
-	};
+	ssize_t rc;
 
-	rc = proc_dointvec_minmax(&ctl_entry, write, buffer, lenp, ppos);
-	if (rc < 0 || !write)
+	rc = do_proc_dointvec_w(&enabled, ctx->ctl_table,
+			buffer, lenp, ppos,
+			do_proc_dointvec_minmax_conv,
+			ctx->ctl_table->extra1,
+			ctx->ctl_table->extra2);
+	if (rc < 0)
 		return rc;
 
 	mutex_lock(&smp_cpu_state_mutex);
@@ -628,11 +637,20 @@ static int topology_ctl_handler(struct ctl_table *ctl, int write,
 	return rc;
 }
 
+static struct ctl_fops topology_ctl_fops = {
+	.read = topology_ctl_read,
+	.write = topology_ctl_write,
+};
+
 static struct ctl_table topology_ctl_table[] = {
 	{
 		.procname	= "topology",
 		.mode		= 0644,
-		.proc_handler	= topology_ctl_handler,
+		.data		= NULL,
+		.maxlen		= sizeof(int),
+		.ctl_fops	= &topology_ctl_fops,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= SYSCTL_ONE,
 	},
 	{ },
 };
