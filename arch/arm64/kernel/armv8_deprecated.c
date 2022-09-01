@@ -202,19 +202,21 @@ static void __init register_insn_emulation(struct insn_emulation_ops *ops)
 	update_insn_emulation_mode(insn, INSN_UNDEF);
 }
 
-static int emulation_proc_handler(struct ctl_table *table, int write,
-				  void *buffer, size_t *lenp,
-				  loff_t *ppos)
+static ssize_t emulation_proc_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
-	int ret = 0;
-	struct insn_emulation *insn = (struct insn_emulation *) table->data;
+	ssize_t ret = 0;
+	struct insn_emulation *insn = (struct insn_emulation *) ctx->ctl_table->data;
 	enum insn_emulation_mode prev_mode = insn->current_mode;
 
-	table->data = &insn->current_mode;
-	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+	ret = do_proc_dointvec_w(&insn->current_mode, ctx->ctl_table,
+				buffer, lenp, ppos,
+				do_proc_dointvec_minmax_conv,
+				ctx->ctl_table->extra1,
+				ctx->ctl_table->extra2);
 
-	if (ret || !write || prev_mode == insn->current_mode)
-		goto ret;
+	if (ret || prev_mode == insn->current_mode)
+		return ret;
 
 	ret = update_insn_emulation_mode(insn, prev_mode);
 	if (ret) {
@@ -222,10 +224,24 @@ static int emulation_proc_handler(struct ctl_table *table, int write,
 		insn->current_mode = prev_mode;
 		update_insn_emulation_mode(insn, INSN_UNDEF);
 	}
-ret:
-	table->data = insn;
+
 	return ret;
 }
+
+static ssize_t emulation_proc_read(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	struct insn_emulation *insn = (struct insn_emulation *) ctx->ctl_table->data;
+
+	return do_proc_dointvec_r(&insn->current_mode, ctx->ctl_table,
+				buffer, lenp, ppos,
+				do_proc_dointvec_minmax_conv, NULL, NULL);
+}
+
+static struct ctl_fops emulation_proc_fops = {
+	.read  = emulation_proc_read,
+	.write = emulation_proc_write,
+};
 
 static void __init register_insn_emulation_sysctl(void)
 {
@@ -250,7 +266,7 @@ static void __init register_insn_emulation_sysctl(void)
 		sysctl->data = insn;
 		sysctl->extra1 = &insn->min;
 		sysctl->extra2 = &insn->max;
-		sysctl->proc_handler = emulation_proc_handler;
+		sysctl->ctl_fops = &emulation_proc_fops;
 		i++;
 	}
 	raw_spin_unlock_irqrestore(&insn_emulation_lock, flags);
