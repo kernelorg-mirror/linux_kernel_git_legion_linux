@@ -306,28 +306,28 @@ static struct ctl_table alignment_tbl[5] = {
 		.data = &align_kern_enable,
 		.maxlen = sizeof(align_kern_enable),
 		.mode = 0666,
-		.proc_handler = &proc_dointvec
+		.ctl_fops = &sysctl_intvec_fops
 	},
 	{
 		.procname = "user_enable",
 		.data = &align_usr_enable,
 		.maxlen = sizeof(align_usr_enable),
 		.mode = 0666,
-		.proc_handler = &proc_dointvec
+		.ctl_fops = &sysctl_intvec_fops
 	},
 	{
 		.procname = "kernel_count",
 		.data = &align_kern_count,
 		.maxlen = sizeof(align_kern_count),
 		.mode = 0666,
-		.proc_handler = &proc_dointvec
+		.ctl_fops = &sysctl_intvec_fops
 	},
 	{
 		.procname = "user_count",
 		.data = &align_usr_count,
 		.maxlen = sizeof(align_usr_count),
 		.mode = 0666,
-		.proc_handler = &proc_dointvec
+		.ctl_fops = &sysctl_intvec_fops
 	},
 	{}
 };
