@@ -220,16 +220,17 @@ void rebuild_sched_domains_energy(void)
 }
 
 #ifdef CONFIG_PROC_SYSCTL
-static int sched_energy_aware_handler(struct ctl_table *table, int write,
-		void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t sched_energy_aware_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
-	int ret, state;
+	int state;
+	ssize_t ret;
 
-	if (write && !capable(CAP_SYS_ADMIN))
+	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
-	if (!ret && write) {
+	ret = proc_dointvec_minmax_w(ctx, file, buffer, lenp, ppos);
+	if (!ret) {
 		state = static_branch_unlikely(&sched_energy_present);
 		if (state != sysctl_sched_energy_aware)
 			rebuild_sched_domains_energy();
@@ -238,13 +239,18 @@ static int sched_energy_aware_handler(struct ctl_table *table, int write,
 	return ret;
 }
 
+static struct ctl_fops sched_energy_aware_fops = {
+	.read = proc_dointvec_minmax_r,
+	.write = sched_energy_aware_write,
+};
+
 static struct ctl_table sched_energy_aware_sysctls[] = {
 	{
 		.procname       = "sched_energy_aware",
 		.data           = &sysctl_sched_energy_aware,
 		.maxlen         = sizeof(unsigned int),
 		.mode           = 0644,
-		.proc_handler   = sched_energy_aware_handler,
+		.ctl_fops       = &sched_energy_aware_fops,
 		.extra1         = SYSCTL_ZERO,
 		.extra2         = SYSCTL_ONE,
 	},
