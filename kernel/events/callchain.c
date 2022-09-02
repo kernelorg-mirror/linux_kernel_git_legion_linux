@@ -229,16 +229,18 @@ exit_put:
  * Used for sysctl_perf_event_max_stack and
  * sysctl_perf_event_max_contexts_per_stack.
  */
-int perf_event_max_stack_handler(struct ctl_table *table, int write,
-				 void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t perf_event_max_stack_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
-	int *value = table->data;
-	int new_value = *value, ret;
-	struct ctl_table new_table = *table;
+	int *value = ctx->ctl_table->data;
+	int new_value = *value;
+	ssize_t ret;
 
-	new_table.data = &new_value;
-	ret = proc_dointvec_minmax(&new_table, write, buffer, lenp, ppos);
-	if (ret || !write)
+	ret = sysctl_write_intvec_data(&new_value, ctx->ctl_table, buffer, lenp, ppos,
+			sysctl_conv_intvec,
+			ctx->ctl_table->extra1,
+			ctx->ctl_table->extra2);
+	if (ret)
 		return ret;
 
 	mutex_lock(&callchain_mutex);
@@ -251,3 +253,8 @@ int perf_event_max_stack_handler(struct ctl_table *table, int write,
 
 	return ret;
 }
+
+struct ctl_fops perf_event_max_stack_fops = {
+	.read = sysctl_read_intvec,
+	.write = perf_event_max_stack_write,
+};

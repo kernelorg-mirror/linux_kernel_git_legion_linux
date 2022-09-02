@@ -449,19 +449,19 @@ static void update_perf_cpu_limits(void)
 
 static bool perf_rotate_context(struct perf_cpu_context *cpuctx);
 
-int perf_proc_update_handler(struct ctl_table *table, int write,
-		void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t perf_event_sample_rate_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
-	int ret;
+	ssize_t ret;
 	int perf_cpu = sysctl_perf_cpu_time_max_percent;
 	/*
 	 * If throttling is disabled don't allow the write:
 	 */
-	if (write && (perf_cpu == 100 || perf_cpu == 0))
+	if (perf_cpu == 100 || perf_cpu == 0)
 		return -EINVAL;
 
-	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
-	if (ret || !write)
+	ret = sysctl_write_intvec(ctx, file, buffer, lenp, ppos);
+	if (ret)
 		return ret;
 
 	max_samples_per_tick = DIV_ROUND_UP(sysctl_perf_event_sample_rate, HZ);
@@ -471,14 +471,19 @@ int perf_proc_update_handler(struct ctl_table *table, int write,
 	return 0;
 }
 
+struct ctl_fops perf_event_sample_rate_fops = {
+	.read = sysctl_read_intvec,
+	.write = perf_event_sample_rate_write,
+};
+
 int sysctl_perf_cpu_time_max_percent __read_mostly = DEFAULT_CPU_TIME_MAX_PERCENT;
 
-int perf_cpu_time_max_percent_handler(struct ctl_table *table, int write,
-		void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t perf_cpu_time_max_percent_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
-	int ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+	ssize_t ret = sysctl_write_intvec(ctx, file, buffer, lenp, ppos);
 
-	if (ret || !write)
+	if (ret)
 		return ret;
 
 	if (sysctl_perf_cpu_time_max_percent == 100 ||
@@ -492,6 +497,11 @@ int perf_cpu_time_max_percent_handler(struct ctl_table *table, int write,
 
 	return 0;
 }
+
+struct ctl_fops perf_cpu_time_max_percent_fops = {
+	.read = sysctl_read_intvec,
+	.write = perf_cpu_time_max_percent_write,
+};
 
 /*
  * perf samples are done in some very critical code paths (NMIs).
