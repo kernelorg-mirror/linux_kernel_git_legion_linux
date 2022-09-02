@@ -38,11 +38,11 @@ static bool __read_mostly sched_itmt_capable;
  */
 unsigned int __read_mostly sysctl_sched_itmt_enabled;
 
-static int sched_itmt_update_handler(struct ctl_table *table, int write,
-				     void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t sched_itmt_update_write(struct ctl_context *ctx, struct file *file,
+				       char *buffer, size_t *lenp, loff_t *ppos)
 {
 	unsigned int old_sysctl;
-	int ret;
+	ssize_t ret;
 
 	mutex_lock(&itmt_update_mutex);
 
@@ -52,9 +52,10 @@ static int sched_itmt_update_handler(struct ctl_table *table, int write,
 	}
 
 	old_sysctl = sysctl_sched_itmt_enabled;
-	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
 
-	if (!ret && write && old_sysctl != sysctl_sched_itmt_enabled) {
+	ret = sysctl_write_intvec(ctx, file, buffer, lenp, ppos);
+
+	if (!ret && old_sysctl != sysctl_sched_itmt_enabled) {
 		x86_topology_update = true;
 		rebuild_sched_domains();
 	}
@@ -64,13 +65,37 @@ static int sched_itmt_update_handler(struct ctl_table *table, int write,
 	return ret;
 }
 
+static ssize_t sched_itmt_update_read(struct ctl_context *ctx, struct file *file,
+				      char *buffer, size_t *lenp, loff_t *ppos)
+{
+	ssize_t ret;
+
+	mutex_lock(&itmt_update_mutex);
+
+	if (!sched_itmt_capable) {
+		mutex_unlock(&itmt_update_mutex);
+		return -EINVAL;
+	}
+
+	ret = sysctl_read_intvec(ctx, file, buffer, lenp, ppos);
+
+	mutex_unlock(&itmt_update_mutex);
+
+	return ret;
+}
+
+static struct ctl_fops sched_itmt_update_fops = {
+	.read  = sched_itmt_update_read,
+	.write = sched_itmt_update_write,
+};
+
 static struct ctl_table itmt_kern_table[] = {
 	{
 		.procname	= "sched_itmt_enabled",
 		.data		= &sysctl_sched_itmt_enabled,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= sched_itmt_update_handler,
+		.ctl_fops	= &sched_itmt_update_fops,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_ONE,
 	},
