@@ -1081,19 +1081,14 @@ static inline int is_highmem(struct zone *zone)
 /* These two functions are used to setup the per zone pages min values */
 struct ctl_table;
 
-int min_free_kbytes_sysctl_handler(struct ctl_table *, int, void *, size_t *,
-		loff_t *);
-int watermark_scale_factor_sysctl_handler(struct ctl_table *, int, void *,
-		size_t *, loff_t *);
+extern struct ctl_fops min_free_kbytes_sysctl_fops;
+extern struct ctl_fops watermark_scale_factor_sysctl_fops;
+extern struct ctl_fops sysctl_min_unmapped_ratio_sysctl_fops;
+extern struct ctl_fops sysctl_min_slab_ratio_sysctl_fops;
+extern struct ctl_fops lowmem_reserve_ratio_sysctl_fops;
+extern struct ctl_fops percpu_pagelist_high_fraction_sysctl_fops;
+
 extern int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES];
-int lowmem_reserve_ratio_sysctl_handler(struct ctl_table *, int, void *,
-		size_t *, loff_t *);
-int percpu_pagelist_high_fraction_sysctl_handler(struct ctl_table *, int,
-		void *, size_t *, loff_t *);
-int sysctl_min_unmapped_ratio_sysctl_handler(struct ctl_table *, int,
-		void *, size_t *, loff_t *);
-int sysctl_min_slab_ratio_sysctl_handler(struct ctl_table *, int,
-		void *, size_t *, loff_t *);
 int numa_zonelist_order_handler(struct ctl_table *, int,
 		void *, size_t *, loff_t *);
 extern int percpu_pagelist_high_fraction;

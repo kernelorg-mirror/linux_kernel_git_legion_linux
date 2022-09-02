@@ -17,8 +17,7 @@ extern int sysctl_stat_interval;
 #define DISABLE_NUMA_STAT   0
 extern int sysctl_vm_numa_stat;
 DECLARE_STATIC_KEY_TRUE(vm_numa_stat_key);
-int sysctl_vm_numa_stat_handler(struct ctl_table *table, int write,
-		void *buffer, size_t *length, loff_t *ppos);
+extern struct ctl_fops sysctl_vm_numa_stat_fops;
 #endif
 
 struct reclaim_stat {
