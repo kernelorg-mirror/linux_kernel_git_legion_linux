@@ -511,20 +511,17 @@ static unsigned int find_supported_vector_length(enum vec_type type,
 
 #if defined(CONFIG_ARM64_SVE) && defined(CONFIG_SYSCTL)
 
-static int vec_proc_do_default_vl(struct ctl_table *table, int write,
-				  void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t vec_proc_do_default_vl_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
-	struct vl_info *info = table->extra1;
+	struct vl_info *info = ctx->ctl_table->extra1;
 	enum vec_type type = info->type;
-	int ret;
+	ssize_t ret;
 	int vl = get_default_vl(type);
-	struct ctl_table tmp_table = {
-		.data = &vl,
-		.maxlen = sizeof(vl),
-	};
 
-	ret = proc_dointvec(&tmp_table, write, buffer, lenp, ppos);
-	if (ret || !write)
+	ret = do_proc_dointvec_w(&vl, ctx->ctl_table, buffer, lenp, ppos,
+			do_proc_dointvec_minmax_conv, NULL, NULL);
+	if (ret)
 		return ret;
 
 	/* Writing -1 has the special meaning "set to max": */
@@ -538,11 +535,28 @@ static int vec_proc_do_default_vl(struct ctl_table *table, int write,
 	return 0;
 }
 
+static ssize_t vec_proc_do_default_vl_read(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	struct vl_info *info = ctx->ctl_table->extra1;
+	enum vec_type type = info->type;
+	int vl = get_default_vl(type);
+
+	return do_proc_dointvec_w(&vl, ctx->ctl_table, buffer, lenp, ppos,
+			do_proc_dointvec_minmax_conv, NULL, NULL);
+}
+
+static struct ctl_fops vec_proc_do_default_vl_fops = {
+	.read  = vec_proc_do_default_vl_read,
+	.write = vec_proc_do_default_vl_write,
+};
+
 static struct ctl_table sve_default_vl_table[] = {
 	{
 		.procname	= "sve_default_vector_length",
 		.mode		= 0644,
-		.proc_handler	= vec_proc_do_default_vl,
+		.maxlen		= sizeof(int),
+		.ctl_fops	= &vec_proc_do_default_vl_fops,
 		.extra1		= &vl_info[ARM64_VEC_SVE],
 	},
 	{ }
@@ -566,7 +580,8 @@ static struct ctl_table sme_default_vl_table[] = {
 	{
 		.procname	= "sme_default_vector_length",
 		.mode		= 0644,
-		.proc_handler	= vec_proc_do_default_vl,
+		.maxlen		= sizeof(int),
+		.ctl_fops	= &vec_proc_do_default_vl_fops,
 		.extra1		= &vl_info[ARM64_VEC_SME],
 	},
 	{ }
