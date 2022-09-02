@@ -492,41 +492,56 @@ bool node_dirty_ok(struct pglist_data *pgdat)
 }
 
 #ifdef CONFIG_SYSCTL
-static int dirty_background_ratio_handler(struct ctl_table *table, int write,
-		void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t dirty_background_ratio_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
-	int ret;
+	ssize_t ret;
 
-	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
-	if (ret == 0 && write)
+	ret = sysctl_write_intvec(ctx, file, buffer, lenp, ppos);
+	if (!ret)
 		dirty_background_bytes = 0;
 	return ret;
 }
 
-static int dirty_background_bytes_handler(struct ctl_table *table, int write,
-		void *buffer, size_t *lenp, loff_t *ppos)
-{
-	int ret;
+static struct ctl_fops dirty_background_ratio_fops = {
+	.read = sysctl_read_intvec,
+	.write = dirty_background_ratio_write,
+};
 
-	ret = proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
-	if (ret == 0 && write)
+static ssize_t dirty_background_bytes_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	ssize_t ret;
+
+	ret = sysctl_write_intvec(ctx, file, buffer, lenp, ppos);
+	if (!ret)
 		dirty_background_ratio = 0;
 	return ret;
 }
 
-static int dirty_ratio_handler(struct ctl_table *table, int write, void *buffer,
-		size_t *lenp, loff_t *ppos)
+static struct ctl_fops dirty_background_bytes_fops = {
+	.read = sysctl_read_intvec,
+	.write = dirty_background_bytes_write,
+};
+
+static ssize_t dirty_ratio_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
 	int old_ratio = vm_dirty_ratio;
-	int ret;
+	ssize_t ret;
 
-	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
-	if (ret == 0 && write && vm_dirty_ratio != old_ratio) {
+	ret = sysctl_write_intvec(ctx, file, buffer, lenp, ppos);
+	if (!ret && vm_dirty_ratio != old_ratio) {
 		writeback_set_ratelimit();
 		vm_dirty_bytes = 0;
 	}
 	return ret;
 }
+
+static struct ctl_fops dirty_ratio_fops = {
+	.read = sysctl_read_intvec,
+	.write = dirty_ratio_write,
+};
 
 static int dirty_bytes_handler(struct ctl_table *table, int write,
 		void *buffer, size_t *lenp, loff_t *ppos)
@@ -2091,7 +2106,7 @@ static struct ctl_table vm_page_writeback_sysctls[] = {
 		.data       = &dirty_background_ratio,
 		.maxlen     = sizeof(dirty_background_ratio),
 		.mode       = 0644,
-		.proc_handler   = dirty_background_ratio_handler,
+		.ctl_fops   = &dirty_background_ratio_fops,
 		.extra1     = SYSCTL_ZERO,
 		.extra2     = SYSCTL_ONE_HUNDRED,
 	},
@@ -2100,7 +2115,7 @@ static struct ctl_table vm_page_writeback_sysctls[] = {
 		.data       = &dirty_background_bytes,
 		.maxlen     = sizeof(dirty_background_bytes),
 		.mode       = 0644,
-		.proc_handler   = dirty_background_bytes_handler,
+		.ctl_fops   = &dirty_background_bytes_fops,
 		.extra1     = SYSCTL_LONG_ONE,
 	},
 	{
@@ -2108,7 +2123,7 @@ static struct ctl_table vm_page_writeback_sysctls[] = {
 		.data       = &vm_dirty_ratio,
 		.maxlen     = sizeof(vm_dirty_ratio),
 		.mode       = 0644,
-		.proc_handler   = dirty_ratio_handler,
+		.ctl_fops   = &dirty_ratio_fops,
 		.extra1     = SYSCTL_ZERO,
 		.extra2     = SYSCTL_ONE_HUNDRED,
 	},

@@ -8681,40 +8681,48 @@ int __meminit init_per_zone_wmark_min(void)
 postcore_initcall(init_per_zone_wmark_min)
 
 /*
- * min_free_kbytes_sysctl_handler - just a wrapper around proc_dointvec() so
+ * min_free_kbytes_write - just a wrapper around proc_dointvec_minmax() so
  *	that we can call two helper functions whenever min_free_kbytes
  *	changes.
  */
-int min_free_kbytes_sysctl_handler(struct ctl_table *table, int write,
-		void *buffer, size_t *length, loff_t *ppos)
+static ssize_t min_free_kbytes_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
-	int rc;
+	ssize_t rc;
 
-	rc = proc_dointvec_minmax(table, write, buffer, length, ppos);
+	rc = sysctl_write_intvec(ctx, file, buffer, lenp, ppos);
 	if (rc)
 		return rc;
 
-	if (write) {
-		user_min_free_kbytes = min_free_kbytes;
-		setup_per_zone_wmarks();
-	}
+	user_min_free_kbytes = min_free_kbytes;
+	setup_per_zone_wmarks();
+
 	return 0;
 }
 
-int watermark_scale_factor_sysctl_handler(struct ctl_table *table, int write,
-		void *buffer, size_t *length, loff_t *ppos)
-{
-	int rc;
+struct ctl_fops min_free_kbytes_sysctl_fops = {
+	.read = sysctl_read_intvec,
+	.write = min_free_kbytes_write,
+};
 
-	rc = proc_dointvec_minmax(table, write, buffer, length, ppos);
+static ssize_t watermark_scale_factor_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	ssize_t rc;
+
+	rc = sysctl_write_intvec(ctx, file, buffer, lenp, ppos);
 	if (rc)
 		return rc;
 
-	if (write)
-		setup_per_zone_wmarks();
+	setup_per_zone_wmarks();
 
 	return 0;
 }
+
+struct ctl_fops watermark_scale_factor_sysctl_fops = {
+	.read = sysctl_read_intvec,
+	.write = watermark_scale_factor_write,
+};
 
 #ifdef CONFIG_NUMA
 static void setup_min_unmapped_ratio(void)
@@ -8730,20 +8738,24 @@ static void setup_min_unmapped_ratio(void)
 						         sysctl_min_unmapped_ratio) / 100;
 }
 
-
-int sysctl_min_unmapped_ratio_sysctl_handler(struct ctl_table *table, int write,
-		void *buffer, size_t *length, loff_t *ppos)
+static ssize_t sysctl_min_unmapped_ratio_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
-	int rc;
+	ssize_t rc;
 
-	rc = proc_dointvec_minmax(table, write, buffer, length, ppos);
-	if (rc || !write)
+	rc = sysctl_write_intvec(ctx, file, buffer, lenp, ppos);
+	if (rc)
 		return rc;
 
 	setup_min_unmapped_ratio();
 
 	return 0;
 }
+
+struct ctl_fops sysctl_min_unmapped_ratio_sysctl_fops = {
+	.read = sysctl_read_intvec,
+	.write = sysctl_min_unmapped_ratio_write,
+};
 
 static void setup_min_slab_ratio(void)
 {
@@ -8758,23 +8770,28 @@ static void setup_min_slab_ratio(void)
 						     sysctl_min_slab_ratio) / 100;
 }
 
-int sysctl_min_slab_ratio_sysctl_handler(struct ctl_table *table, int write,
-		void *buffer, size_t *length, loff_t *ppos)
+static ssize_t sysctl_min_slab_ratio_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
-	int rc;
+	ssize_t rc;
 
-	rc = proc_dointvec_minmax(table, write, buffer, length, ppos);
-	if (rc || !write)
+	rc = sysctl_write_intvec(ctx, file, buffer, lenp, ppos);
+	if (rc)
 		return rc;
 
 	setup_min_slab_ratio();
 
 	return 0;
 }
+
+struct ctl_fops sysctl_min_slab_ratio_sysctl_fops = {
+	.read = sysctl_read_intvec,
+	.write = sysctl_min_slab_ratio_write,
+};
 #endif
 
 /*
- * lowmem_reserve_ratio_sysctl_handler - just a wrapper around
+ * lowmem_reserve_ratio_write - just a wrapper around
  *	proc_dointvec() so that we can call setup_per_zone_lowmem_reserve()
  *	whenever sysctl_lowmem_reserve_ratio changes.
  *
@@ -8782,13 +8799,14 @@ int sysctl_min_slab_ratio_sysctl_handler(struct ctl_table *table, int write,
  * minimum watermarks. The lowmem reserve ratio can only make sense
  * if in function of the boot time zone sizes.
  */
-int lowmem_reserve_ratio_sysctl_handler(struct ctl_table *table, int write,
-		void *buffer, size_t *length, loff_t *ppos)
+static ssize_t lowmem_reserve_ratio_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
-	int i, rc;
+	int i;
+	ssize_t rc;
 
-	rc = proc_dointvec_minmax(table, write, buffer, length, ppos);
-	if (rc || !write)
+	rc = sysctl_write_intvec(ctx, file, buffer, lenp, ppos);
+	if (rc)
 		return rc;
 
 	for (i = 0; i < MAX_NR_ZONES; i++) {
@@ -8800,23 +8818,40 @@ int lowmem_reserve_ratio_sysctl_handler(struct ctl_table *table, int write,
 	return 0;
 }
 
+struct ctl_fops lowmem_reserve_ratio_sysctl_fops = {
+	.read = sysctl_read_intvec,
+	.write = lowmem_reserve_ratio_write,
+};
+
 /*
  * percpu_pagelist_high_fraction - changes the pcp->high for each zone on each
  * cpu. It is the fraction of total pages in each zone that a hot per cpu
  * pagelist can have before it gets flushed back to buddy allocator.
  */
-int percpu_pagelist_high_fraction_sysctl_handler(struct ctl_table *table,
-		int write, void *buffer, size_t *length, loff_t *ppos)
+static ssize_t percpu_pagelist_high_fraction_read(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	ssize_t ret;
+
+	mutex_lock(&pcp_batch_high_lock);
+	ret = sysctl_read_intvec(ctx, file, buffer, lenp, ppos);
+	mutex_unlock(&pcp_batch_high_lock);
+
+	return ret;
+}
+
+static ssize_t percpu_pagelist_high_fraction_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct zone *zone;
 	int old_percpu_pagelist_high_fraction;
-	int ret;
+	ssize_t ret;
 
 	mutex_lock(&pcp_batch_high_lock);
 	old_percpu_pagelist_high_fraction = percpu_pagelist_high_fraction;
 
-	ret = proc_dointvec_minmax(table, write, buffer, length, ppos);
-	if (!write || ret < 0)
+	ret = sysctl_write_intvec(ctx, file, buffer, lenp, ppos);
+	if (ret < 0)
 		goto out;
 
 	/* Sanity checking to avoid pcp imbalance */
@@ -8837,6 +8872,11 @@ out:
 	mutex_unlock(&pcp_batch_high_lock);
 	return ret;
 }
+
+struct ctl_fops percpu_pagelist_high_fraction_sysctl_fops = {
+	.read = percpu_pagelist_high_fraction_read,
+	.write = percpu_pagelist_high_fraction_write,
+};
 
 #ifndef __HAVE_ARCH_RESERVED_KERNEL_PAGES
 /*

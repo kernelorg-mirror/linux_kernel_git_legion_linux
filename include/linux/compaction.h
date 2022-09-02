@@ -82,10 +82,8 @@ static inline unsigned long compact_gap(unsigned int order)
 
 #ifdef CONFIG_COMPACTION
 extern unsigned int sysctl_compaction_proactiveness;
-extern int sysctl_compaction_handler(struct ctl_table *table, int write,
-			void *buffer, size_t *length, loff_t *ppos);
-extern int compaction_proactiveness_sysctl_handler(struct ctl_table *table,
-		int write, void *buffer, size_t *length, loff_t *ppos);
+extern struct ctl_fops sysctl_compaction_fops;
+extern struct ctl_fops compaction_proactiveness_sysctl_fops;
 extern int sysctl_extfrag_threshold;
 extern int sysctl_compact_unevictable_allowed;
 
