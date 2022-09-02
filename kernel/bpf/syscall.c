@@ -5167,63 +5167,99 @@ const struct bpf_prog_ops bpf_syscall_prog_ops = {
 };
 
 #ifdef CONFIG_SYSCTL
-static int bpf_stats_handler(struct ctl_table *table, int write,
-			     void *buffer, size_t *lenp, loff_t *ppos)
-{
-	struct static_key *key = (struct static_key *)table->data;
-	static int saved_val;
-	int val, ret;
-	struct ctl_table tmp = {
-		.data   = &val,
-		.maxlen = sizeof(val),
-		.mode   = table->mode,
-		.extra1 = SYSCTL_ZERO,
-		.extra2 = SYSCTL_ONE,
-	};
+static int bpf_stats_enabled;
 
-	if (write && !capable(CAP_SYS_ADMIN))
+static ssize_t bpf_stats_enabled_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	int saved_val;
+	ssize_t ret;
+
+	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
 	mutex_lock(&bpf_stats_enabled_mutex);
-	val = saved_val;
-	ret = proc_dointvec_minmax(&tmp, write, buffer, lenp, ppos);
-	if (write && !ret && val != saved_val) {
-		if (val)
-			static_key_slow_inc(key);
+	saved_val = bpf_stats_enabled;
+
+	ret = sysctl_write_intvec(ctx, file, buffer, lenp, ppos);
+
+	if (!ret && saved_val != bpf_stats_enabled) {
+		if (bpf_stats_enabled)
+			static_key_slow_inc(&bpf_stats_enabled_key.key);
 		else
-			static_key_slow_dec(key);
-		saved_val = val;
+			static_key_slow_dec(&bpf_stats_enabled_key.key);
 	}
+
 	mutex_unlock(&bpf_stats_enabled_mutex);
 	return ret;
 }
+
+static ssize_t bpf_stats_enabled_read(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	ssize_t ret;
+	mutex_lock(&bpf_stats_enabled_mutex);
+	ret = sysctl_read_intvec(ctx, file, buffer, lenp, ppos);
+	mutex_unlock(&bpf_stats_enabled_mutex);
+	return ret;
+}
+
+static struct ctl_fops bpf_stats_enabled_fops = {
+	.read = bpf_stats_enabled_read,
+	.write = bpf_stats_enabled_write,
+};
 
 void __weak unpriv_ebpf_notify(int new_state)
 {
 }
 
-static int bpf_unpriv_handler(struct ctl_table *table, int write,
-			      void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t bpf_unpriv_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
-	int ret, unpriv_enable = *(int *)table->data;
+	int unpriv_enable = *(int *)ctx->ctl_table->data;
 	bool locked_state = unpriv_enable == 1;
-	struct ctl_table tmp = *table;
+	ssize_t ret;
 
-	if (write && !capable(CAP_SYS_ADMIN))
+	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	tmp.data = &unpriv_enable;
-	ret = proc_dointvec_minmax(&tmp, write, buffer, lenp, ppos);
-	if (write && !ret) {
-		if (locked_state && unpriv_enable != 1)
-			return -EPERM;
-		*(int *)table->data = unpriv_enable;
-	}
+	ret = sysctl_write_intvec_data(&unpriv_enable, ctx->ctl_table,
+			buffer, lenp, ppos,
+			sysctl_conv_intvec,
+			ctx->ctl_table->extra1,
+			ctx->ctl_table->extra2);
+	if (ret < 0)
+		return ret;
+
+	if (locked_state && unpriv_enable != 1)
+		return -EPERM;
+
+	*(int *)ctx->ctl_table->data = unpriv_enable;
 
 	unpriv_ebpf_notify(unpriv_enable);
 
 	return ret;
 }
+
+static ssize_t bpf_unpriv_read(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	int unpriv_enable = *(int *)ctx->ctl_table->data;
+	ssize_t ret;
+
+	ret = sysctl_read_intvec(ctx, file, buffer, lenp, ppos);
+	if (ret < 0)
+		return ret;
+
+	unpriv_ebpf_notify(unpriv_enable);
+
+	return ret;
+}
+
+static struct ctl_fops bpf_unpriv_fops = {
+	.read = bpf_unpriv_read,
+	.write = bpf_unpriv_write,
+};
 
 static struct ctl_table bpf_syscall_table[] = {
 	{
@@ -5231,16 +5267,18 @@ static struct ctl_table bpf_syscall_table[] = {
 		.data		= &sysctl_unprivileged_bpf_disabled,
 		.maxlen		= sizeof(sysctl_unprivileged_bpf_disabled),
 		.mode		= 0644,
-		.proc_handler	= bpf_unpriv_handler,
+		.ctl_fops	= &bpf_unpriv_fops,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_TWO,
 	},
 	{
 		.procname	= "bpf_stats_enabled",
-		.data		= &bpf_stats_enabled_key.key,
-		.maxlen		= sizeof(bpf_stats_enabled_key),
+		.data		= &bpf_stats_enabled,
+		.maxlen		= sizeof(bpf_stats_enabled),
 		.mode		= 0644,
-		.proc_handler	= bpf_stats_handler,
+		.ctl_fops	= &bpf_stats_enabled_fops,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= SYSCTL_ONE,
 	},
 	{ }
 };
