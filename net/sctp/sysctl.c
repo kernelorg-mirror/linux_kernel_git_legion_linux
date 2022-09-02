@@ -51,12 +51,17 @@ static int proc_sctp_do_rto_max(struct ctl_table *ctl, int write, void *buffer,
 				size_t *lenp, loff_t *ppos);
 static int proc_sctp_do_udp_port(struct ctl_table *ctl, int write, void *buffer,
 				 size_t *lenp, loff_t *ppos);
-static int proc_sctp_do_alpha_beta(struct ctl_table *ctl, int write,
-				   void *buffer, size_t *lenp, loff_t *ppos);
+static ssize_t proc_sctp_do_alpha_beta_write(struct ctl_context *ctx, struct file *file,
+					     char *buffer, size_t *lenp, loff_t *ppos);
 static int proc_sctp_do_auth(struct ctl_table *ctl, int write,
 			     void *buffer, size_t *lenp, loff_t *ppos);
 static int proc_sctp_do_probe_interval(struct ctl_table *ctl, int write,
 				       void *buffer, size_t *lenp, loff_t *ppos);
+
+static struct ctl_fops proc_sctp_do_alpha_beta_fops = {
+	.read  = sysctl_read_intvec,
+	.write = proc_sctp_do_alpha_beta_write,
+};
 
 static struct ctl_table sctp_table[] = {
 	{
@@ -117,7 +122,7 @@ static struct ctl_table sctp_net_table[] = {
 		.data		= &init_net.sctp.rto_alpha,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_sctp_do_alpha_beta,
+		.ctl_fops	= &proc_sctp_do_alpha_beta_fops,
 		.extra1		= &rto_alpha_min,
 		.extra2		= &rto_alpha_max,
 	},
@@ -126,7 +131,7 @@ static struct ctl_table sctp_net_table[] = {
 		.data		= &init_net.sctp.rto_beta,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_sctp_do_alpha_beta,
+		.ctl_fops	= &proc_sctp_do_alpha_beta_fops,
 		.extra1		= &rto_beta_min,
 		.extra2		= &rto_beta_max,
 	},
@@ -468,14 +473,13 @@ static int proc_sctp_do_rto_max(struct ctl_table *ctl, int write,
 	return ret;
 }
 
-static int proc_sctp_do_alpha_beta(struct ctl_table *ctl, int write,
-				   void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t proc_sctp_do_alpha_beta_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
-	if (write)
-		pr_warn_once("Changing rto_alpha or rto_beta may lead to "
-			     "suboptimal rtt/srtt estimations!\n");
+	pr_warn_once("Changing rto_alpha or rto_beta may lead to "
+		     "suboptimal rtt/srtt estimations!\n");
 
-	return proc_dointvec_minmax(ctl, write, buffer, lenp, ppos);
+	return sysctl_write_intvec(ctx, file, buffer, lenp, ppos);
 }
 
 static int proc_sctp_do_auth(struct ctl_table *ctl, int write,

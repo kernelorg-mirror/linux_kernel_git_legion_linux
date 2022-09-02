@@ -59,26 +59,22 @@ static void set_local_port_range(struct net *net, int range[2])
 }
 
 /* Validate changes from /proc interface. */
-static int ipv4_local_port_range(struct ctl_table *table, int write,
-				 void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t ipv4_local_port_range_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct net *net =
-		container_of(table->data, struct net, ipv4.ip_local_ports.range);
-	int ret;
+		container_of(ctx->ctl_table->data, struct net, ipv4.ip_local_ports.range);
+	ssize_t ret;
 	int range[2];
-	struct ctl_table tmp = {
-		.data = &range,
-		.maxlen = sizeof(range),
-		.mode = table->mode,
-		.extra1 = &ip_local_port_range_min,
-		.extra2 = &ip_local_port_range_max,
-	};
 
 	inet_get_local_port_range(net, &range[0], &range[1]);
 
-	ret = proc_dointvec_minmax(&tmp, write, buffer, lenp, ppos);
+	ret = sysctl_write_intvec_data(&range, ctx->ctl_table, buffer, lenp, ppos,
+			sysctl_conv_intvec,
+			ip_local_port_range_min,
+			ip_local_port_range_max);
 
-	if (write && ret == 0) {
+	if (ret == 0) {
 		/* Ensure that the upper limit is not smaller than the lower,
 		 * and that the lower does not encroach upon the privileged
 		 * port limit.
@@ -93,28 +89,40 @@ static int ipv4_local_port_range(struct ctl_table *table, int write,
 	return ret;
 }
 
-/* Validate changes from /proc interface. */
-static int ipv4_privileged_ports(struct ctl_table *table, int write,
-				void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t ipv4_local_port_range_read(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
-	struct net *net = container_of(table->data, struct net,
-	    ipv4.sysctl_ip_prot_sock);
-	int ret;
-	int pports;
+	struct net *net =
+		container_of(ctx->ctl_table->data, struct net, ipv4.ip_local_ports.range);
 	int range[2];
-	struct ctl_table tmp = {
-		.data = &pports,
-		.maxlen = sizeof(pports),
-		.mode = table->mode,
-		.extra1 = &ip_privileged_port_min,
-		.extra2 = &ip_privileged_port_max,
-	};
 
-	pports = net->ipv4.sysctl_ip_prot_sock;
+	inet_get_local_port_range(net, &range[0], &range[1]);
 
-	ret = proc_dointvec_minmax(&tmp, write, buffer, lenp, ppos);
+	return sysctl_read_intvec_data(&range, ctx->ctl_table, buffer, lenp, ppos,
+			sysctl_conv_intvec, NULL, NULL);
+}
 
-	if (write && ret == 0) {
+static struct ctl_fops ipv4_local_port_range_fops = {
+	.read  = ipv4_local_port_range_read,
+	.write = ipv4_local_port_range_write,
+};
+
+/* Validate changes from /proc interface. */
+static ssize_t ipv4_privileged_ports_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	struct net *net = container_of(ctx->ctl_table->data, struct net,
+	    ipv4.sysctl_ip_prot_sock);
+	int pports = net->ipv4.sysctl_ip_prot_sock;
+	int range[2];
+	ssize_t ret;
+
+	ret = sysctl_write_intvec_data(&pports, ctx->ctl_table, buffer, lenp, ppos,
+			sysctl_conv_intvec,
+			&ip_privileged_port_min,
+			&ip_privileged_port_max);
+
+	if (ret == 0) {
 		inet_get_local_port_range(net, &range[0], &range[1]);
 		/* Ensure that the local port range doesn't overlap with the
 		 * privileged port range.
@@ -127,6 +135,22 @@ static int ipv4_privileged_ports(struct ctl_table *table, int write,
 
 	return ret;
 }
+
+static ssize_t ipv4_privileged_ports_read(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	struct net *net = container_of(ctx->ctl_table->data, struct net,
+	    ipv4.sysctl_ip_prot_sock);
+
+	return sysctl_read_intvec_data(&net->ipv4.sysctl_ip_prot_sock, ctx->ctl_table,
+			buffer, lenp, ppos,
+			sysctl_conv_intvec, NULL, NULL);
+}
+
+static struct ctl_fops ipv4_privileged_ports_fops = {
+	.read  = ipv4_privileged_ports_read,
+	.write = ipv4_privileged_ports_write,
+};
 
 static void inet_get_ping_group_range_table(struct ctl_table *table, kgid_t *low, kgid_t *high)
 {
@@ -155,27 +179,24 @@ static void set_ping_group_range(struct ctl_table *table, kgid_t low, kgid_t hig
 }
 
 /* Validate changes from /proc interface. */
-static int ipv4_ping_group_range(struct ctl_table *table, int write,
-				 void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t ipv4_ping_group_range_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct user_namespace *user_ns = current_user_ns();
-	int ret;
+	ssize_t ret;
 	gid_t urange[2];
 	kgid_t low, high;
-	struct ctl_table tmp = {
-		.data = &urange,
-		.maxlen = sizeof(urange),
-		.mode = table->mode,
-		.extra1 = &ip_ping_group_range_min,
-		.extra2 = &ip_ping_group_range_max,
-	};
 
-	inet_get_ping_group_range_table(table, &low, &high);
+	inet_get_ping_group_range_table(ctx->ctl_table, &low, &high);
 	urange[0] = from_kgid_munged(user_ns, low);
 	urange[1] = from_kgid_munged(user_ns, high);
-	ret = proc_dointvec_minmax(&tmp, write, buffer, lenp, ppos);
 
-	if (write && ret == 0) {
+	ret = sysctl_write_intvec_data(&urange, ctx->ctl_table, buffer, lenp, ppos,
+			sysctl_conv_intvec,
+			ip_ping_group_range_min,
+			ip_ping_group_range_max);
+
+	if (ret == 0) {
 		low = make_kgid(user_ns, urange[0]);
 		high = make_kgid(user_ns, urange[1]);
 		if (!gid_valid(low) || !gid_valid(high))
@@ -184,11 +205,31 @@ static int ipv4_ping_group_range(struct ctl_table *table, int write,
 			low = make_kgid(&init_user_ns, 1);
 			high = make_kgid(&init_user_ns, 0);
 		}
-		set_ping_group_range(table, low, high);
+		set_ping_group_range(ctx->ctl_table, low, high);
 	}
 
 	return ret;
 }
+
+static ssize_t ipv4_ping_group_range_read(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	struct user_namespace *user_ns = current_user_ns();
+	gid_t urange[2];
+	kgid_t low, high;
+
+	inet_get_ping_group_range_table(ctx->ctl_table, &low, &high);
+	urange[0] = from_kgid_munged(user_ns, low);
+	urange[1] = from_kgid_munged(user_ns, high);
+
+	return sysctl_read_intvec_data(&urange, ctx->ctl_table, buffer, lenp, ppos,
+			sysctl_conv_intvec, NULL, NULL);
+}
+
+static struct ctl_fops ipv4_ping_group_range_fops = {
+	.read  = ipv4_ping_group_range_read,
+	.write = ipv4_ping_group_range_write,
+};
 
 static int ipv4_fwd_update_priority(struct ctl_table *table, int write,
 				    void *buffer, size_t *lenp, loff_t *ppos)
@@ -405,20 +446,24 @@ static int proc_udp_early_demux(struct ctl_table *table, int write,
 	return ret;
 }
 
-static int proc_tfo_blackhole_detect_timeout(struct ctl_table *table,
-					     int write, void *buffer,
-					     size_t *lenp, loff_t *ppos)
+static ssize_t proc_tfo_blackhole_detect_timeout_write(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos)
 {
-	struct net *net = container_of(table->data, struct net,
+	struct net *net = container_of(ctx->ctl_table->data, struct net,
 	    ipv4.sysctl_tcp_fastopen_blackhole_timeout);
-	int ret;
+	ssize_t ret;
 
-	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
-	if (write && ret == 0)
+	ret = sysctl_write_intvec(ctx, file, buffer, lenp, ppos);
+	if (ret == 0)
 		atomic_set(&net->ipv4.tfo_active_disable_times, 0);
 
 	return ret;
 }
+
+static struct ctl_fops proc_tfo_blackhole_detect_timeout_fops = {
+	.read  = sysctl_read_intvec,
+	.write = proc_tfo_blackhole_detect_timeout_write,
+};
 
 static int proc_tcp_available_ulp(struct ctl_table *ctl,
 				  int write, void *buffer, size_t *lenp,
@@ -657,7 +702,7 @@ static struct ctl_table ipv4_net_table[] = {
 		.data		= &init_net.ipv4.ping_group_range.range,
 		.maxlen		= sizeof(gid_t)*2,
 		.mode		= 0644,
-		.proc_handler	= ipv4_ping_group_range,
+		.ctl_fops	= &ipv4_ping_group_range_fops,
 	},
 #ifdef CONFIG_NET_L3_MASTER_DEV
 	{
@@ -735,7 +780,7 @@ static struct ctl_table ipv4_net_table[] = {
 		.maxlen		= sizeof(init_net.ipv4.ip_local_ports.range),
 		.data		= &init_net.ipv4.ip_local_ports.range,
 		.mode		= 0644,
-		.proc_handler	= ipv4_local_port_range,
+		.ctl_fops	= &ipv4_local_port_range_fops,
 	},
 	{
 		.procname	= "ip_local_reserved_ports",
@@ -1043,7 +1088,7 @@ static struct ctl_table ipv4_net_table[] = {
 		.data		= &init_net.ipv4.sysctl_tcp_fastopen_blackhole_timeout,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_tfo_blackhole_detect_timeout,
+		.ctl_fops	= &proc_tfo_blackhole_detect_timeout_fops,
 		.extra1		= SYSCTL_ZERO,
 	},
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
@@ -1080,7 +1125,7 @@ static struct ctl_table ipv4_net_table[] = {
 		.maxlen		= sizeof(int),
 		.data		= &init_net.ipv4.sysctl_ip_prot_sock,
 		.mode		= 0644,
-		.proc_handler	= ipv4_privileged_ports,
+		.ctl_fops	= &ipv4_privileged_ports_fops,
 	},
 #ifdef CONFIG_NET_L3_MASTER_DEV
 	{
