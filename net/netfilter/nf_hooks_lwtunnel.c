@@ -25,29 +25,36 @@ static inline int nf_hooks_lwtunnel_set(int enable)
 }
 
 #ifdef CONFIG_SYSCTL
-int nf_hooks_lwtunnel_sysctl_handler(struct ctl_table *table, int write,
-				     void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t nf_hooks_lwtunnel_sysctl_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
 	int proc_nf_hooks_lwtunnel_enabled = 0;
-	struct ctl_table tmp = {
-		.procname = table->procname,
-		.data = &proc_nf_hooks_lwtunnel_enabled,
-		.maxlen = sizeof(int),
-		.mode = table->mode,
-		.extra1 = SYSCTL_ZERO,
-		.extra2 = SYSCTL_ONE,
-	};
-	int ret;
+	ssize_t ret;
 
-	if (!write)
-		proc_nf_hooks_lwtunnel_enabled = nf_hooks_lwtunnel_get();
+	ret = do_proc_dointvec_w(&proc_nf_hooks_lwtunnel_enabled, ctx->ctl_table,
+			buffer, lenp, ppos,
+			do_proc_dointvec_minmax_conv, SYSCTL_ZERO, SYSCTL_ONE);
 
-	ret = proc_dointvec_minmax(&tmp, write, buffer, lenp, ppos);
-
-	if (write && ret == 0)
+	if (ret == 0)
 		ret = nf_hooks_lwtunnel_set(proc_nf_hooks_lwtunnel_enabled);
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(nf_hooks_lwtunnel_sysctl_handler);
+
+static ssize_t nf_hooks_lwtunnel_sysctl_read(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	int proc_nf_hooks_lwtunnel_enabled = nf_hooks_lwtunnel_get();
+
+	return do_proc_dointvec_r(&proc_nf_hooks_lwtunnel_enabled, ctx->ctl_table,
+			buffer, lenp, ppos,
+			do_proc_dointvec_minmax_conv, NULL, NULL);
+}
+
+struct ctl_fops nf_hooks_lwtunnel_sysctl_fops = {
+	.read  = nf_hooks_lwtunnel_sysctl_read,
+	.write = nf_hooks_lwtunnel_sysctl_write,
+};
+
+EXPORT_SYMBOL_GPL(nf_hooks_lwtunnel_sysctl_fops);
 #endif /* CONFIG_SYSCTL */

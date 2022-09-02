@@ -48,22 +48,18 @@ void phonet_get_local_port_range(int *min, int *max)
 	} while (read_seqretry(&local_port_range_lock, seq));
 }
 
-static int proc_local_port_range(struct ctl_table *table, int write,
-				 void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t proc_local_port_range_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
-	int ret;
+	ssize_t ret;
 	int range[2] = {local_port_range[0], local_port_range[1]};
-	struct ctl_table tmp = {
-		.data = &range,
-		.maxlen = sizeof(range),
-		.mode = table->mode,
-		.extra1 = &local_port_range_min,
-		.extra2 = &local_port_range_max,
-	};
 
-	ret = proc_dointvec_minmax(&tmp, write, buffer, lenp, ppos);
+	ret = do_proc_dointvec_w(&range, ctx->ctl_table, buffer, lenp, ppos,
+			do_proc_dointvec_minmax_conv,
+			local_port_range_min,
+			local_port_range_max);
 
-	if (write && ret == 0) {
+	if (ret == 0) {
 		if (range[1] < range[0])
 			ret = -EINVAL;
 		else
@@ -73,13 +69,27 @@ static int proc_local_port_range(struct ctl_table *table, int write,
 	return ret;
 }
 
+static ssize_t proc_local_port_range_read(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	int range[2] = {local_port_range[0], local_port_range[1]};
+
+	return do_proc_dointvec_r(&range, ctx->ctl_table, buffer, lenp, ppos,
+			do_proc_dointvec_minmax_conv, NULL, NULL);
+}
+
+static struct ctl_fops proc_local_port_range_fops = {
+	.read  = proc_local_port_range_read,
+	.write = proc_local_port_range_write,
+};
+
 static struct ctl_table phonet_table[] = {
 	{
 		.procname	= "local_port_range",
 		.data		= &local_port_range,
 		.maxlen		= sizeof(local_port_range),
 		.mode		= 0644,
-		.proc_handler	= proc_local_port_range,
+		.ctl_fops	= &proc_local_port_range_fops,
 	},
 	{ }
 };

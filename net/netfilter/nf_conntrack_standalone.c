@@ -971,7 +971,7 @@ static struct ctl_table nf_ct_sysctl_table[] = {
 		.data		= NULL,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= nf_hooks_lwtunnel_sysctl_handler,
+		.ctl_fops	= &nf_hooks_lwtunnel_sysctl_fops,
 	},
 #endif
 	{}

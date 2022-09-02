@@ -1928,32 +1928,41 @@ unlock:
 	return res;
 }
 
-static int vrf_shared_table_handler(struct ctl_table *table, int write,
-				    void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t vrf_shared_table_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
-	struct net *net = (struct net *)table->extra1;
+	struct net *net = (struct net *)ctx->ctl_table->extra1;
 	struct vrf_map *vmap = netns_vrf_map(net);
 	int proc_strict_mode = 0;
-	struct ctl_table tmp = {
-		.procname	= table->procname,
-		.data		= &proc_strict_mode,
-		.maxlen		= sizeof(int),
-		.mode		= table->mode,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_ONE,
-	};
-	int ret;
+	ssize_t ret;
 
-	if (!write)
-		proc_strict_mode = vrf_strict_mode(vmap);
+	ret = do_proc_dointvec_w(&proc_strict_mode, ctx->ctl_table,
+			buffer, lenp, ppos,
+			do_proc_dointvec_minmax_conv, SYSCTL_ZERO, SYSCTL_ONE);
 
-	ret = proc_dointvec_minmax(&tmp, write, buffer, lenp, ppos);
-
-	if (write && ret == 0)
+	if (ret == 0)
 		ret = vrf_strict_mode_change(vmap, (bool)proc_strict_mode);
 
 	return ret;
 }
+
+static ssize_t vrf_shared_table_read(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	struct net *net = (struct net *)ctx->ctl_table->extra1;
+	struct vrf_map *vmap = netns_vrf_map(net);
+	int proc_strict_mode = vrf_strict_mode(vmap);
+
+	return do_proc_dointvec_r(&proc_strict_mode, ctx->ctl_table,
+			buffer, lenp, ppos,
+			do_proc_dointvec_minmax_conv, NULL, NULL);
+}
+
+
+static struct ctl_fops vrf_shared_table_fops = {
+	.read  = vrf_shared_table_read,
+	.write = vrf_shared_table_write,
+};
 
 static const struct ctl_table vrf_table[] = {
 	{
@@ -1961,7 +1970,7 @@ static const struct ctl_table vrf_table[] = {
 		.data		= NULL,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= vrf_shared_table_handler,
+		.ctl_fops	= &vrf_shared_table_fops,
 		/* set by the vrf_netns_init */
 		.extra1		= NULL,
 	},
