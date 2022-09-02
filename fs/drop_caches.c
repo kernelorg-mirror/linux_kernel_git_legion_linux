@@ -47,31 +47,35 @@ static void drop_pagecache_sb(struct super_block *sb, void *unused)
 	iput(toput_inode);
 }
 
-int drop_caches_sysctl_handler(struct ctl_table *table, int write,
-		void *buffer, size_t *length, loff_t *ppos)
+static ssize_t drop_caches_sysctl_proc_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
-	int ret;
+	static int stfu;
+	ssize_t ret;
 
-	ret = proc_dointvec_minmax(table, write, buffer, length, ppos);
+	ret = sysctl_write_intvec(ctx, file, buffer, lenp, ppos);
 	if (ret)
 		return ret;
-	if (write) {
-		static int stfu;
 
-		if (sysctl_drop_caches & 1) {
-			iterate_supers(drop_pagecache_sb, NULL);
-			count_vm_event(DROP_PAGECACHE);
-		}
-		if (sysctl_drop_caches & 2) {
-			drop_slab();
-			count_vm_event(DROP_SLAB);
-		}
-		if (!stfu) {
-			pr_info("%s (%d): drop_caches: %d\n",
+	if (sysctl_drop_caches & 1) {
+		iterate_supers(drop_pagecache_sb, NULL);
+		count_vm_event(DROP_PAGECACHE);
+	}
+	if (sysctl_drop_caches & 2) {
+		drop_slab();
+		count_vm_event(DROP_SLAB);
+	}
+	if (!stfu) {
+		pr_info("%s (%d): drop_caches: %d\n",
 				current->comm, task_pid_nr(current),
 				sysctl_drop_caches);
-		}
-		stfu |= sysctl_drop_caches & 4;
 	}
+	stfu |= sysctl_drop_caches & 4;
+
 	return 0;
 }
+
+struct ctl_fops drop_caches_sysctl_proc_fops = {
+	.read = sysctl_read_intvec,
+	.write = drop_caches_sysctl_proc_write,
+};
