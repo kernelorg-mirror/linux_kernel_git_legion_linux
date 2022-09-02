@@ -941,33 +941,62 @@ static void unoptimize_all_kprobes(void)
 }
 
 static DEFINE_MUTEX(kprobe_sysctl_mutex);
-static int sysctl_kprobes_optimization;
-static int proc_kprobes_optimization_handler(struct ctl_table *table,
-					     int write, void *buffer,
-					     size_t *length, loff_t *ppos)
+
+static ssize_t kprobes_optimization_read(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
-	int ret;
+	int kprobes_optimization;
+	ssize_t ret;
 
 	mutex_lock(&kprobe_sysctl_mutex);
-	sysctl_kprobes_optimization = kprobes_allow_optimization ? 1 : 0;
-	ret = proc_dointvec_minmax(table, write, buffer, length, ppos);
+	kprobes_optimization = kprobes_allow_optimization ? 1 : 0;
 
-	if (sysctl_kprobes_optimization)
-		optimize_all_kprobes();
-	else
-		unoptimize_all_kprobes();
+	ret = sysctl_read_intvec_data(&kprobes_optimization, ctx->ctl_table, buffer, lenp, ppos,
+			sysctl_conv_intvec, NULL, NULL);
+
 	mutex_unlock(&kprobe_sysctl_mutex);
 
 	return ret;
 }
 
+static ssize_t kprobes_optimization_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	int kprobes_optimization;
+	ssize_t ret;
+
+	mutex_lock(&kprobe_sysctl_mutex);
+	kprobes_optimization = kprobes_allow_optimization ? 1 : 0;
+
+	ret = sysctl_write_intvec_data(&kprobes_optimization, ctx->ctl_table,
+			buffer, lenp, ppos,
+			sysctl_conv_intvec,
+			ctx->ctl_table->extra1,
+			ctx->ctl_table->extra2);
+	if (!ret) {
+		if (kprobes_optimization)
+			optimize_all_kprobes();
+		else
+			unoptimize_all_kprobes();
+	}
+
+	mutex_unlock(&kprobe_sysctl_mutex);
+
+	return ret;
+}
+
+static struct ctl_fops kprobes_optimization_fops = {
+	.read = kprobes_optimization_read,
+	.write = kprobes_optimization_write,
+};
+
 static struct ctl_table kprobe_sysctls[] = {
 	{
 		.procname	= "kprobes-optimization",
-		.data		= &sysctl_kprobes_optimization,
+		.data		= NULL,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_kprobes_optimization_handler,
+		.ctl_fops	= &kprobes_optimization_fops,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_ONE,
 	},
