@@ -783,14 +783,16 @@ static int proc_dointvec_minmax_warn_RT_change(struct ctl_table *table,
 {
 	int ret, old;
 
-	if (!IS_ENABLED(CONFIG_PREEMPT_RT) || !write)
-		return proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+	if (!write)
+		return sysctl_read_intvec_data(table->data, table, buffer, lenp, ppos,
+				sysctl_conv_intvec, NULL, NULL);
 
 	old = *(int *)table->data;
-	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+	ret = sysctl_write_intvec_data(table->data, table, buffer, lenp, ppos,
+			sysctl_conv_intvec, table->extra1, table->extra2);
 	if (ret)
 		return ret;
-	if (old != *(int *)table->data)
+	if (IS_ENABLED(CONFIG_PREEMPT_RT) && old != *(int *)table->data)
 		pr_warn_once("sysctl attribute %s changed by %s[%d]\n",
 			     table->procname, current->comm,
 			     task_pid_nr(current));
@@ -1665,26 +1667,27 @@ int proc_do_static_key(struct ctl_table *table, int write,
 	struct static_key *key = (struct static_key *)table->data;
 	static DEFINE_MUTEX(static_key_mutex);
 	int val, ret;
-	struct ctl_table tmp = {
-		.data   = &val,
-		.maxlen = sizeof(val),
-		.mode   = table->mode,
-		.extra1 = SYSCTL_ZERO,
-		.extra2 = SYSCTL_ONE,
-	};
 
 	if (write && !capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
 	mutex_lock(&static_key_mutex);
 	val = static_key_enabled(key);
-	ret = proc_dointvec_minmax(&tmp, write, buffer, lenp, ppos);
-	if (write && !ret) {
+
+	if (!write) {
+		ret = sysctl_read_intvec_data(&val, table, buffer, lenp, ppos,
+				sysctl_conv_intvec, NULL, NULL);
+		goto ret;
+	}
+	ret = sysctl_write_intvec_data(&val, table, buffer, lenp, ppos,
+			sysctl_conv_intvec, SYSCTL_ZERO, SYSCTL_ONE);
+	if (!ret) {
 		if (val)
 			static_key_enable(key);
 		else
 			static_key_disable(key);
 	}
+ret:
 	mutex_unlock(&static_key_mutex);
 	return ret;
 }
@@ -1696,7 +1699,7 @@ static struct ctl_table kern_table[] = {
 		.data		= NULL, /* filled in by handler */
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= sysctl_numa_balancing,
+		.ctl_fops	= &sysctl_numa_balancing_fops,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_FOUR,
 	},
@@ -1865,7 +1868,7 @@ static struct ctl_table kern_table[] = {
 		.data		= NULL,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= sysctl_max_threads,
+		.ctl_fops	= &max_threads_fops,
 	},
 	{
 		.procname	= "usermodehelper",
@@ -2080,7 +2083,7 @@ static struct ctl_table kern_table[] = {
 		.data		= &sysctl_perf_event_sample_rate,
 		.maxlen		= sizeof(sysctl_perf_event_sample_rate),
 		.mode		= 0644,
-		.proc_handler	= perf_proc_update_handler,
+		.ctl_fops	= &perf_event_sample_rate_fops,
 		.extra1		= SYSCTL_ONE,
 	},
 	{
@@ -2088,7 +2091,7 @@ static struct ctl_table kern_table[] = {
 		.data		= &sysctl_perf_cpu_time_max_percent,
 		.maxlen		= sizeof(sysctl_perf_cpu_time_max_percent),
 		.mode		= 0644,
-		.proc_handler	= perf_cpu_time_max_percent_handler,
+		.ctl_fops	= &perf_cpu_time_max_percent_fops,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_ONE_HUNDRED,
 	},
@@ -2097,7 +2100,7 @@ static struct ctl_table kern_table[] = {
 		.data		= &sysctl_perf_event_max_stack,
 		.maxlen		= sizeof(sysctl_perf_event_max_stack),
 		.mode		= 0644,
-		.proc_handler	= perf_event_max_stack_handler,
+		.ctl_fops	= &perf_event_max_stack_fops,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= (void *)&six_hundred_forty_kb,
 	},
@@ -2106,7 +2109,7 @@ static struct ctl_table kern_table[] = {
 		.data		= &sysctl_perf_event_max_contexts_per_stack,
 		.maxlen		= sizeof(sysctl_perf_event_max_contexts_per_stack),
 		.mode		= 0644,
-		.proc_handler	= perf_event_max_stack_handler,
+		.ctl_fops	= &perf_event_max_stack_fops,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_ONE_THOUSAND,
 	},
@@ -2151,7 +2154,7 @@ static struct ctl_table vm_table[] = {
 		.data		= &sysctl_overcommit_memory,
 		.maxlen		= sizeof(sysctl_overcommit_memory),
 		.mode		= 0644,
-		.proc_handler	= overcommit_policy_handler,
+		.ctl_fops	= &overcommit_policy_fops,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_TWO,
 	},
@@ -2182,7 +2185,7 @@ static struct ctl_table vm_table[] = {
 		.data		= &dirtytime_expire_interval,
 		.maxlen		= sizeof(dirtytime_expire_interval),
 		.mode		= 0644,
-		.proc_handler	= dirtytime_interval_handler,
+		.ctl_fops	= &dirtytime_interval_fops,
 		.extra1		= SYSCTL_ZERO,
 	},
 	{
@@ -2215,7 +2218,7 @@ static struct ctl_table vm_table[] = {
 		.data			= &sysctl_vm_numa_stat,
 		.maxlen			= sizeof(int),
 		.mode			= 0644,
-		.proc_handler	= sysctl_vm_numa_stat_handler,
+		.ctl_fops		= &sysctl_vm_numa_stat_fops,
 		.extra1			= SYSCTL_ZERO,
 		.extra2			= SYSCTL_ONE,
 	},
@@ -2240,14 +2243,14 @@ static struct ctl_table vm_table[] = {
 		.data		= &sysctl_lowmem_reserve_ratio,
 		.maxlen		= sizeof(sysctl_lowmem_reserve_ratio),
 		.mode		= 0644,
-		.proc_handler	= lowmem_reserve_ratio_sysctl_handler,
+		.ctl_fops	= &lowmem_reserve_ratio_sysctl_fops,
 	},
 	{
 		.procname	= "drop_caches",
 		.data		= &sysctl_drop_caches,
 		.maxlen		= sizeof(int),
 		.mode		= 0200,
-		.proc_handler	= drop_caches_sysctl_handler,
+		.ctl_fops	= &drop_caches_sysctl_proc_fops,
 		.extra1		= SYSCTL_ONE,
 		.extra2		= SYSCTL_FOUR,
 	},
@@ -2257,14 +2260,14 @@ static struct ctl_table vm_table[] = {
 		.data		= NULL,
 		.maxlen		= sizeof(int),
 		.mode		= 0200,
-		.proc_handler	= sysctl_compaction_handler,
+		.ctl_fops	= &sysctl_compaction_fops,
 	},
 	{
 		.procname	= "compaction_proactiveness",
 		.data		= &sysctl_compaction_proactiveness,
 		.maxlen		= sizeof(sysctl_compaction_proactiveness),
 		.mode		= 0644,
-		.proc_handler	= compaction_proactiveness_sysctl_handler,
+		.ctl_fops	= &compaction_proactiveness_sysctl_fops,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_ONE_HUNDRED,
 	},
@@ -2293,7 +2296,7 @@ static struct ctl_table vm_table[] = {
 		.data		= &min_free_kbytes,
 		.maxlen		= sizeof(min_free_kbytes),
 		.mode		= 0644,
-		.proc_handler	= min_free_kbytes_sysctl_handler,
+		.ctl_fops	= &min_free_kbytes_sysctl_fops,
 		.extra1		= SYSCTL_ZERO,
 	},
 	{
@@ -2309,7 +2312,7 @@ static struct ctl_table vm_table[] = {
 		.data		= &watermark_scale_factor,
 		.maxlen		= sizeof(watermark_scale_factor),
 		.mode		= 0644,
-		.proc_handler	= watermark_scale_factor_sysctl_handler,
+		.ctl_fops	= &watermark_scale_factor_sysctl_fops,
 		.extra1		= SYSCTL_ONE,
 		.extra2		= SYSCTL_THREE_THOUSAND,
 	},
@@ -2318,7 +2321,7 @@ static struct ctl_table vm_table[] = {
 		.data		= &percpu_pagelist_high_fraction,
 		.maxlen		= sizeof(percpu_pagelist_high_fraction),
 		.mode		= 0644,
-		.proc_handler	= percpu_pagelist_high_fraction_sysctl_handler,
+		.ctl_fops	= &percpu_pagelist_high_fraction_sysctl_fops,
 		.extra1		= SYSCTL_ZERO,
 	},
 	{
@@ -2381,7 +2384,7 @@ static struct ctl_table vm_table[] = {
 		.data		= &sysctl_min_unmapped_ratio,
 		.maxlen		= sizeof(sysctl_min_unmapped_ratio),
 		.mode		= 0644,
-		.proc_handler	= sysctl_min_unmapped_ratio_sysctl_handler,
+		.ctl_fops	= &sysctl_min_unmapped_ratio_sysctl_fops,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_ONE_HUNDRED,
 	},
@@ -2390,7 +2393,7 @@ static struct ctl_table vm_table[] = {
 		.data		= &sysctl_min_slab_ratio,
 		.maxlen		= sizeof(sysctl_min_slab_ratio),
 		.mode		= 0644,
-		.proc_handler	= sysctl_min_slab_ratio_sysctl_handler,
+		.ctl_fops	= &sysctl_min_slab_ratio_sysctl_fops,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_ONE_HUNDRED,
 	},

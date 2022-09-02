@@ -256,14 +256,24 @@ void zap_pid_ns_processes(struct pid_namespace *pid_ns)
 }
 
 #ifdef CONFIG_CHECKPOINT_RESTORE
-static int pid_ns_ctl_handler(struct ctl_table *table, int write,
-		void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t pid_ns_ctl_read(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct pid_namespace *pid_ns = task_active_pid_ns(current);
-	struct ctl_table tmp = *table;
-	int ret, next;
+	int next = idr_get_cursor(&pid_ns->idr) - 1;
 
-	if (write && !checkpoint_restore_ns_capable(pid_ns->user_ns))
+	return sysctl_read_intvec_data(&next, ctx->ctl_table, buffer, lenp, ppos,
+			sysctl_conv_intvec, NULL, NULL);
+}
+
+static ssize_t pid_ns_ctl_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	struct pid_namespace *pid_ns = task_active_pid_ns(current);
+	size_t ret;
+	int next;
+
+	if (!checkpoint_restore_ns_capable(pid_ns->user_ns))
 		return -EPERM;
 
 	/*
@@ -274,13 +284,21 @@ static int pid_ns_ctl_handler(struct ctl_table *table, int write,
 
 	next = idr_get_cursor(&pid_ns->idr) - 1;
 
-	tmp.data = &next;
-	ret = proc_dointvec_minmax(&tmp, write, buffer, lenp, ppos);
-	if (!ret && write)
+	ret = sysctl_write_intvec_data(&next, ctx->ctl_table,
+			buffer, lenp, ppos,
+			sysctl_conv_intvec,
+			ctx->ctl_table->extra1,
+			ctx->ctl_table->extra2);
+	if (!ret)
 		idr_set_cursor(&pid_ns->idr, next + 1);
 
 	return ret;
 }
+
+static struct ctl_fops pid_ns_ctl_fops = {
+	.read = pid_ns_ctl_read,
+	.write = pid_ns_ctl_write,
+};
 
 extern int pid_max;
 static struct ctl_table pid_ns_ctl_table[] = {
@@ -288,7 +306,7 @@ static struct ctl_table pid_ns_ctl_table[] = {
 		.procname = "ns_last_pid",
 		.maxlen = sizeof(int),
 		.mode = 0666, /* permissions are checked in the handler */
-		.proc_handler = pid_ns_ctl_handler,
+		.ctl_fops= &pid_ns_ctl_fops,
 		.extra1 = SYSCTL_ZERO,
 		.extra2 = &pid_max,
 	},
