@@ -2126,15 +2126,19 @@ COMPAT_SYSCALL_DEFINE5(execveat, int, fd,
 
 #ifdef CONFIG_SYSCTL
 
-static int proc_dointvec_minmax_coredump(struct ctl_table *table, int write,
-		void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t suid_dumpable_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
-	int error = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
-
+	ssize_t error = proc_dointvec_minmax_w(ctx, file, buffer, lenp, ppos);
 	if (!error)
 		validate_coredump_safety();
 	return error;
 }
+
+static struct ctl_fops suid_dumpable_fops = {
+	.read = proc_dointvec_minmax_r,
+	.write = suid_dumpable_write,
+};
 
 static struct ctl_table fs_exec_sysctls[] = {
 	{
@@ -2142,7 +2146,7 @@ static struct ctl_table fs_exec_sysctls[] = {
 		.data		= &suid_dumpable,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax_coredump,
+		.ctl_fops	= &suid_dumpable_fops,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_TWO,
 	},

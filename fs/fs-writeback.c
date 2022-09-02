@@ -2322,16 +2322,21 @@ static int __init start_dirtytime_writeback(void)
 }
 __initcall(start_dirtytime_writeback);
 
-int dirtytime_interval_handler(struct ctl_table *table, int write,
-			       void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t dirtytime_interval_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
-	int ret;
+	ssize_t ret;
 
-	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
-	if (ret == 0 && write)
+	ret = proc_dointvec_minmax_w(ctx, file, buffer, lenp, ppos);
+	if (!ret)
 		mod_delayed_work(system_wq, &dirtytime_work, 0);
 	return ret;
 }
+
+struct ctl_fops dirtytime_interval_fops = {
+	.read = proc_dointvec_minmax_r,
+	.write = dirtytime_interval_write,
+};
 
 /**
  * __mark_inode_dirty -	internal function to mark an inode dirty

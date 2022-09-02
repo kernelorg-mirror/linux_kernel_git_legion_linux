@@ -9,19 +9,16 @@
 static struct ctl_table_header *xfs_table_header;
 
 #ifdef CONFIG_PROC_FS
-STATIC int
-xfs_stats_clear_proc_handler(
-	struct ctl_table	*ctl,
-	int			write,
-	void			*buffer,
-	size_t			*lenp,
-	loff_t			*ppos)
+STATIC ssize_t
+xfs_stats_clear_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
-	int		ret, *valp = ctl->data;
+	int *valp = ctx->ctl_table->data;
+	ssize_t ret;
 
-	ret = proc_dointvec_minmax(ctl, write, buffer, lenp, ppos);
+	ret = proc_dointvec_minmax_w(ctx, file, buffer, lenp, ppos);
 
-	if (!ret && write && *valp) {
+	if (!ret && *valp) {
 		xfs_stats_clearall(xfsstats.xs_stats);
 		xfs_stats_clear = 0;
 	}
@@ -29,42 +26,49 @@ xfs_stats_clear_proc_handler(
 	return ret;
 }
 
-STATIC int
-xfs_panic_mask_proc_handler(
-	struct ctl_table	*ctl,
-	int			write,
-	void			*buffer,
-	size_t			*lenp,
-	loff_t			*ppos)
-{
-	int		ret, *valp = ctl->data;
+static struct ctl_fops xfs_stats_clear_fops = {
+	.read = proc_dointvec_minmax_r,
+	.write = xfs_stats_clear_write,
+};
 
-	ret = proc_dointvec_minmax(ctl, write, buffer, lenp, ppos);
-	if (!ret && write) {
+STATIC ssize_t
+xfs_panic_mask_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	int *valp = ctx->ctl_table->data;
+	ssize_t ret;
+
+	ret = proc_dointvec_minmax_w(ctx, file, buffer, lenp, ppos);
+	if (!ret && *valp) {
 		xfs_panic_mask = *valp;
 #ifdef DEBUG
 		xfs_panic_mask |= (XFS_PTAG_SHUTDOWN_CORRUPT | XFS_PTAG_LOGRES);
 #endif
 	}
+
 	return ret;
 }
+
+static struct ctl_fops xfs_panic_mask_fops = {
+	.read = proc_dointvec_minmax_r,
+	.write = xfs_panic_mask_write,
+};
 #endif /* CONFIG_PROC_FS */
 
-STATIC int
-xfs_deprecated_dointvec_minmax(
-	struct ctl_table	*ctl,
-	int			write,
-	void			*buffer,
-	size_t			*lenp,
-	loff_t			*ppos)
+STATIC ssize_t
+xfs_deprecated_dointvec_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
-	if (write) {
-		printk_ratelimited(KERN_WARNING
+	printk_ratelimited(KERN_WARNING
 				"XFS: %s sysctl option is deprecated.\n",
-				ctl->procname);
-	}
-	return proc_dointvec_minmax(ctl, write, buffer, lenp, ppos);
+				ctx->ctl_table->procname);
+	return proc_dointvec_minmax_w(ctx, file, buffer, lenp, ppos);
 }
+
+static struct ctl_fops xfs_deprecated_dointvec_fops = {
+	.read = proc_dointvec_minmax_r,
+	.write = xfs_deprecated_dointvec_write,
+};
 
 static struct ctl_table xfs_table[] = {
 	{
@@ -72,7 +76,7 @@ static struct ctl_table xfs_table[] = {
 		.data		= &xfs_params.sgid_inherit.val,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= xfs_deprecated_dointvec_minmax,
+		.ctl_fops	= &xfs_deprecated_dointvec_fops,
 		.extra1		= &xfs_params.sgid_inherit.min,
 		.extra2		= &xfs_params.sgid_inherit.max
 	},
@@ -81,7 +85,7 @@ static struct ctl_table xfs_table[] = {
 		.data		= &xfs_params.symlink_mode.val,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= xfs_deprecated_dointvec_minmax,
+		.ctl_fops	= &xfs_deprecated_dointvec_fops,
 		.extra1		= &xfs_params.symlink_mode.min,
 		.extra2		= &xfs_params.symlink_mode.max
 	},
@@ -90,7 +94,7 @@ static struct ctl_table xfs_table[] = {
 		.data		= &xfs_params.panic_mask.val,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= xfs_panic_mask_proc_handler,
+		.ctl_fops	= &xfs_panic_mask_fops,
 		.extra1		= &xfs_params.panic_mask.min,
 		.extra2		= &xfs_params.panic_mask.max
 	},
@@ -190,7 +194,7 @@ static struct ctl_table xfs_table[] = {
 		.data		= &xfs_params.blockgc_timer.val,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= xfs_deprecated_dointvec_minmax,
+		.ctl_fops	= &xfs_deprecated_dointvec_fops,
 		.extra1		= &xfs_params.blockgc_timer.min,
 		.extra2		= &xfs_params.blockgc_timer.max,
 	},
@@ -201,7 +205,7 @@ static struct ctl_table xfs_table[] = {
 		.data		= &xfs_params.stats_clear.val,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= xfs_stats_clear_proc_handler,
+		.ctl_fops	= &xfs_stats_clear_fops,
 		.extra1		= &xfs_params.stats_clear.min,
 		.extra2		= &xfs_params.stats_clear.max
 	},
