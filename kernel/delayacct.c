@@ -44,33 +44,39 @@ void delayacct_init(void)
 }
 
 #ifdef CONFIG_PROC_SYSCTL
-static int sysctl_delayacct(struct ctl_table *table, int write, void *buffer,
-		     size_t *lenp, loff_t *ppos)
+static ssize_t sysctl_delayacct_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
-	int state = delayacct_on;
-	struct ctl_table t;
-	int err;
+	int state;
+	ssize_t ret;
 
-	if (write && !capable(CAP_SYS_ADMIN))
+	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	t = *table;
-	t.data = &state;
-	err = proc_dointvec_minmax(&t, write, buffer, lenp, ppos);
-	if (err < 0)
-		return err;
-	if (write)
-		set_delayacct(state);
-	return err;
+	ret = do_proc_dointvec_w(&state, ctx->ctl_table, buffer, lenp, ppos,
+			do_proc_dointvec_minmax_conv,
+			ctx->ctl_table->extra1,
+			ctx->ctl_table->extra2);
+	if (ret < 0)
+		return ret;
+
+	set_delayacct(state);
+
+	return ret;
 }
+
+static struct ctl_fops sysctl_delayacct_fops = {
+	.read = proc_dointvec_minmax_r,
+	.write = sysctl_delayacct_write,
+};
 
 static struct ctl_table kern_delayacct_table[] = {
 	{
 		.procname       = "task_delayacct",
-		.data           = NULL,
-		.maxlen         = sizeof(unsigned int),
+		.data           = &delayacct_on,
+		.maxlen         = sizeof(delayacct_on),
 		.mode           = 0644,
-		.proc_handler   = sysctl_delayacct,
+		.ctl_fops       = &sysctl_delayacct_fops,
 		.extra1         = SYSCTL_ZERO,
 		.extra2         = SYSCTL_ONE,
 	},

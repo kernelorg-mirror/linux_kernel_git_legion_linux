@@ -21,36 +21,56 @@
 static DEFINE_STATIC_KEY_FALSE(stack_erasing_bypass);
 
 #ifdef CONFIG_SYSCTL
-static int stack_erasing_sysctl(struct ctl_table *table, int write,
-			void __user *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t stack_erasing_sysctl_read(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
-	int ret = 0;
+	int state = !static_branch_unlikely(&stack_erasing_bypass);
+
+	return do_proc_dointvec_r(&state, ctx->ctl_table, buffer, lenp, ppos,
+			do_proc_dointvec_minmax_conv, NULL, NULL);
+}
+
+static ssize_t stack_erasing_sysctl_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	ssize_t ret = 0;
 	int state = !static_branch_unlikely(&stack_erasing_bypass);
 	int prev_state = state;
 
-	table->data = &state;
-	table->maxlen = sizeof(int);
-	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
-	state = !!state;
-	if (ret || !write || state == prev_state)
+	ret = do_proc_dointvec_w(&state, ctx->ctl_table, buffer, lenp, ppos,
+			do_proc_dointvec_minmax_conv,
+			ctx->ctl_table->extra1,
+			ctx->ctl_table->extra2);
+	if (ret)
 		return ret;
 
-	if (state)
-		static_branch_disable(&stack_erasing_bypass);
-	else
-		static_branch_enable(&stack_erasing_bypass);
+	state = !!state;
 
-	pr_warn("stackleak: kernel stack erasing is %s\n",
+	if (state != prev_state) {
+		if (state)
+			static_branch_disable(&stack_erasing_bypass);
+		else
+			static_branch_enable(&stack_erasing_bypass);
+
+		pr_warn("stackleak: kernel stack erasing is %s\n",
 					state ? "enabled" : "disabled");
-	return ret;
+	}
+
+	return 0;
 }
+
+static struct ctl_fops stack_erasing_sysctl_fops = {
+	.read = stack_erasing_sysctl_read,
+	.write = stack_erasing_sysctl_write,
+};
+
 static struct ctl_table stackleak_sysctls[] = {
 	{
 		.procname	= "stack_erasing",
 		.data		= NULL,
 		.maxlen		= sizeof(int),
 		.mode		= 0600,
-		.proc_handler	= stack_erasing_sysctl,
+		.ctl_fops	= &stack_erasing_sysctl_fops,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_ONE,
 	},

@@ -3260,25 +3260,25 @@ int unshare_files(void)
 	return 0;
 }
 
-int sysctl_max_threads(struct ctl_table *table, int write,
-		       void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t max_threads_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
-	struct ctl_table t;
-	int ret;
+	ssize_t ret;
 	int threads = max_threads;
 	int min = 1;
 	int max = MAX_THREADS;
 
-	t = *table;
-	t.data = &threads;
-	t.extra1 = &min;
-	t.extra2 = &max;
-
-	ret = proc_dointvec_minmax(&t, write, buffer, lenp, ppos);
-	if (ret || !write)
+	ret = do_proc_dointvec_w(&threads, ctx->ctl_table, buffer, lenp, ppos,
+			do_proc_dointvec_minmax_conv, &min, &max);
+	if (ret)
 		return ret;
 
 	max_threads = threads;
 
 	return 0;
 }
+
+struct ctl_fops max_threads_fops = {
+	.read = proc_dointvec_minmax_r,
+	.write = max_threads_write,
+};

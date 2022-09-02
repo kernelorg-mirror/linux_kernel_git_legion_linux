@@ -815,7 +815,7 @@ list_tests()
 	echo "TEST_ID:   Test ID"
 	echo "NUM_TESTS: Number of recommended times to run the test"
 	echo
-	echo "0001 x $(get_test_count 0001) - tests proc_dointvec_minmax()"
+	echo "0001 x $(get_test_count 0001) - tests proc_dointvec_minmax_r/w()"
 	echo "0002 x $(get_test_count 0002) - tests proc_dostring()"
 	echo "0003 x $(get_test_count 0003) - tests proc_dointvec()"
 	echo "0004 x $(get_test_count 0004) - tests proc_douintvec_minmax_r/w()"

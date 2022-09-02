@@ -11,14 +11,19 @@
 
 static const int ten_thousand = 10000;
 
-static int proc_dointvec_minmax_sysadmin(struct ctl_table *table, int write,
-				void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t proc_dointvec_minmax_sysadmin(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
-	if (write && !capable(CAP_SYS_ADMIN))
+	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	return proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+	return proc_dointvec_minmax_w(ctx, file, buffer, lenp, ppos);
 }
+
+static struct ctl_fops proc_dointvec_minmax_sysadmin_fops = {
+	.read = proc_dointvec_minmax_r,
+	.write = proc_dointvec_minmax_sysadmin,
+};
 
 static struct ctl_table printk_sysctls[] = {
 	{
@@ -63,7 +68,7 @@ static struct ctl_table printk_sysctls[] = {
 		.data		= &dmesg_restrict,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax_sysadmin,
+		.ctl_fops	= &proc_dointvec_minmax_sysadmin_fops,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_ONE,
 	},
@@ -72,7 +77,7 @@ static struct ctl_table printk_sysctls[] = {
 		.data		= &kptr_restrict,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax_sysadmin,
+		.ctl_fops	= &proc_dointvec_minmax_sysadmin_fops,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_TWO,
 	},
