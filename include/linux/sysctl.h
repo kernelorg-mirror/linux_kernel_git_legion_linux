@@ -49,7 +49,7 @@ struct ctl_dir;
 #define SYSCTL_THREE_THOUSAND		((void *)&sysctl_vals[8])
 #define SYSCTL_INT_MAX			((void *)&sysctl_vals[9])
 
-/* this is needed for the proc_dointvec_minmax for [fs_]overflow UID and GID */
+/* this is needed for the proc_dointvec_minmax_w for [fs_]overflow UID and GID */
 #define SYSCTL_MAXOLDUID		((void *)&sysctl_vals[10])
 #define SYSCTL_NEG_ONE			((void *)&sysctl_vals[11])
 
@@ -68,7 +68,6 @@ int proc_dostring(struct ctl_table *, int, void *, size_t *, loff_t *);
 int proc_dobool(struct ctl_table *table, int write, void *buffer,
 		size_t *lenp, loff_t *ppos);
 int proc_dointvec(struct ctl_table *, int, void *, size_t *, loff_t *);
-int proc_dointvec_minmax(struct ctl_table *, int, void *, size_t *, loff_t *);
 int proc_dou8vec_minmax(struct ctl_table *table, int write, void *buffer,
 			size_t *lenp, loff_t *ppos);
 int proc_dointvec_jiffies(struct ctl_table *, int, void *, size_t *, loff_t *);

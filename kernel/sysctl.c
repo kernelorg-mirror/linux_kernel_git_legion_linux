@@ -846,34 +846,6 @@ static int proc_taint(struct ctl_table *table, int write,
 }
 
 /**
- * proc_dointvec_minmax - read a vector of integers with min/max values
- * @table: the sysctl table
- * @write: %TRUE if this is a write to the sysctl file
- * @buffer: the user buffer
- * @lenp: the size of the user buffer
- * @ppos: file position
- *
- * Reads/writes up to table->maxlen/sizeof(unsigned int) integer
- * values from/to the user buffer, treated as an ASCII string.
- *
- * This routine will ensure the values are within the range specified by
- * table->extra1 (min) and table->extra2 (max).
- *
- * Returns 0 on success or -EINVAL on write when the range check fails.
- */
-int proc_dointvec_minmax(struct ctl_table *table, int write,
-		  void *buffer, size_t *lenp, loff_t *ppos)
-{
-	if (write)
-		return do_proc_dointvec_w(table->data, table, buffer, lenp, ppos,
-				do_proc_dointvec_minmax_conv,
-				table->extra1,
-				table->extra2);
-	return do_proc_dointvec_r(table->data, table, buffer, lenp, ppos,
-			do_proc_dointvec_minmax_conv, NULL, NULL);
-}
-
-/**
  * proc_dointvec_minmax_r - read a vector of integers
  * @ctx: the operation context which contains sysctl table
  * @file: the opened sysctl file
@@ -1503,12 +1475,6 @@ int proc_dobool(struct ctl_table *table, int write,
 
 int proc_dointvec(struct ctl_table *table, int write,
 		  void *buffer, size_t *lenp, loff_t *ppos)
-{
-	return -ENOSYS;
-}
-
-int proc_dointvec_minmax(struct ctl_table *table, int write,
-		    void *buffer, size_t *lenp, loff_t *ppos)
 {
 	return -ENOSYS;
 }
@@ -2561,7 +2527,6 @@ EXPORT_SYMBOL(proc_dobool);
 EXPORT_SYMBOL(do_proc_dobool_conv);
 EXPORT_SYMBOL(proc_dointvec);
 EXPORT_SYMBOL(proc_dointvec_jiffies);
-EXPORT_SYMBOL(proc_dointvec_minmax);
 EXPORT_SYMBOL(proc_dointvec_minmax_r);
 EXPORT_SYMBOL(proc_dointvec_minmax_w);
 EXPORT_SYMBOL(do_proc_dointvec_minmax_conv);
