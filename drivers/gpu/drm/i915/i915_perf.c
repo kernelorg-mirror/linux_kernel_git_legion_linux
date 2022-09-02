@@ -263,7 +263,7 @@
 #define DEFAULT_POLL_FREQUENCY_HZ 200
 #define DEFAULT_POLL_PERIOD_NS (NSEC_PER_SEC / DEFAULT_POLL_FREQUENCY_HZ)
 
-/* for sysctl proc_dointvec_minmax of dev.i915.perf_stream_paranoid */
+/* for sysctl sysctl_read_intvec/w of dev.i915.perf_stream_paranoid */
 static u32 i915_perf_stream_paranoid = true;
 
 /* The maximum exponent the hardware accepts is 63 (essentially it selects one
@@ -287,7 +287,7 @@ static u32 i915_perf_stream_paranoid = true;
 #define OAREPORT_REASON_CLK_RATIO      (1<<5)
 
 
-/* For sysctl proc_dointvec_minmax of i915_oa_max_sample_rate
+/* For sysctl sysctl_read_intvec/w of i915_oa_max_sample_rate
  *
  * The highest sampling frequency we can theoretically program the OA unit
  * with is always half the timestamp frequency: E.g. 6.25Mhz for Haswell.
