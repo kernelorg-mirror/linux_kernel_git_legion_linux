@@ -31,7 +31,6 @@ extern int sysctl_numa_balancing_mode;
 #define sysctl_numa_balancing_mode	0
 #endif
 
-int sysctl_numa_balancing(struct ctl_table *table, int write, void *buffer,
-		size_t *lenp, loff_t *ppos);
+extern struct ctl_fops sysctl_numa_balancing_fops;
 
 #endif /* _LINUX_SCHED_SYSCTL_H */
