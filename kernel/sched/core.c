@@ -4361,27 +4361,32 @@ void set_numabalancing_state(bool enabled)
 }
 
 #ifdef CONFIG_PROC_SYSCTL
-int sysctl_numa_balancing(struct ctl_table *table, int write,
-			  void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t sysctl_numa_balancing_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
-	struct ctl_table t;
-	int err;
 	int state = sysctl_numa_balancing_mode;
+	ssize_t ret;
 
-	if (write && !capable(CAP_SYS_ADMIN))
+	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	t = *table;
-	t.data = &state;
-	err = proc_dointvec_minmax(&t, write, buffer, lenp, ppos);
-	if (err < 0)
-		return err;
-	if (write) {
+	ret = sysctl_write_intvec_data(&state, ctx->ctl_table, buffer, lenp, ppos,
+			sysctl_conv_intvec,
+			ctx->ctl_table->extra1,
+			ctx->ctl_table->extra2);
+	if (!ret) {
 		sysctl_numa_balancing_mode = state;
 		__set_numabalancing_state(state);
 	}
-	return err;
+
+	return ret;
 }
+
+struct ctl_fops sysctl_numa_balancing_fops = {
+	.read = sysctl_read_intvec,
+	.write = sysctl_numa_balancing_write,
+};
+
 #endif
 #endif
 
@@ -4427,25 +4432,30 @@ out:
 __setup("schedstats=", setup_schedstats);
 
 #ifdef CONFIG_PROC_SYSCTL
-static int sysctl_schedstats(struct ctl_table *table, int write, void *buffer,
-		size_t *lenp, loff_t *ppos)
+static ssize_t sysctl_schedstats_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
-	struct ctl_table t;
-	int err;
 	int state = static_branch_likely(&sched_schedstats);
+	ssize_t ret;
 
-	if (write && !capable(CAP_SYS_ADMIN))
+	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	t = *table;
-	t.data = &state;
-	err = proc_dointvec_minmax(&t, write, buffer, lenp, ppos);
-	if (err < 0)
-		return err;
-	if (write)
+	ret = sysctl_write_intvec_data(&state, ctx->ctl_table, buffer, lenp, ppos,
+			sysctl_conv_intvec,
+			ctx->ctl_table->extra1,
+			ctx->ctl_table->extra2);
+	if (!ret)
 		set_schedstats(state);
-	return err;
+
+	return ret;
 }
+
+static struct ctl_fops sysctl_schedstats_fops = {
+	.read = sysctl_read_intvec,
+	.write = sysctl_schedstats_write,
+};
+
 #endif /* CONFIG_PROC_SYSCTL */
 #endif /* CONFIG_SCHEDSTATS */
 
@@ -4457,7 +4467,7 @@ static struct ctl_table sched_core_sysctls[] = {
 		.data           = NULL,
 		.maxlen         = sizeof(unsigned int),
 		.mode           = 0644,
-		.proc_handler   = sysctl_schedstats,
+		.ctl_fops       = &sysctl_schedstats_fops,
 		.extra1         = SYSCTL_ZERO,
 		.extra2         = SYSCTL_ONE,
 	},
