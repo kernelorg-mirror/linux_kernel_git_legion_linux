@@ -259,24 +259,24 @@ static int proc_do_rss_key(struct ctl_table *table, int write,
 }
 
 #ifdef CONFIG_BPF_JIT
-static int proc_dointvec_minmax_bpf_enable(struct ctl_table *table, int write,
-					   void *buffer, size_t *lenp,
-					   loff_t *ppos)
+static ssize_t proc_dointvec_minmax_bpf_enable_write(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos)
 {
-	int ret, jit_enable = *(int *)table->data;
-	int min = *(int *)table->extra1;
-	int max = *(int *)table->extra2;
-	struct ctl_table tmp = *table;
+	int jit_enable = *(int *)ctx->ctl_table->data;
+	int min = *(int *)ctx->ctl_table->extra1;
+	int max = *(int *)ctx->ctl_table->extra2;
+	ssize_t ret;
 
-	if (write && !capable(CAP_SYS_ADMIN))
+	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	tmp.data = &jit_enable;
-	ret = proc_dointvec_minmax(&tmp, write, buffer, lenp, ppos);
-	if (write && !ret) {
+	ret = do_proc_dointvec_w(&jit_enable, ctx->ctl_table, buffer, lenp, ppos,
+			do_proc_dointvec_minmax_conv, &min, &max);
+
+	if (!ret) {
 		if (jit_enable < 2 ||
 		    (jit_enable == 2 && bpf_dump_raw_ok(current_cred()))) {
-			*(int *)table->data = jit_enable;
+			*(int *)ctx->ctl_table->data = jit_enable;
 			if (jit_enable == 2)
 				pr_warn("bpf_jit_enable = 2 was set! NEVER use this in production, only for JIT debugging!\n");
 		} else {
@@ -284,22 +284,43 @@ static int proc_dointvec_minmax_bpf_enable(struct ctl_table *table, int write,
 		}
 	}
 
-	if (write && ret && min == max)
+	if (ret && min == max)
 		pr_info_once("CONFIG_BPF_JIT_ALWAYS_ON is enabled, bpf_jit_enable is permanently set to 1.\n");
 
 	return ret;
 }
 
+static struct ctl_fops proc_dointvec_minmax_bpf_enable_fops = {
+	.read  = proc_dointvec_minmax_r,
+	.write = proc_dointvec_minmax_bpf_enable_write,
+};
+
 # ifdef CONFIG_HAVE_EBPF_JIT
-static int
-proc_dointvec_minmax_bpf_restricted(struct ctl_table *table, int write,
-				    void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t
+proc_dointvec_minmax_bpf_restricted_read(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	return proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+	return proc_dointvec_minmax_r(ctx, file, buffer, lenp, ppos);
 }
+
+static ssize_t
+proc_dointvec_minmax_bpf_restricted_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	return proc_dointvec_minmax_w(ctx, file, buffer, lenp, ppos);
+}
+
+static struct ctl_fops proc_dointvec_minmax_bpf_restricted_fops = {
+	.read  = proc_dointvec_minmax_bpf_restricted_read,
+	.write = proc_dointvec_minmax_bpf_restricted_write,
+};
+
 # endif /* CONFIG_HAVE_EBPF_JIT */
 
 static int
@@ -387,7 +408,7 @@ static struct ctl_table net_core_table[] = {
 		.data		= &bpf_jit_enable,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax_bpf_enable,
+		.ctl_fops	= &proc_dointvec_minmax_bpf_enable_fops,
 # ifdef CONFIG_BPF_JIT_ALWAYS_ON
 		.extra1		= SYSCTL_ONE,
 		.extra2		= SYSCTL_ONE,
@@ -402,7 +423,7 @@ static struct ctl_table net_core_table[] = {
 		.data		= &bpf_jit_harden,
 		.maxlen		= sizeof(int),
 		.mode		= 0600,
-		.proc_handler	= proc_dointvec_minmax_bpf_restricted,
+		.ctl_fops	= &proc_dointvec_minmax_bpf_restricted_fops,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_TWO,
 	},
@@ -411,7 +432,7 @@ static struct ctl_table net_core_table[] = {
 		.data		= &bpf_jit_kallsyms,
 		.maxlen		= sizeof(int),
 		.mode		= 0600,
-		.proc_handler	= proc_dointvec_minmax_bpf_restricted,
+		.ctl_fops	= &proc_dointvec_minmax_bpf_restricted_fops,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_ONE,
 	},
