@@ -16,36 +16,58 @@
 #include <linux/slab.h>
 #include "util.h"
 
-static int proc_ipc_dointvec_minmax_orphans(struct ctl_table *table, int write,
-		void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t shm_rmid_forced_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
-	struct ipc_namespace *ns =
-		container_of(table->data, struct ipc_namespace, shm_rmid_forced);
-	int err;
+	struct ipc_namespace *ns;
+	ssize_t err;
 
-	err = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+	err = sysctl_write_intvec(ctx, file, buffer, lenp, ppos);
 
 	if (err < 0)
 		return err;
+
+	ns = container_of(ctx->ctl_table->data, struct ipc_namespace, shm_rmid_forced);
+
 	if (ns->shm_rmid_forced)
 		shm_destroy_orphaned(ns);
+
 	return err;
 }
 
-static int proc_ipc_auto_msgmni(struct ctl_table *table, int write,
-		void *buffer, size_t *lenp, loff_t *ppos)
+static struct ctl_fops shm_rmid_forced_fops = {
+	.read = sysctl_read_intvec,
+	.write = shm_rmid_forced_write,
+};
+
+static ssize_t auto_msgmni_read(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
-	struct ctl_table ipc_table;
 	int dummy = 0;
 
-	memcpy(&ipc_table, table, sizeof(ipc_table));
-	ipc_table.data = &dummy;
-
-	if (write)
-		pr_info_once("writing to auto_msgmni has no effect");
-
-	return proc_dointvec_minmax(&ipc_table, write, buffer, lenp, ppos);
+	return sysctl_read_intvec_data(&dummy, ctx->ctl_table,
+			buffer, lenp, ppos,
+			sysctl_conv_intvec, NULL, NULL);
 }
+
+static ssize_t auto_msgmni_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	int dummy = 0;
+
+	pr_info_once("writing to auto_msgmni has no effect");
+
+	return sysctl_write_intvec_data(&dummy, ctx->ctl_table,
+			buffer, lenp, ppos,
+			sysctl_conv_intvec,
+			ctx->ctl_table->extra1,
+			ctx->ctl_table->extra2);
+}
+
+static struct ctl_fops auto_msgmni_fops = {
+	.read = auto_msgmni_read,
+	.write = auto_msgmni_write,
+};
 
 static int proc_ipc_sem_dointvec(struct ctl_table *table, int write,
 	void *buffer, size_t *lenp, loff_t *ppos)
@@ -101,7 +123,7 @@ static struct ctl_table ipc_sysctls[] = {
 		.data		= &init_ipc_ns.shm_rmid_forced,
 		.maxlen		= sizeof(init_ipc_ns.shm_rmid_forced),
 		.mode		= 0644,
-		.proc_handler	= proc_ipc_dointvec_minmax_orphans,
+		.ctl_fops	= &shm_rmid_forced_fops,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_ONE,
 	},
@@ -128,7 +150,7 @@ static struct ctl_table ipc_sysctls[] = {
 		.data		= NULL,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_ipc_auto_msgmni,
+		.ctl_fops	= &auto_msgmni_fops,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_ONE,
 	},
