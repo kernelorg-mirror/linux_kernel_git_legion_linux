@@ -21,7 +21,7 @@
 
 /*
  * gid_t is either uint or ushort.  We want to pass it to
- * proc_dointvec_minmax(), so it must not be larger than MAX_INT
+ * sysctl_read_intvec/w(), so it must not be larger than MAX_INT
  */
 #define GID_T_MAX (((gid_t)~0U) >> 1)
 

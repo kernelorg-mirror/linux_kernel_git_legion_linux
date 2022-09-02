@@ -2609,28 +2609,36 @@ nolabels:
 	return -ENOMEM;
 }
 
-static int mpls_platform_labels(struct ctl_table *table, int write,
-				void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t mpls_platform_labels_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
-	struct net *net = table->data;
+	struct net *net = ctx->ctl_table->data;
 	int platform_labels = net->mpls.platform_labels;
-	int ret;
-	struct ctl_table tmp = {
-		.procname	= table->procname,
-		.data		= &platform_labels,
-		.maxlen		= sizeof(int),
-		.mode		= table->mode,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= &label_limit,
-	};
+	ssize_t ret;
 
-	ret = proc_dointvec_minmax(&tmp, write, buffer, lenp, ppos);
+	ret = sysctl_write_intvec_data(&platform_labels, ctx->ctl_table, buffer, lenp, ppos,
+			sysctl_conv_intvec, SYSCTL_ZERO, &label_limit);
 
-	if (write && ret == 0)
+	if (ret == 0)
 		ret = resize_platform_label_table(net, platform_labels);
 
 	return ret;
 }
+
+static ssize_t mpls_platform_labels_read(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	struct net *net = ctx->ctl_table->data;
+	int platform_labels = net->mpls.platform_labels;
+
+	return sysctl_read_intvec_data(&platform_labels, ctx->ctl_table, buffer, lenp, ppos,
+			sysctl_conv_intvec, NULL, NULL);
+}
+
+static struct ctl_fops mpls_platform_labels_fops = {
+	.read  = mpls_platform_labels_read,
+	.write = mpls_platform_labels_write,
+};
 
 #define MPLS_NS_SYSCTL_OFFSET(field)		\
 	(&((struct net *)0)->field)
@@ -2641,7 +2649,7 @@ static const struct ctl_table mpls_table[] = {
 		.data		= NULL,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= mpls_platform_labels,
+		.ctl_fops	= &mpls_platform_labels_fops,
 	},
 	{
 		.procname	= "ip_ttl_propagate",

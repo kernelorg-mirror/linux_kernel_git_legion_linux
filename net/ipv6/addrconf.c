@@ -6219,19 +6219,23 @@ static int addrconf_sysctl_forward(struct ctl_table *ctl, int write,
 	return ret;
 }
 
-static int addrconf_sysctl_mtu(struct ctl_table *ctl, int write,
-		void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t addrconf_sysctl_mtu_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
-	struct inet6_dev *idev = ctl->extra1;
+	struct inet6_dev *idev = ctx->ctl_table->extra1;
 	int min_mtu = IPV6_MIN_MTU;
-	struct ctl_table lctl;
 
-	lctl = *ctl;
-	lctl.extra1 = &min_mtu;
-	lctl.extra2 = idev ? &idev->dev->mtu : NULL;
-
-	return proc_dointvec_minmax(&lctl, write, buffer, lenp, ppos);
+	return sysctl_write_intvec_data(ctx->ctl_table->data, ctx->ctl_table,
+			buffer, lenp, ppos,
+			sysctl_conv_intvec,
+			&min_mtu,
+			idev ? &idev->dev->mtu : NULL);
 }
+
+struct ctl_fops addrconf_sysctl_mtu_fops = {
+	.read  = sysctl_read_intvec,
+	.write = addrconf_sysctl_mtu_write,
+};
 
 static void dev_disable_change(struct inet6_dev *idev)
 {
@@ -6649,7 +6653,7 @@ static const struct ctl_table addrconf_sysctl[] = {
 		.data		= &ipv6_devconf.mtu6,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= addrconf_sysctl_mtu,
+		.ctl_fops	= &addrconf_sysctl_mtu_fops,
 	},
 	{
 		.procname	= "accept_ra",

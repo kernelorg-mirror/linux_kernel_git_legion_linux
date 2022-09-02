@@ -61,8 +61,13 @@ static atomic_t rds_tcp_unloading = ATOMIC_INIT(0);
 
 static struct kmem_cache *rds_tcp_conn_slab;
 
-static int rds_tcp_skbuf_handler(struct ctl_table *ctl, int write,
-				 void *buffer, size_t *lenp, loff_t *fpos);
+static ssize_t rds_tcp_skbuf_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos);
+
+static struct ctl_fops rds_tcp_skbuf_fops = {
+	.read  = sysctl_read_intvec,
+	.write = rds_tcp_skbuf_write,
+};
 
 static int rds_tcp_min_sndbuf = SOCK_MIN_SNDBUF;
 static int rds_tcp_min_rcvbuf = SOCK_MIN_RCVBUF;
@@ -74,7 +79,7 @@ static struct ctl_table rds_tcp_sysctl_table[] = {
 		/* data is per-net pointer */
 		.maxlen         = sizeof(int),
 		.mode           = 0644,
-		.proc_handler   = rds_tcp_skbuf_handler,
+		.ctl_fops       = &rds_tcp_skbuf_fops,
 		.extra1		= &rds_tcp_min_sndbuf,
 	},
 #define	RDS_TCP_RCVBUF	1
@@ -83,7 +88,7 @@ static struct ctl_table rds_tcp_sysctl_table[] = {
 		/* data is per-net pointer */
 		.maxlen         = sizeof(int),
 		.mode           = 0644,
-		.proc_handler   = rds_tcp_skbuf_handler,
+		.ctl_fops       = &rds_tcp_skbuf_fops,
 		.extra1		= &rds_tcp_min_rcvbuf,
 	},
 	{ }
@@ -679,21 +684,21 @@ static void rds_tcp_sysctl_reset(struct net *net)
 	spin_unlock_irq(&rds_tcp_conn_lock);
 }
 
-static int rds_tcp_skbuf_handler(struct ctl_table *ctl, int write,
-				 void *buffer, size_t *lenp, loff_t *fpos)
+static ssize_t rds_tcp_skbuf_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct net *net = current->nsproxy->net_ns;
-	int err;
+	ssize_t err;
 
-	err = proc_dointvec_minmax(ctl, write, buffer, lenp, fpos);
+	err = sysctl_write_intvec(ctx, file, buffer, lenp, ppos);
 	if (err < 0) {
 		pr_warn("Invalid input. Must be >= %d\n",
-			*(int *)(ctl->extra1));
+			*(int *)(ctx->ctl_table->extra1));
 		return err;
 	}
-	if (write)
-		rds_tcp_sysctl_reset(net);
+	rds_tcp_sysctl_reset(net);
 	return 0;
+
 }
 
 static void rds_tcp_exit(void)

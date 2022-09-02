@@ -3529,20 +3529,28 @@ static void neigh_proc_update(struct ctl_table *ctl, int write)
 		neigh_copy_dflt_parms(net, p, index);
 }
 
-static int neigh_proc_dointvec_zero_intmax(struct ctl_table *ctl, int write,
-					   void *buffer, size_t *lenp,
-					   loff_t *ppos)
+static ssize_t neigh_proc_dointvec_zero_intmax_read(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos)
 {
-	struct ctl_table tmp = *ctl;
-	int ret;
+	ssize_t ret = sysctl_read_intvec(ctx, file, buffer, lenp, ppos);
 
-	tmp.extra1 = SYSCTL_ZERO;
-	tmp.extra2 = SYSCTL_INT_MAX;
-
-	ret = proc_dointvec_minmax(&tmp, write, buffer, lenp, ppos);
-	neigh_proc_update(ctl, write);
+	neigh_proc_update(ctx->ctl_table, 0);
 	return ret;
 }
+
+static ssize_t neigh_proc_dointvec_zero_intmax_write(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos)
+{
+	ssize_t ret = sysctl_write_intvec(ctx, file, buffer, lenp, ppos);
+
+	neigh_proc_update(ctx->ctl_table, 1);
+	return ret;
+}
+
+static struct ctl_fops neigh_proc_dointvec_zero_intmax_fops = {
+	.read  = neigh_proc_dointvec_zero_intmax_read,
+	.write = neigh_proc_dointvec_zero_intmax_write,
+};
 
 int neigh_proc_dointvec(struct ctl_table *ctl, int write, void *buffer,
 			size_t *lenp, loff_t *ppos)
@@ -3584,26 +3592,39 @@ int neigh_proc_dointvec_ms_jiffies(struct ctl_table *ctl, int write,
 }
 EXPORT_SYMBOL(neigh_proc_dointvec_ms_jiffies);
 
-static int neigh_proc_dointvec_unres_qlen(struct ctl_table *ctl, int write,
-					  void *buffer, size_t *lenp,
-					  loff_t *ppos)
+static ssize_t neigh_proc_dointvec_unres_qlen_write(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos)
 {
-	int size, ret;
-	struct ctl_table tmp = *ctl;
+	int size = *(int *)ctx->ctl_table->data / SKB_TRUESIZE(ETH_FRAME_LEN);
+	ssize_t ret;
 
-	tmp.extra1 = SYSCTL_ZERO;
-	tmp.extra2 = &unres_qlen_max;
-	tmp.data = &size;
+	ret = sysctl_write_intvec_data(&size, ctx->ctl_table, buffer, lenp, ppos,
+			sysctl_conv_intvec, SYSCTL_ZERO, &unres_qlen_max);
 
-	size = *(int *)ctl->data / SKB_TRUESIZE(ETH_FRAME_LEN);
-	ret = proc_dointvec_minmax(&tmp, write, buffer, lenp, ppos);
+	if (!ret)
+		*(int *)ctx->ctl_table->data = size * SKB_TRUESIZE(ETH_FRAME_LEN);
 
-	if (write && !ret)
-		*(int *)ctl->data = size * SKB_TRUESIZE(ETH_FRAME_LEN);
-
-	neigh_proc_update(ctl, write);
+	neigh_proc_update(ctx->ctl_table, 1);
 	return ret;
 }
+
+static ssize_t neigh_proc_dointvec_unres_qlen_read(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos)
+{
+	int size = *(int *)ctx->ctl_table->data / SKB_TRUESIZE(ETH_FRAME_LEN);
+	ssize_t ret;
+
+	ret = sysctl_read_intvec_data(&size, ctx->ctl_table, buffer, lenp, ppos,
+			sysctl_conv_intvec, NULL, NULL);
+
+	neigh_proc_update(ctx->ctl_table, 0);
+	return ret;
+}
+
+static struct ctl_fops neigh_proc_dointvec_unres_qlen_fops = {
+	.read  = neigh_proc_dointvec_unres_qlen_read,
+	.write = neigh_proc_dointvec_unres_qlen_write,
+};
 
 static int neigh_proc_base_reachable_time(struct ctl_table *ctl, int write,
 					  void *buffer, size_t *lenp,
@@ -3643,7 +3664,15 @@ static int neigh_proc_base_reachable_time(struct ctl_table *ctl, int write,
 	}
 
 #define NEIGH_SYSCTL_ZERO_INTMAX_ENTRY(attr, name) \
-	NEIGH_SYSCTL_ENTRY(attr, attr, name, 0644, neigh_proc_dointvec_zero_intmax)
+	[NEIGH_VAR_ ## attr] = { \
+		.procname	= name, \
+		.data		= NEIGH_PARMS_DATA_OFFSET(NEIGH_VAR_ ## attr), \
+		.maxlen		= sizeof(int), \
+		.mode		= 0644, \
+		.ctl_fops	= &neigh_proc_dointvec_zero_intmax_fops, \
+		.extra1		= SYSCTL_ZERO, \
+		.extra2		= SYSCTL_INT_MAX, \
+	}
 
 #define NEIGH_SYSCTL_JIFFIES_ENTRY(attr, name) \
 	NEIGH_SYSCTL_ENTRY(attr, attr, name, 0644, neigh_proc_dointvec_jiffies)
@@ -3655,7 +3684,13 @@ static int neigh_proc_base_reachable_time(struct ctl_table *ctl, int write,
 	NEIGH_SYSCTL_ENTRY(attr, data_attr, name, 0644, neigh_proc_dointvec_ms_jiffies)
 
 #define NEIGH_SYSCTL_UNRES_QLEN_REUSED_ENTRY(attr, data_attr, name) \
-	NEIGH_SYSCTL_ENTRY(attr, data_attr, name, 0644, neigh_proc_dointvec_unres_qlen)
+	[NEIGH_VAR_ ## attr] = { \
+		.procname	= name, \
+		.data		= NEIGH_PARMS_DATA_OFFSET(NEIGH_VAR_ ## data_attr), \
+		.maxlen		= sizeof(int), \
+		.mode		= 0644, \
+		.ctl_fops	= &neigh_proc_dointvec_unres_qlen_fops, \
+	}
 
 static struct neigh_sysctl_table {
 	struct ctl_table_header *sysctl_header;
