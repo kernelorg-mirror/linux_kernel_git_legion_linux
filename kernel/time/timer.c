@@ -237,18 +237,35 @@ static void timers_update_migration(void)
 }
 
 #ifdef CONFIG_SYSCTL
-static int timer_migration_handler(struct ctl_table *table, int write,
-			    void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t timer_migration_read(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
-	int ret;
+	ssize_t ret;
 
 	mutex_lock(&timer_keys_mutex);
-	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
-	if (!ret && write)
+	ret = sysctl_read_intvec(ctx, file, buffer, lenp, ppos);
+	mutex_unlock(&timer_keys_mutex);
+	return ret;
+}
+
+static ssize_t timer_migration_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	ssize_t ret;
+
+	mutex_lock(&timer_keys_mutex);
+	ret = sysctl_write_intvec(ctx, file, buffer, lenp, ppos);
+	if (!ret)
 		timers_update_migration();
 	mutex_unlock(&timer_keys_mutex);
 	return ret;
 }
+
+static struct ctl_fops timer_migration_fops = {
+	.read = timer_migration_read,
+	.write = timer_migration_write,
+};
+
 
 static struct ctl_table timer_sysctl[] = {
 	{
@@ -256,7 +273,7 @@ static struct ctl_table timer_sysctl[] = {
 		.data		= &sysctl_timer_migration,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= timer_migration_handler,
+		.ctl_fops	= &timer_migration_fops,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_ONE,
 	},
