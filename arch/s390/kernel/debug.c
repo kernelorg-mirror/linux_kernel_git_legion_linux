@@ -954,14 +954,19 @@ static int debug_active = 1;
  * always allow read, allow write only if debug_stoppable is set or
  * if debug_active is already off
  */
-static int s390dbf_procactive(struct ctl_table *table, int write,
-			      void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t s390dbf_procactive_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
-	if (!write || debug_stoppable || !debug_active)
-		return proc_dointvec(table, write, buffer, lenp, ppos);
+	if (debug_stoppable || !debug_active)
+		return proc_dointvec_minmax_w(ctx, file, buffer, lenp, ppos);
 	else
 		return 0;
 }
+
+struct ctl_fops s390dbf_procactive_fops = {
+	.read  = proc_dointvec_minmax_r,
+	.write = s390dbf_procactive_write,
+};
 
 static struct ctl_table s390dbf_table[] = {
 	{
@@ -976,7 +981,7 @@ static struct ctl_table s390dbf_table[] = {
 		.data		= &debug_active,
 		.maxlen		= sizeof(int),
 		.mode		= S_IRUGO | S_IWUSR,
-		.proc_handler	= s390dbf_procactive,
+		.ctl_fops	= &s390dbf_procactive_fops,
 	},
 	{ }
 };
