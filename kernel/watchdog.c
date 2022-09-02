@@ -647,7 +647,8 @@ static void proc_watchdog_update(void)
 static int proc_watchdog_common(int which, struct ctl_table *table, int write,
 				void *buffer, size_t *lenp, loff_t *ppos)
 {
-	int err, old, *param = table->data;
+	int old, *param = table->data;
+	ssize_t err;
 
 	mutex_lock(&watchdog_mutex);
 
@@ -657,10 +658,12 @@ static int proc_watchdog_common(int which, struct ctl_table *table, int write,
 		 * racy snapshot.
 		 */
 		*param = (watchdog_enabled & which) != 0;
-		err = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+		err = do_proc_dointvec_r(param, table, buffer, lenp, ppos,
+				do_proc_dointvec_minmax_conv, table->extra1, table->extra2);
 	} else {
 		old = READ_ONCE(*param);
-		err = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+		err = do_proc_dointvec_w(param, table, buffer, lenp, ppos,
+				do_proc_dointvec_minmax_conv, table->extra1, table->extra2);
 		if (!err && old != READ_ONCE(*param))
 			proc_watchdog_update();
 	}
@@ -703,22 +706,41 @@ int proc_soft_watchdog(struct ctl_table *table, int write,
 /*
  * /proc/sys/kernel/watchdog_thresh
  */
-int proc_watchdog_thresh(struct ctl_table *table, int write,
-			 void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t watchdog_thresh_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
-	int err, old;
+	ssize_t err;
+	int old;
 
 	mutex_lock(&watchdog_mutex);
 
 	old = READ_ONCE(watchdog_thresh);
-	err = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+	err = proc_dointvec_minmax_w(ctx, file, buffer, lenp, ppos);
 
-	if (!err && write && old != READ_ONCE(watchdog_thresh))
+	if (!err && old != READ_ONCE(watchdog_thresh))
 		proc_watchdog_update();
 
 	mutex_unlock(&watchdog_mutex);
 	return err;
 }
+
+static ssize_t watchdog_thresh_read(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	ssize_t err;
+
+	mutex_lock(&watchdog_mutex);
+
+	err = proc_dointvec_minmax_r(ctx, file, buffer, lenp, ppos);
+
+	mutex_unlock(&watchdog_mutex);
+	return err;
+}
+
+struct ctl_fops watchdog_thresh_fops = {
+	.read = watchdog_thresh_read,
+	.write = watchdog_thresh_write,
+};
 
 /*
  * The cpumask is the mask of possible cpus that the watchdog can run
@@ -776,7 +798,7 @@ static struct ctl_table watchdog_sysctls[] = {
 		.data		= &watchdog_thresh,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_watchdog_thresh,
+		.ctl_fops	= &watchdog_thresh_fops,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= (void *)&sixty,
 	},
