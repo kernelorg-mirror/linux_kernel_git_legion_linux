@@ -75,16 +75,16 @@ static void invalid_numa_statistics(void)
 
 static DEFINE_MUTEX(vm_numa_stat_lock);
 
-int sysctl_vm_numa_stat_handler(struct ctl_table *table, int write,
-		void *buffer, size_t *length, loff_t *ppos)
+static ssize_t sysctl_vm_numa_stat_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
-	int ret, oldval;
+	ssize_t ret;
+	int oldval;
 
 	mutex_lock(&vm_numa_stat_lock);
-	if (write)
-		oldval = sysctl_vm_numa_stat;
-	ret = proc_dointvec_minmax(table, write, buffer, length, ppos);
-	if (ret || !write)
+	oldval = sysctl_vm_numa_stat;
+	ret = proc_dointvec_minmax_w(ctx, file, buffer, lenp, ppos);
+	if (ret)
 		goto out;
 
 	if (oldval == sysctl_vm_numa_stat)
@@ -102,6 +102,25 @@ out:
 	mutex_unlock(&vm_numa_stat_lock);
 	return ret;
 }
+
+static ssize_t sysctl_vm_numa_stat_read(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	ssize_t ret;
+
+	mutex_lock(&vm_numa_stat_lock);
+
+	ret = proc_dointvec_minmax_r(ctx, file, buffer, lenp, ppos);
+
+	mutex_unlock(&vm_numa_stat_lock);
+	return ret;
+}
+
+struct ctl_fops sysctl_vm_numa_stat_fops = {
+	.read  = sysctl_vm_numa_stat_read,
+	.write = sysctl_vm_numa_stat_write,
+};
+
 #endif
 
 #ifdef CONFIG_VM_EVENT_COUNTERS

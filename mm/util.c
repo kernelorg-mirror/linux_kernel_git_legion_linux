@@ -910,12 +910,11 @@ static void sync_overcommit_as(struct work_struct *dummy)
 	percpu_counter_sync(&vm_committed_as);
 }
 
-int overcommit_policy_handler(struct ctl_table *table, int write, void *buffer,
-		size_t *lenp, loff_t *ppos)
+static ssize_t overcommit_policy_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
-	struct ctl_table t;
 	int new_policy = -1;
-	int ret;
+	ssize_t ret;
 
 	/*
 	 * The deviation of sync_overcommit_as could be big with loose policy
@@ -928,23 +927,26 @@ int overcommit_policy_handler(struct ctl_table *table, int write, void *buffer,
 	 *	2. sync percpu count on each CPU
 	 *	3. switch the policy
 	 */
-	if (write) {
-		t = *table;
-		t.data = &new_policy;
-		ret = proc_dointvec_minmax(&t, write, buffer, lenp, ppos);
-		if (ret || new_policy == -1)
-			return ret;
+	ret = do_proc_dointvec_w(&new_policy, ctx->ctl_table, buffer, lenp, ppos,
+			do_proc_dointvec_minmax_conv,
+			ctx->ctl_table->extra1,
+			ctx->ctl_table->extra2);
 
-		mm_compute_batch(new_policy);
-		if (new_policy == OVERCOMMIT_NEVER)
-			schedule_on_each_cpu(sync_overcommit_as);
-		sysctl_overcommit_memory = new_policy;
-	} else {
-		ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
-	}
+	if (ret || new_policy == -1)
+		return ret;
+
+	mm_compute_batch(new_policy);
+	if (new_policy == OVERCOMMIT_NEVER)
+		schedule_on_each_cpu(sync_overcommit_as);
+	sysctl_overcommit_memory = new_policy;
 
 	return ret;
 }
+
+struct ctl_fops overcommit_policy_fops = {
+	.read = proc_dointvec_minmax_r,
+	.write = overcommit_policy_write,
+};
 
 int overcommit_kbytes_handler(struct ctl_table *table, int write, void *buffer,
 		size_t *lenp, loff_t *ppos)

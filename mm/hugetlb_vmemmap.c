@@ -162,34 +162,58 @@ void __init hugetlb_vmemmap_init(struct hstate *h)
 }
 
 #ifdef CONFIG_PROC_SYSCTL
-static int hugetlb_optimize_vmemmap_handler(struct ctl_table *table, int write,
-					    void *buffer, size_t *length,
-					    loff_t *ppos)
-{
-	int ret;
-	enum vmemmap_optimize_mode mode;
-	static DEFINE_MUTEX(sysctl_mutex);
+static DEFINE_MUTEX(sysctl_mutex);
 
-	if (write && !capable(CAP_SYS_ADMIN))
+static ssize_t hugetlb_optimize_vmemmap_read(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	enum vmemmap_optimize_mode mode;
+	ssize_t ret;
+
+	mutex_lock(&sysctl_mutex);
+	mode = vmemmap_optimize_mode;
+
+	ret = do_proc_dointvec_r(&mode, ctx->ctl_table, buffer, lenp, ppos,
+			do_proc_dointvec_minmax_conv, NULL, NULL);
+	mutex_unlock(&sysctl_mutex);
+
+	return ret;
+}
+
+static ssize_t hugetlb_optimize_vmemmap_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	enum vmemmap_optimize_mode mode;
+	ssize_t ret;
+
+	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
 	mutex_lock(&sysctl_mutex);
 	mode = vmemmap_optimize_mode;
-	table->data = &mode;
-	ret = proc_dointvec_minmax(table, write, buffer, length, ppos);
-	if (write && !ret)
+
+	ret = do_proc_dointvec_w(&mode, ctx->ctl_table, buffer, lenp, ppos,
+			do_proc_dointvec_minmax_conv,
+			ctx->ctl_table->extra1,
+			ctx->ctl_table->extra2);
+	if (!ret)
 		vmemmap_optimize_mode_switch(mode);
 	mutex_unlock(&sysctl_mutex);
 
 	return ret;
 }
 
+static struct ctl_fops hugetlb_optimize_vmemmap_fops = {
+	.read = hugetlb_optimize_vmemmap_read,
+	.write = hugetlb_optimize_vmemmap_write,
+};
+
 static struct ctl_table hugetlb_vmemmap_sysctls[] = {
 	{
 		.procname	= "hugetlb_optimize_vmemmap",
 		.maxlen		= sizeof(enum vmemmap_optimize_mode),
 		.mode		= 0644,
-		.proc_handler	= hugetlb_optimize_vmemmap_handler,
+		.ctl_fops	= &hugetlb_optimize_vmemmap_fops,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_ONE,
 	},
