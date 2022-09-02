@@ -429,21 +429,31 @@ static struct security_hook_list yama_hooks[] __lsm_ro_after_init = {
 };
 
 #ifdef CONFIG_SYSCTL
-static int yama_dointvec_minmax(struct ctl_table *table, int write,
-				void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t yama_dointvec_minmax_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
-	struct ctl_table table_copy;
+	int *extra1;
 
-	if (write && !capable(CAP_SYS_PTRACE))
+	if (!capable(CAP_SYS_PTRACE))
 		return -EPERM;
 
 	/* Lock the max value if it ever gets set. */
-	table_copy = *table;
-	if (*(int *)table_copy.data == *(int *)table_copy.extra2)
-		table_copy.extra1 = table_copy.extra2;
+	if (*(int *)ctx->ctl_table->data == *(int *)ctx->ctl_table->extra2)
+		extra1 = ctx->ctl_table->extra2;
+	else
+		extra1 = ctx->ctl_table->extra1;
 
-	return proc_dointvec_minmax(&table_copy, write, buffer, lenp, ppos);
+	return do_proc_dointvec_w(ctx->ctl_table->data, ctx->ctl_table,
+			buffer, lenp, ppos,
+			do_proc_dointvec_minmax_conv,
+			extra1,
+			ctx->ctl_table->extra2);
 }
+
+static struct ctl_fops yama_dointvec_minmax_fops = {
+	.read  = proc_dointvec_minmax_r,
+	.write = yama_dointvec_minmax_write,
+};
 
 static int max_scope = YAMA_SCOPE_NO_ATTACH;
 
@@ -459,7 +469,7 @@ static struct ctl_table yama_sysctl_table[] = {
 		.data           = &ptrace_scope,
 		.maxlen         = sizeof(int),
 		.mode           = 0644,
-		.proc_handler   = yama_dointvec_minmax,
+		.ctl_fops       = &yama_dointvec_minmax_fops,
 		.extra1         = SYSCTL_ZERO,
 		.extra2         = &max_scope,
 	},
