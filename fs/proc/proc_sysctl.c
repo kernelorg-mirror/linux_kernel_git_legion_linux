@@ -1191,7 +1191,6 @@ static int sysctl_check_table(const char *path, struct ctl_table *table)
 		if ((entry->proc_handler == proc_dostring) ||
 		    (entry->proc_handler == proc_dointvec) ||
 		    (entry->ctl_fops == &proc_douintvec_minmax_fops) ||
-		    (entry->proc_handler == proc_dointvec_minmax) ||
 		    (entry->proc_handler == proc_dou8vec_minmax) ||
 		    (entry->proc_handler == proc_dointvec_jiffies) ||
 		    (entry->proc_handler == proc_dointvec_userhz_jiffies) ||
@@ -1362,7 +1361,7 @@ out:
  * Several default handlers are available to cover common cases -
  *
  * proc_dostring(), proc_dointvec(), proc_dointvec_jiffies(),
- * proc_dointvec_userhz_jiffies(), proc_dointvec_minmax(),
+ * proc_dointvec_userhz_jiffies(),
  * proc_doulongvec_ms_jiffies_minmax(), proc_doulongvec_minmax()
  *
  * It is the handler's job to read the input buffer from user memory
