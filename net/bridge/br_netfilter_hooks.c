@@ -1027,55 +1027,60 @@ int br_nf_hook_thresh(unsigned int hook, struct net *net,
 }
 
 #ifdef CONFIG_SYSCTL
-static
-int brnf_sysctl_call_tables(struct ctl_table *ctl, int write,
-			    void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t brnf_sysctl_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
-	int ret;
+	ssize_t ret;
 
-	ret = proc_dointvec(ctl, write, buffer, lenp, ppos);
+	ret = sysctl_write_intvec(ctx, file, buffer, lenp, ppos);
 
-	if (!ret && write && *(int *)(ctl->data))
-		*(int *)(ctl->data) = 1;
+	if (!ret && *(int *)(ctx->ctl_table->data))
+		*(int *)(ctx->ctl_table->data) = 1;
 	return ret;
+
 }
+
+static struct ctl_fops brnf_sysctl_fops = {
+	.read  = sysctl_read_intvec,
+	.write = brnf_sysctl_write,
+};
 
 static struct ctl_table brnf_table[] = {
 	{
 		.procname	= "bridge-nf-call-arptables",
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= brnf_sysctl_call_tables,
+		.ctl_fops	= &brnf_sysctl_fops,
 	},
 	{
 		.procname	= "bridge-nf-call-iptables",
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= brnf_sysctl_call_tables,
+		.ctl_fops	= &brnf_sysctl_fops,
 	},
 	{
 		.procname	= "bridge-nf-call-ip6tables",
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= brnf_sysctl_call_tables,
+		.ctl_fops	= &brnf_sysctl_fops,
 	},
 	{
 		.procname	= "bridge-nf-filter-vlan-tagged",
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= brnf_sysctl_call_tables,
+		.ctl_fops	= &brnf_sysctl_fops,
 	},
 	{
 		.procname	= "bridge-nf-filter-pppoe-tagged",
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= brnf_sysctl_call_tables,
+		.ctl_fops	= &brnf_sysctl_fops,
 	},
 	{
 		.procname	= "bridge-nf-pass-vlan-input-dev",
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= brnf_sysctl_call_tables,
+		.ctl_fops	= &brnf_sysctl_fops,
 	},
 	{ }
 };
