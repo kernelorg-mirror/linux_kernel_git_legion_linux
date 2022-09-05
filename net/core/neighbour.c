@@ -3552,15 +3552,30 @@ static struct ctl_fops neigh_proc_dointvec_zero_intmax_fops = {
 	.write = neigh_proc_dointvec_zero_intmax_write,
 };
 
-int neigh_proc_dointvec(struct ctl_table *ctl, int write, void *buffer,
-			size_t *lenp, loff_t *ppos)
+static ssize_t neigh_proc_dointvec_read(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos)
 {
-	int ret = proc_dointvec(ctl, write, buffer, lenp, ppos);
+	ssize_t ret = proc_dointvec_minmax_r(ctx, file, buffer, lenp, ppos);
 
-	neigh_proc_update(ctl, write);
+	neigh_proc_update(ctx->ctl_table, 0);
 	return ret;
 }
-EXPORT_SYMBOL(neigh_proc_dointvec);
+
+static ssize_t neigh_proc_dointvec_write(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos)
+{
+	ssize_t ret = proc_dointvec_minmax_w(ctx, file, buffer, lenp, ppos);
+
+	neigh_proc_update(ctx->ctl_table, 1);
+	return ret;
+}
+
+struct ctl_fops neigh_proc_dointvec_fops = {
+	.read  = neigh_proc_dointvec_read,
+	.write = neigh_proc_dointvec_write,
+};
+
+EXPORT_SYMBOL(neigh_proc_dointvec_fops);
 
 int neigh_proc_dointvec_jiffies(struct ctl_table *ctl, int write, void *buffer,
 				size_t *lenp, loff_t *ppos)
