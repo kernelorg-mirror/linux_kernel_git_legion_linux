@@ -17,14 +17,14 @@ static struct ctl_table atalk_table[] = {
 		.data		= &sysctl_aarp_expiry_time,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+		.ctl_fops	= &sysctl_intvec_jiffies_fops,
 	},
 	{
 		.procname	= "aarp-tick-time",
 		.data		= &sysctl_aarp_tick_time,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+		.ctl_fops	= &sysctl_intvec_jiffies_fops,
 	},
 	{
 		.procname	= "aarp-retransmit-limit",
@@ -38,7 +38,7 @@ static struct ctl_table atalk_table[] = {
 		.data		= &sysctl_aarp_resolve_time,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+		.ctl_fops	= &sysctl_intvec_jiffies_fops,
 	},
 	{ },
 };

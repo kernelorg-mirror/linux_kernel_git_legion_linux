@@ -88,7 +88,7 @@ static struct ctl_table dccp_default_table[] = {
 		.data		= &sysctl_dccp_sync_ratelimit,
 		.maxlen		= sizeof(sysctl_dccp_sync_ratelimit),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_ms_jiffies,
+		.ctl_fops	= &sysctl_intvec_ms_jiffies_fops,
 	},
 
 	{ }

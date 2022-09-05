@@ -564,7 +564,7 @@ static struct ctl_table ip4_frags_ns_ctl_table[] = {
 		.procname	= "ipfrag_time",
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+		.ctl_fops	= &sysctl_intvec_jiffies_fops,
 	},
 	{
 		.procname	= "ipfrag_max_dist",
@@ -584,7 +584,7 @@ static struct ctl_table ip4_frags_ctl_table[] = {
 		.data		= &ip4_frags_secret_interval_unused,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+		.ctl_fops	= &sysctl_intvec_jiffies_fops,
 	},
 	{ }
 };

@@ -1906,32 +1906,32 @@ static void ndisc_warn_deprecated_sysctl(struct ctl_table *ctl,
 	}
 }
 
-int ndisc_ifinfo_sysctl_change(struct ctl_table *ctl, int write, void *buffer,
-		size_t *lenp, loff_t *ppos)
+static ssize_t ndisc_ifinfo_sysctl_change_write(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos)
 {
+	struct ctl_table *ctl = ctx->ctl_table;
 	struct net_device *dev = ctl->extra1;
 	struct inet6_dev *idev;
-	int ret;
+	ssize_t ret;
 
 	if ((strcmp(ctl->procname, "retrans_time") == 0) ||
 	    (strcmp(ctl->procname, "base_reachable_time") == 0))
 		ndisc_warn_deprecated_sysctl(ctl, "syscall", dev ? dev->name : "default");
 
 	if (strcmp(ctl->procname, "retrans_time") == 0)
-		ret = neigh_proc_dointvec(ctl, write, buffer, lenp, ppos);
+		ret = neigh_proc_dointvec_write(ctx, file, buffer, lenp, ppos);
 
 	else if (strcmp(ctl->procname, "base_reachable_time") == 0)
-		ret = neigh_proc_dointvec_jiffies(ctl, write,
-						  buffer, lenp, ppos);
+		ret = neigh_proc_dointvec_jiffies_write(ctx, file, buffer, lenp, ppos);
 
 	else if ((strcmp(ctl->procname, "retrans_time_ms") == 0) ||
 		 (strcmp(ctl->procname, "base_reachable_time_ms") == 0))
-		ret = neigh_proc_dointvec_ms_jiffies(ctl, write,
+		ret = neigh_proc_dointvec_ms_jiffies_write(ctx, file,
 						     buffer, lenp, ppos);
 	else
 		ret = -1;
 
-	if (write && ret == 0 && dev && (idev = in6_dev_get(dev)) != NULL) {
+	if (ret == 0 && dev && (idev = in6_dev_get(dev)) != NULL) {
 		if (ctl->data == &NEIGH_VAR(idev->nd_parms, BASE_REACHABLE_TIME))
 			idev->nd_parms->reachable_time =
 					neigh_rand_reach_time(NEIGH_VAR(idev->nd_parms, BASE_REACHABLE_TIME));
@@ -1942,6 +1942,34 @@ int ndisc_ifinfo_sysctl_change(struct ctl_table *ctl, int write, void *buffer,
 	return ret;
 }
 
+static ssize_t ndisc_ifinfo_sysctl_change_read(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos)
+{
+	struct ctl_table *ctl = ctx->ctl_table;
+	struct net_device *dev = ctl->extra1;
+
+	if ((strcmp(ctl->procname, "retrans_time") == 0) ||
+	    (strcmp(ctl->procname, "base_reachable_time") == 0))
+		ndisc_warn_deprecated_sysctl(ctl, "syscall", dev ? dev->name : "default");
+
+	if (strcmp(ctl->procname, "retrans_time") == 0)
+		return neigh_proc_dointvec_read(ctx, file, buffer, lenp, ppos);
+
+	if (strcmp(ctl->procname, "base_reachable_time") == 0)
+		return neigh_proc_dointvec_jiffies_read(ctx, file, buffer, lenp, ppos);
+
+	if ((strcmp(ctl->procname, "retrans_time_ms") == 0) ||
+		 (strcmp(ctl->procname, "base_reachable_time_ms") == 0))
+		return neigh_proc_dointvec_ms_jiffies_write(ctx, file,
+						     buffer, lenp, ppos);
+
+	return -1;
+}
+
+struct ctl_fops ndisc_ifinfo_sysctl_change_fops = {
+	.read  = ndisc_ifinfo_sysctl_change_read,
+	.write = ndisc_ifinfo_sysctl_change_write,
+};
 
 #endif
 
@@ -1994,7 +2022,7 @@ int __init ndisc_init(void)
 
 #ifdef CONFIG_SYSCTL
 	err = neigh_sysctl_register(NULL, &nd_tbl.parms,
-				    ndisc_ifinfo_sysctl_change);
+				    &ndisc_ifinfo_sysctl_change_fops);
 	if (err)
 		goto out_unregister_pernet;
 out:

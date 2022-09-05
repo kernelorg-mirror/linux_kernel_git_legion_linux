@@ -96,7 +96,7 @@ static struct ctl_table mptcp_sysctl_table[] = {
 		.procname = "add_addr_timeout",
 		.maxlen = sizeof(unsigned int),
 		.mode = 0644,
-		.proc_handler = proc_dointvec_jiffies,
+		.ctl_fops = &sysctl_intvec_jiffies_fops,
 	},
 	{
 		.procname = "checksum_enabled",

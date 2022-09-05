@@ -20,7 +20,7 @@ static struct ctl_table nfs_cb_sysctls[] = {
 		.data		= &nfs_mountpoint_expiry_timeout,
 		.maxlen		= sizeof(nfs_mountpoint_expiry_timeout),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+		.ctl_fops	= &sysctl_intvec_jiffies_fops,
 	},
 	{
 		.procname	= "nfs_congestion_kb",
