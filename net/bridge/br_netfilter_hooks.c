@@ -1035,7 +1035,7 @@ int brnf_sysctl_call_tables(struct ctl_table *ctl, int write,
 
 	ret = proc_dointvec(ctl, write, buffer, lenp, ppos);
 
-	if (write && *(int *)(ctl->data))
+	if (!ret && write && *(int *)(ctl->data))
 		*(int *)(ctl->data) = 1;
 	return ret;
 }
