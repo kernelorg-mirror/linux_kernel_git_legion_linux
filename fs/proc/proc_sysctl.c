@@ -1197,6 +1197,9 @@ static int sysctl_check_table(const char *path, struct ctl_table *table)
 		    (entry->proc_handler == proc_dointvec_ms_jiffies) ||
 		    (entry->proc_handler == proc_doulongvec_minmax) ||
 		    (entry->proc_handler == proc_doulongvec_ms_jiffies_minmax) ||
+		    (entry->ctl_fops == &sysctl_intvec_jiffies_fops) ||
+		    (entry->ctl_fops == &sysctl_intvec_userhz_jiffies_fops) ||
+		    (entry->ctl_fops == &sysctl_intvec_ms_jiffies_fops) ||
 		    (entry->ctl_fops == &sysctl_intvec_fops) ||
 		    (entry->ctl_fops == &sysctl_large_bitmap_fops)) {
 			if (!entry->data)
