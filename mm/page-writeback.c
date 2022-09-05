@@ -2009,13 +2009,13 @@ bool wb_over_bg_thresh(struct bdi_writeback *wb)
 /*
  * sysctl handler for /proc/sys/vm/dirty_writeback_centisecs
  */
-static int dirty_writeback_centisecs_handler(struct ctl_table *table, int write,
-		void *buffer, size_t *length, loff_t *ppos)
+ssize_t dirty_writeback_centisecs_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
 	unsigned int old_interval = dirty_writeback_interval;
-	int ret;
+	ssize_t ret;
 
-	ret = proc_dointvec(table, write, buffer, length, ppos);
+	ret = proc_dointvec_minmax_w(ctx, file, buffer, lenp, ppos);
 
 	/*
 	 * Writing 0 to dirty_writeback_interval will disable periodic writeback
@@ -2024,12 +2024,17 @@ static int dirty_writeback_centisecs_handler(struct ctl_table *table, int write,
 	 * iterate over all bdis and wbs.
 	 * The reason we do this is to make the change take effect immediately.
 	 */
-	if (!ret && write && dirty_writeback_interval &&
+	if (!ret && dirty_writeback_interval &&
 		dirty_writeback_interval != old_interval)
 		wakeup_flusher_threads(WB_REASON_PERIODIC);
 
 	return ret;
 }
+
+static struct ctl_fops dirty_writeback_centisecs_fops = {
+	.read  = proc_dointvec_minmax_r,
+	.write = dirty_writeback_centisecs_write,
+};
 #endif
 
 void laptop_mode_timer_fn(struct timer_list *t)
@@ -2140,7 +2145,7 @@ static struct ctl_table vm_page_writeback_sysctls[] = {
 		.data       = &dirty_writeback_interval,
 		.maxlen     = sizeof(dirty_writeback_interval),
 		.mode       = 0644,
-		.proc_handler   = dirty_writeback_centisecs_handler,
+		.ctl_fops   = &dirty_writeback_centisecs_fops,
 	},
 	{
 		.procname   = "dirty_expire_centisecs",

@@ -894,16 +894,22 @@ int sysctl_max_map_count __read_mostly = DEFAULT_MAX_MAP_COUNT;
 unsigned long sysctl_user_reserve_kbytes __read_mostly = 1UL << 17; /* 128MB */
 unsigned long sysctl_admin_reserve_kbytes __read_mostly = 1UL << 13; /* 8MB */
 
-int overcommit_ratio_handler(struct ctl_table *table, int write, void *buffer,
-		size_t *lenp, loff_t *ppos)
+static ssize_t overcommit_ratio_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
-	int ret;
+	ssize_t ret;
 
-	ret = proc_dointvec(table, write, buffer, lenp, ppos);
-	if (ret == 0 && write)
+	ret = proc_dointvec_minmax_w(ctx, file, buffer, lenp, ppos);
+	if (ret == 0)
 		sysctl_overcommit_kbytes = 0;
 	return ret;
+
 }
+
+struct ctl_fops overcommit_ratio_fops = {
+	.read  = proc_dointvec_minmax_r,
+	.write = overcommit_ratio_write,
+};
 
 static void sync_overcommit_as(struct work_struct *dummy)
 {
