@@ -2130,7 +2130,7 @@ static struct ctl_table vm_table[] = {
 		.data		= &sysctl_overcommit_ratio,
 		.maxlen		= sizeof(sysctl_overcommit_ratio),
 		.mode		= 0644,
-		.proc_handler	= overcommit_ratio_handler,
+		.ctl_fops	= &overcommit_ratio_fops,
 	},
 	{
 		.procname	= "overcommit_kbytes",
