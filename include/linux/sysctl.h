@@ -237,6 +237,9 @@ ssize_t proc_douintvec_minmax_w(struct ctl_context *ctx, struct file *file,
 				char *buffer, size_t *lenp, loff_t *ppos);
 
 extern struct ctl_fops proc_dointvec_minmax_fops;
+extern struct ctl_fops proc_dointvec_jiffies_fops;
+extern struct ctl_fops proc_dointvec_userhz_jiffies_fops;
+extern struct ctl_fops proc_dointvec_ms_jiffies_fops;
 
 int do_proc_dobool_conv(bool *negp, unsigned long *lvalp, int *valp,
 		int write, int *min, int *max);
@@ -248,6 +251,21 @@ ssize_t proc_dointvec_minmax_r(struct ctl_context *ctx, struct file *file,
 
 ssize_t proc_dointvec_minmax_w(struct ctl_context *ctx, struct file *file,
 			       char *buffer, size_t *lenp, loff_t *ppos);
+
+ssize_t proc_dointvec_jiffies_r(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos);
+ssize_t proc_dointvec_jiffies_w(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos);
+
+ssize_t proc_dointvec_userhz_jiffies_r(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos);
+ssize_t proc_dointvec_userhz_jiffies_w(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos);
+
+ssize_t proc_dointvec_ms_jiffies_r(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos);
+ssize_t proc_dointvec_ms_jiffies_w(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos);
 
 int do_proc_dointvec_r(void *tbl_data, struct ctl_table *table,
 		       void *buffer, size_t *lenp, loff_t *ppos,

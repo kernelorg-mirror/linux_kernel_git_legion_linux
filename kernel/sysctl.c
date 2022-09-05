@@ -1190,6 +1190,20 @@ int proc_dointvec_jiffies(struct ctl_table *table, int write,
 			do_proc_dointvec_jiffies_conv, NULL, NULL);
 }
 
+ssize_t proc_dointvec_jiffies_r(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	return do_proc_dointvec_r(ctx->ctl_table->data, ctx->ctl_table,
+			buffer, lenp, ppos, do_proc_dointvec_jiffies_conv, NULL, NULL);
+}
+
+ssize_t proc_dointvec_jiffies_w(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	return do_proc_dointvec_w(ctx->ctl_table->data, ctx->ctl_table,
+			buffer, lenp, ppos, do_proc_dointvec_jiffies_conv, NULL, NULL);
+}
+
 /**
  * proc_dointvec_userhz_jiffies - read a vector of integers as 1/USER_HZ seconds
  * @table: the sysctl table
@@ -1213,6 +1227,20 @@ int proc_dointvec_userhz_jiffies(struct ctl_table *table, int write,
 				do_proc_dointvec_userhz_jiffies_conv, NULL, NULL);
 	return do_proc_dointvec_r(table->data, table, buffer, lenp, ppos,
 			do_proc_dointvec_userhz_jiffies_conv, NULL, NULL);
+}
+
+ssize_t proc_dointvec_userhz_jiffies_r(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	return do_proc_dointvec_r(ctx->ctl_table->data, ctx->ctl_table,
+			buffer, lenp, ppos, do_proc_dointvec_userhz_jiffies_conv, NULL, NULL);
+}
+
+ssize_t proc_dointvec_userhz_jiffies_w(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	return do_proc_dointvec_w(ctx->ctl_table->data, ctx->ctl_table,
+			buffer, lenp, ppos, do_proc_dointvec_userhz_jiffies_conv, NULL, NULL);
 }
 
 /**
@@ -1239,6 +1267,20 @@ int proc_dointvec_ms_jiffies(struct ctl_table *table, int write, void *buffer,
 				do_proc_dointvec_ms_jiffies_conv, NULL, NULL);
 	return do_proc_dointvec_r(table->data, table, buffer, lenp, ppos,
 			do_proc_dointvec_ms_jiffies_conv, NULL, NULL);
+}
+
+ssize_t proc_dointvec_ms_jiffies_r(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	return do_proc_dointvec_r(ctx->ctl_table->data, ctx->ctl_table,
+			buffer, lenp, ppos, do_proc_dointvec_ms_jiffies_conv, NULL, NULL);
+}
+
+ssize_t proc_dointvec_ms_jiffies_w(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	return do_proc_dointvec_w(ctx->ctl_table->data, ctx->ctl_table,
+			buffer, lenp, ppos, do_proc_dointvec_ms_jiffies_conv, NULL, NULL);
 }
 
 static int proc_do_cad_pid(struct ctl_table *table, int write, void *buffer,
@@ -1594,6 +1636,42 @@ ssize_t proc_dointvec_minmax_w(struct ctl_context *ctx, struct file *file,
 	return -ENOSYS;
 }
 
+ssize_t proc_dointvec_jiffies_r(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	return -ENOSYS;
+}
+
+ssize_t proc_dointvec_jiffies_w(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	return -ENOSYS;
+}
+
+ssize_t proc_dointvec_userhz_jiffies_r(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	return -ENOSYS;
+}
+
+ssize_t proc_dointvec_userhz_jiffies_w(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	return -ENOSYS;
+}
+
+ssize_t proc_dointvec_ms_jiffies_r(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	return -ENOSYS;
+}
+
+ssize_t proc_dointvec_ms_jiffies_w(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	return -ENOSYS;
+}
+
 int proc_doulongvec_ms_jiffies_minmax(struct ctl_table *table, int write,
 				      void *buffer, size_t *lenp, loff_t *ppos)
 {
@@ -1617,6 +1695,21 @@ ssize_t proc_large_bitmap_w(struct ctl_context *ctx, struct file *file,
 struct ctl_fops proc_dointvec_minmax_fops = {
 	.read  = proc_dointvec_minmax_r,
 	.write = proc_dointvec_minmax_w,
+};
+
+struct ctl_fops proc_dointvec_jiffies_fops = {
+	.read  = proc_dointvec_jiffies_r,
+	.write = proc_dointvec_jiffies_w,
+};
+
+struct ctl_fops proc_dointvec_userhz_jiffies_fops = {
+	.read  = proc_dointvec_userhz_jiffies_r,
+	.write = proc_dointvec_userhz_jiffies_w,
+};
+
+struct ctl_fops proc_dointvec_ms_jiffies_fops = {
+	.read  = proc_dointvec_ms_jiffies_r,
+	.write = proc_dointvec_ms_jiffies_w,
 };
 
 struct ctl_fops proc_douintvec_minmax_fops = {
@@ -2527,6 +2620,15 @@ EXPORT_SYMBOL(proc_dobool);
 EXPORT_SYMBOL(do_proc_dobool_conv);
 EXPORT_SYMBOL(proc_dointvec);
 EXPORT_SYMBOL(proc_dointvec_jiffies);
+EXPORT_SYMBOL(proc_dointvec_jiffies_r);
+EXPORT_SYMBOL(proc_dointvec_jiffies_w);
+EXPORT_SYMBOL(proc_dointvec_jiffies_fops);
+EXPORT_SYMBOL(proc_dointvec_userhz_jiffies_r);
+EXPORT_SYMBOL(proc_dointvec_userhz_jiffies_w);
+EXPORT_SYMBOL(proc_dointvec_userhz_jiffies_fops);
+EXPORT_SYMBOL(proc_dointvec_ms_jiffies_r);
+EXPORT_SYMBOL(proc_dointvec_ms_jiffies_w);
+EXPORT_SYMBOL(proc_dointvec_ms_jiffies_fops);
 EXPORT_SYMBOL(proc_dointvec_minmax_r);
 EXPORT_SYMBOL(proc_dointvec_minmax_w);
 EXPORT_SYMBOL(do_proc_dointvec_minmax_conv);
