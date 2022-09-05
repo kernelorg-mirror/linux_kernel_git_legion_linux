@@ -124,10 +124,19 @@ ssize_t sysctl_read_uintvec(struct ctl_context *, struct file *, char *, size_t 
 ssize_t sysctl_write_uintvec(struct ctl_context *, struct file *, char *, size_t *, loff_t *);
 ssize_t sysctl_read_intvec(struct ctl_context *, struct file *, char *, size_t *, loff_t *);
 ssize_t sysctl_write_intvec(struct ctl_context *, struct file *, char *, size_t *, loff_t *);
+ssize_t sysctl_read_intvec_jiffies(struct ctl_context *, struct file *, char *, size_t *, loff_t *);
+ssize_t sysctl_write_intvec_jiffies(struct ctl_context *, struct file *, char *, size_t *, loff_t *);
+ssize_t sysctl_read_intvec_userhz_jiffies(struct ctl_context *, struct file *, char *, size_t *, loff_t *);
+ssize_t sysctl_write_intvec_userhz_jiffies(struct ctl_context *, struct file *, char *, size_t *, loff_t *);
+ssize_t sysctl_read_intvec_ms_jiffies(struct ctl_context *, struct file *, char *, size_t *, loff_t *);
+ssize_t sysctl_write_intvec_ms_jiffies(struct ctl_context *, struct file *, char *, size_t *, loff_t *);
 
 extern struct ctl_fops proc_dointvec_minmax_fops;
 extern struct ctl_fops proc_douintvec_minmax_fops;
 extern struct ctl_fops proc_large_bitmap_fops;
+extern struct ctl_fops proc_dointvec_jiffies_fops;
+extern struct ctl_fops proc_dointvec_userhz_jiffies_fops;
+extern struct ctl_fops proc_dointvec_ms_jiffies_fops;
 
 /*
  * Register a set of sysctl names by calling register_sysctl_table
