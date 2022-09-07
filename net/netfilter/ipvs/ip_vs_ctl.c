@@ -1767,23 +1767,18 @@ static int ip_vs_zero_all(struct netns_ipvs *ipvs)
 
 #ifdef CONFIG_SYSCTL
 
-static int
-proc_do_defense_mode(struct ctl_table *table, int write,
-		     void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t proc_do_defense_mode_write(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos)
 {
-	struct netns_ipvs *ipvs = table->extra2;
-	int *valp = table->data;
+	struct netns_ipvs *ipvs = ctx->ctl_table->extra2;
+	int *valp = ctx->ctl_table->data;
 	int val = *valp;
-	int rc;
+	ssize_t rc;
 
-	struct ctl_table tmp = {
-		.data = &val,
-		.maxlen = sizeof(int),
-		.mode = table->mode,
-	};
+	rc = sysctl_write_intvec_data(&val, ctx->ctl_table, buffer, lenp, ppos,
+			sysctl_conv_intvec, NULL, NULL);
 
-	rc = proc_dointvec(&tmp, write, buffer, lenp, ppos);
-	if (write && (*valp != val)) {
+	if (!rc && (*valp != val)) {
 		if (val < 0 || val > 3) {
 			rc = -EINVAL;
 		} else {
@@ -1794,22 +1789,21 @@ proc_do_defense_mode(struct ctl_table *table, int write,
 	return rc;
 }
 
-static int
-proc_do_sync_threshold(struct ctl_table *table, int write,
-		       void *buffer, size_t *lenp, loff_t *ppos)
-{
-	int *valp = table->data;
-	int val[2];
-	int rc;
-	struct ctl_table tmp = {
-		.data = &val,
-		.maxlen = table->maxlen,
-		.mode = table->mode,
-	};
+static struct ctl_fops proc_do_defense_mode_fops = {
+	.read  = sysctl_read_intvec,
+	.write = proc_do_defense_mode_write,
+};
 
-	memcpy(val, valp, sizeof(val));
-	rc = proc_dointvec(&tmp, write, buffer, lenp, ppos);
-	if (write) {
+static ssize_t proc_do_sync_threshold_write(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos)
+{
+	int *valp = ctx->ctl_table->data;
+	int val[2];
+	ssize_t rc;
+
+	rc = sysctl_write_intvec_data(&val, ctx->ctl_table, buffer, lenp, ppos,
+			sysctl_conv_intvec, NULL, NULL);
+	if (!rc) {
 		if (val[0] < 0 || val[1] < 0 ||
 		    (val[0] >= val[1] && val[1]))
 			rc = -EINVAL;
@@ -1819,22 +1813,21 @@ proc_do_sync_threshold(struct ctl_table *table, int write,
 	return rc;
 }
 
-static int
-proc_do_sync_ports(struct ctl_table *table, int write,
-		   void *buffer, size_t *lenp, loff_t *ppos)
+static struct ctl_fops proc_do_sync_threshold_fops = {
+	.read  = sysctl_read_intvec,
+	.write = proc_do_sync_threshold_write,
+};
+
+static ssize_t proc_do_sync_ports_write(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos)
 {
-	int *valp = table->data;
+	int *valp = ctx->ctl_table->data;
 	int val = *valp;
-	int rc;
+	ssize_t rc;
 
-	struct ctl_table tmp = {
-		.data = &val,
-		.maxlen = sizeof(int),
-		.mode = table->mode,
-	};
-
-	rc = proc_dointvec(&tmp, write, buffer, lenp, ppos);
-	if (write && (*valp != val)) {
+	rc = sysctl_write_intvec_data(&val, ctx->ctl_table, buffer, lenp, ppos,
+			sysctl_conv_intvec, NULL, NULL);
+	if (!rc && (*valp != val)) {
 		if (val < 1 || !is_power_of_2(val))
 			rc = -EINVAL;
 		else
@@ -1842,6 +1835,11 @@ proc_do_sync_ports(struct ctl_table *table, int write,
 	}
 	return rc;
 }
+
+static struct ctl_fops proc_do_sync_ports_fops = {
+	.read  = sysctl_read_intvec,
+	.write = proc_do_sync_ports_write,
+};
 
 /*
  *	IPVS sysctl table (under the /proc/sys/net/ipv4/vs/)
@@ -1866,33 +1864,33 @@ static struct ctl_table vs_vars[] = {
 		.procname	= "drop_entry",
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_do_defense_mode,
+		.ctl_fops	= &proc_do_defense_mode_fops,
 	},
 	{
 		.procname	= "drop_packet",
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_do_defense_mode,
+		.ctl_fops	= &proc_do_defense_mode_fops,
 	},
 #ifdef CONFIG_IP_VS_NFCT
 	{
 		.procname	= "conntrack",
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 	},
 #endif
 	{
 		.procname	= "secure_tcp",
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_do_defense_mode,
+		.ctl_fops	= &proc_do_defense_mode_fops,
 	},
 	{
 		.procname	= "snat_reroute",
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
+		.ctl_fops	= &proc_dointvec_minmax_fops,
 	},
 	{
 		.procname	= "sync_version",
@@ -1906,7 +1904,7 @@ static struct ctl_table vs_vars[] = {
 		.procname	= "sync_ports",
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_do_sync_ports,
+		.ctl_fops	= &proc_do_sync_ports_fops,
 	},
 	{
 		.procname	= "sync_persist_mode",
@@ -1961,13 +1959,13 @@ static struct ctl_table vs_vars[] = {
 		.maxlen		=
 			sizeof(((struct netns_ipvs *)0)->sysctl_sync_threshold),
 		.mode		= 0644,
-		.proc_handler	= proc_do_sync_threshold,
+		.ctl_fops	= &proc_do_sync_threshold_fops,
 	},
 	{
 		.procname	= "sync_refresh_period",
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+		.ctl_fops	= &proc_dointvec_jiffies_fops,
 	},
 	{
 		.procname	= "sync_retries",
@@ -4046,7 +4044,7 @@ static int __net_init ip_vs_control_net_init_sysctl(struct netns_ipvs *ipvs)
 		tbl = vs_vars;
 	/* Initialize sysctl defaults */
 	for (idx = 0; idx < ARRAY_SIZE(vs_vars); idx++) {
-		if (tbl[idx].proc_handler == proc_do_defense_mode)
+		if (tbl[idx].ctl_fops == &proc_do_defense_mode_fops)
 			tbl[idx].extra2 = ipvs;
 	}
 	idx = 0;

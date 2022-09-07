@@ -48,7 +48,7 @@ static struct ctl_table nf_ct_frag6_sysctl_table[] = {
 		.procname	= "nf_conntrack_frag6_timeout",
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+		.ctl_fops	= &proc_dointvec_jiffies_fops,
 	},
 	{
 		.procname	= "nf_conntrack_frag6_low_thresh",

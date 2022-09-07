@@ -6194,30 +6194,31 @@ static void ipv6_ifa_notify(int event, struct inet6_ifaddr *ifp)
 
 #ifdef CONFIG_SYSCTL
 
-static int addrconf_sysctl_forward(struct ctl_table *ctl, int write,
-		void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t addrconf_sysctl_forward_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
-	int *valp = ctl->data;
+	int *valp = ctx->ctl_table->data;
 	int val = *valp;
 	loff_t pos = *ppos;
-	struct ctl_table lctl;
-	int ret;
+	ssize_t ret;
 
 	/*
 	 * ctl->data points to idev->cnf.forwarding, we should
 	 * not modify it until we get the rtnl lock.
 	 */
-	lctl = *ctl;
-	lctl.data = &val;
-
-	ret = proc_dointvec(&lctl, write, buffer, lenp, ppos);
-
-	if (write)
-		ret = addrconf_fixup_forwarding(ctl, valp, val);
+	ret = sysctl_write_intvec_data(&val, ctx->ctl_table, buffer, lenp, ppos,
+			sysctl_conv_intvec, NULL, NULL);
+	if (!ret)
+		ret = addrconf_fixup_forwarding(ctx->ctl_table, valp, val);
 	if (ret)
 		*ppos = pos;
 	return ret;
 }
+
+struct ctl_fops addrconf_sysctl_forward_fops = {
+	.read  = sysctl_read_intvec,
+	.write = addrconf_sysctl_forward_write,
+};
 
 static ssize_t addrconf_sysctl_mtu_write(struct ctl_context *ctx, struct file *file,
 		char *buffer, size_t *lenp, loff_t *ppos)
@@ -6294,44 +6295,47 @@ static int addrconf_disable_ipv6(struct ctl_table *table, int *p, int newf)
 	return 0;
 }
 
-static int addrconf_sysctl_disable(struct ctl_table *ctl, int write,
-		void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t addrconf_sysctl_disable_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
-	int *valp = ctl->data;
+	int *valp = ctx->ctl_table->data;
 	int val = *valp;
 	loff_t pos = *ppos;
-	struct ctl_table lctl;
-	int ret;
+	ssize_t ret;
 
 	/*
 	 * ctl->data points to idev->cnf.disable_ipv6, we should
 	 * not modify it until we get the rtnl lock.
 	 */
-	lctl = *ctl;
-	lctl.data = &val;
-
-	ret = proc_dointvec(&lctl, write, buffer, lenp, ppos);
-
-	if (write)
-		ret = addrconf_disable_ipv6(ctl, valp, val);
+	ret = sysctl_write_intvec_data(&val, ctx->ctl_table, buffer, lenp, ppos,
+			sysctl_conv_intvec, NULL, NULL);
+	if (!ret)
+		ret = addrconf_disable_ipv6(ctx->ctl_table, valp, val);
 	if (ret)
 		*ppos = pos;
 	return ret;
 }
 
-static int addrconf_sysctl_proxy_ndp(struct ctl_table *ctl, int write,
-		void *buffer, size_t *lenp, loff_t *ppos)
+struct ctl_fops addrconf_sysctl_disable_fops = {
+	.read  = sysctl_read_intvec,
+	.write = addrconf_sysctl_disable_write,
+};
+
+static ssize_t addrconf_sysctl_proxy_ndp_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
-	int *valp = ctl->data;
-	int ret;
-	int old, new;
+	int *valp = ctx->ctl_table->data;
+	int old = *valp;
+	int new = old;
+	ssize_t ret;
 
-	old = *valp;
-	ret = proc_dointvec(ctl, write, buffer, lenp, ppos);
-	new = *valp;
+	ret = sysctl_write_intvec_data(&new, ctx->ctl_table, buffer, lenp, ppos,
+			sysctl_conv_intvec, NULL, NULL);
 
-	if (write && old != new) {
-		struct net *net = ctl->extra2;
+	if (!ret && old != new) {
+		struct net *net = ctx->ctl_table->extra2;
+
+		*valp = new;
 
 		if (!rtnl_trylock())
 			return restart_syscall();
@@ -6347,7 +6351,7 @@ static int addrconf_sysctl_proxy_ndp(struct ctl_table *ctl, int write,
 						     NETCONFA_IFINDEX_ALL,
 						     net->ipv6.devconf_all);
 		else {
-			struct inet6_dev *idev = ctl->extra1;
+			struct inet6_dev *idev = ctx->ctl_table->extra1;
 
 			inet6_netconf_notify_devconf(net, RTM_NEWNETCONF,
 						     NETCONFA_PROXY_NEIGH,
@@ -6359,6 +6363,11 @@ static int addrconf_sysctl_proxy_ndp(struct ctl_table *ctl, int write,
 
 	return ret;
 }
+
+struct ctl_fops addrconf_sysctl_proxy_ndp_fops = {
+	.read  = sysctl_read_intvec,
+	.write = addrconf_sysctl_proxy_ndp_write,
+};
 
 static ssize_t addrconf_addr_gen_mode_write(struct ctl_context *ctx, struct file *file,
 		char *buffer, size_t *lenp, loff_t *ppos)
@@ -6503,32 +6512,35 @@ out:
 	return err;
 }
 
-static
-int addrconf_sysctl_ignore_routes_with_linkdown(struct ctl_table *ctl,
-						int write, void *buffer,
+static ssize_t
+addrconf_sysctl_ignore_routes_with_linkdown_write(struct ctl_context *ctx,
+						struct file *file,
+						char *buffer,
 						size_t *lenp,
 						loff_t *ppos)
 {
-	int *valp = ctl->data;
+	int *valp = ctx->ctl_table->data;
 	int val = *valp;
 	loff_t pos = *ppos;
-	struct ctl_table lctl;
-	int ret;
+	ssize_t ret;
 
 	/* ctl->data points to idev->cnf.ignore_routes_when_linkdown
 	 * we should not modify it until we get the rtnl lock.
 	 */
-	lctl = *ctl;
-	lctl.data = &val;
+	ret = sysctl_write_intvec_data(&val, ctx->ctl_table, buffer, lenp, ppos,
+			sysctl_conv_intvec, NULL, NULL);
 
-	ret = proc_dointvec(&lctl, write, buffer, lenp, ppos);
-
-	if (write)
-		ret = addrconf_fixup_linkdown(ctl, valp, val);
+	if (!ret)
+		ret = addrconf_fixup_linkdown(ctx->ctl_table, valp, val);
 	if (ret)
 		*ppos = pos;
 	return ret;
 }
+
+static struct ctl_fops addrconf_sysctl_ignore_routes_with_linkdown_fops = {
+	.read  = sysctl_read_intvec,
+	.write = addrconf_sysctl_ignore_routes_with_linkdown_write,
+};
 
 static
 void addrconf_set_nopolicy(struct rt6_info *rt, int action)
@@ -6605,27 +6617,30 @@ int addrconf_disable_policy(struct ctl_table *ctl, int *valp, int val)
 	return 0;
 }
 
-static int addrconf_sysctl_disable_policy(struct ctl_table *ctl, int write,
-				   void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t addrconf_sysctl_disable_policy_write(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos)
 {
-	int *valp = ctl->data;
+	int *valp = ctx->ctl_table->data;
 	int val = *valp;
 	loff_t pos = *ppos;
-	struct ctl_table lctl;
-	int ret;
+	ssize_t ret;
 
-	lctl = *ctl;
-	lctl.data = &val;
-	ret = proc_dointvec(&lctl, write, buffer, lenp, ppos);
+	ret = sysctl_write_intvec_data(&val, ctx->ctl_table, buffer, lenp, ppos,
+			sysctl_conv_intvec, NULL, NULL);
 
-	if (write && (*valp != val))
-		ret = addrconf_disable_policy(ctl, valp, val);
+	if (!ret && (*valp != val))
+		ret = addrconf_disable_policy(ctx->ctl_table, valp, val);
 
 	if (ret)
 		*ppos = pos;
 
 	return ret;
 }
+
+static struct ctl_fops addrconf_sysctl_disable_policy_fops = {
+	.read  = sysctl_read_intvec,
+	.write = addrconf_sysctl_disable_policy_write,
+};
 
 static int minus_one = -1;
 static const int two_five_five = 255;
@@ -6637,7 +6652,7 @@ static const struct ctl_table addrconf_sysctl[] = {
 		.data		= &ipv6_devconf.forwarding,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= addrconf_sysctl_forward,
+		.ctl_fops	= &addrconf_sysctl_forward_fops,
 	},
 	{
 		.procname	= "hop_limit",
@@ -6696,21 +6711,21 @@ static const struct ctl_table addrconf_sysctl[] = {
 		.data		= &ipv6_devconf.rtr_solicit_interval,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+		.ctl_fops	= &proc_dointvec_jiffies_fops,
 	},
 	{
 		.procname	= "router_solicitation_max_interval",
 		.data		= &ipv6_devconf.rtr_solicit_max_interval,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+		.ctl_fops	= &proc_dointvec_jiffies_fops,
 	},
 	{
 		.procname	= "router_solicitation_delay",
 		.data		= &ipv6_devconf.rtr_solicit_delay,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+		.ctl_fops	= &proc_dointvec_jiffies_fops,
 	},
 	{
 		.procname	= "force_mld_version",
@@ -6725,7 +6740,7 @@ static const struct ctl_table addrconf_sysctl[] = {
 			&ipv6_devconf.mldv1_unsolicited_report_interval,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_ms_jiffies,
+		.ctl_fops	= &proc_dointvec_ms_jiffies_fops,
 	},
 	{
 		.procname	= "mldv2_unsolicited_report_interval",
@@ -6733,7 +6748,7 @@ static const struct ctl_table addrconf_sysctl[] = {
 			&ipv6_devconf.mldv2_unsolicited_report_interval,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_ms_jiffies,
+		.ctl_fops	= &proc_dointvec_ms_jiffies_fops,
 	},
 	{
 		.procname	= "use_tempaddr",
@@ -6819,7 +6834,7 @@ static const struct ctl_table addrconf_sysctl[] = {
 		.data		= &ipv6_devconf.rtr_probe_interval,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+		.ctl_fops	= &proc_dointvec_jiffies_fops,
 	},
 #ifdef CONFIG_IPV6_ROUTE_INFO
 	{
@@ -6843,7 +6858,7 @@ static const struct ctl_table addrconf_sysctl[] = {
 		.data		= &ipv6_devconf.proxy_ndp,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= addrconf_sysctl_proxy_ndp,
+		.ctl_fops	= &addrconf_sysctl_proxy_ndp_fops,
 	},
 	{
 		.procname	= "accept_source_route",
@@ -6882,7 +6897,7 @@ static const struct ctl_table addrconf_sysctl[] = {
 		.data		= &ipv6_devconf.disable_ipv6,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= addrconf_sysctl_disable,
+		.ctl_fops	= &addrconf_sysctl_disable_fops,
 	},
 	{
 		.procname	= "accept_dad",
@@ -6945,7 +6960,7 @@ static const struct ctl_table addrconf_sysctl[] = {
 		.data		= &ipv6_devconf.ignore_routes_with_linkdown,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= addrconf_sysctl_ignore_routes_with_linkdown,
+		.ctl_fops	= &addrconf_sysctl_ignore_routes_with_linkdown_fops,
 	},
 	{
 		.procname	= "drop_unicast_in_l2_multicast",
@@ -7004,7 +7019,7 @@ static const struct ctl_table addrconf_sysctl[] = {
 		.data           = &ipv6_devconf.disable_policy,
 		.maxlen         = sizeof(int),
 		.mode           = 0644,
-		.proc_handler   = addrconf_sysctl_disable_policy,
+		.ctl_fops       = &addrconf_sysctl_disable_policy_fops,
 	},
 	{
 		.procname	= "ndisc_tclass",
@@ -7139,7 +7154,7 @@ static int addrconf_sysctl_register(struct inet6_dev *idev)
 		return -EINVAL;
 
 	err = neigh_sysctl_register(idev->dev, idev->nd_parms,
-				    &ndisc_ifinfo_sysctl_change);
+				    &ndisc_ifinfo_sysctl_change_fops);
 	if (err)
 		return err;
 	err = __addrconf_sysctl_register(dev_net(idev->dev), idev->dev->name,

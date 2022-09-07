@@ -527,17 +527,16 @@ EXPORT_SYMBOL_GPL(nf_conntrack_count);
 /* size the user *wants to set */
 static unsigned int nf_conntrack_htable_size_user __read_mostly;
 
-static int
-nf_conntrack_hash_sysctl(struct ctl_table *table, int write,
-			 void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t nf_conntrack_hash_sysctl_write(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos)
 {
-	int ret;
+	ssize_t ret;
 
 	/* module_param hashsize could have changed value */
 	nf_conntrack_htable_size_user = nf_conntrack_htable_size;
 
-	ret = proc_dointvec(table, write, buffer, lenp, ppos);
-	if (ret < 0 || !write)
+	ret = sysctl_write_intvec(ctx, file, buffer, lenp, ppos);
+	if (ret < 0)
 		return ret;
 
 	/* update ret, we might not be able to satisfy request */
@@ -547,6 +546,20 @@ nf_conntrack_hash_sysctl(struct ctl_table *table, int write,
 	nf_conntrack_htable_size_user = nf_conntrack_htable_size;
 	return ret;
 }
+
+static ssize_t nf_conntrack_hash_sysctl_read(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos)
+{
+	/* module_param hashsize could have changed value */
+	nf_conntrack_htable_size_user = nf_conntrack_htable_size;
+
+	return sysctl_read_intvec(ctx, file, buffer, lenp, ppos);
+}
+
+static struct ctl_fops nf_conntrack_hash_sysctl_fops = {
+	.read  = nf_conntrack_hash_sysctl_read,
+	.write = nf_conntrack_hash_sysctl_write,
+};
 
 static struct ctl_table_header *nf_ct_netfilter_header;
 
@@ -643,7 +656,7 @@ static struct ctl_table nf_ct_sysctl_table[] = {
 		.data           = &nf_conntrack_htable_size_user,
 		.maxlen         = sizeof(unsigned int),
 		.mode           = 0644,
-		.proc_handler   = nf_conntrack_hash_sysctl,
+		.ctl_fops       = &nf_conntrack_hash_sysctl_fops,
 	},
 	[NF_SYSCTL_CT_CHECKSUM] = {
 		.procname	= "nf_conntrack_checksum",
@@ -711,74 +724,74 @@ static struct ctl_table nf_ct_sysctl_table[] = {
 		.procname	= "nf_conntrack_generic_timeout",
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+		.ctl_fops	= &proc_dointvec_jiffies_fops,
 	},
 	[NF_SYSCTL_CT_PROTO_TIMEOUT_TCP_SYN_SENT] = {
 		.procname	= "nf_conntrack_tcp_timeout_syn_sent",
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+		.ctl_fops	= &proc_dointvec_jiffies_fops,
 	},
 	[NF_SYSCTL_CT_PROTO_TIMEOUT_TCP_SYN_RECV] = {
 		.procname	= "nf_conntrack_tcp_timeout_syn_recv",
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+		.ctl_fops	= &proc_dointvec_jiffies_fops,
 	},
 	[NF_SYSCTL_CT_PROTO_TIMEOUT_TCP_ESTABLISHED] = {
 		.procname	= "nf_conntrack_tcp_timeout_established",
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+		.ctl_fops	= &proc_dointvec_jiffies_fops,
 	},
 	[NF_SYSCTL_CT_PROTO_TIMEOUT_TCP_FIN_WAIT] = {
 		.procname	= "nf_conntrack_tcp_timeout_fin_wait",
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+		.ctl_fops	= &proc_dointvec_jiffies_fops,
 	},
 	[NF_SYSCTL_CT_PROTO_TIMEOUT_TCP_CLOSE_WAIT] = {
 		.procname	= "nf_conntrack_tcp_timeout_close_wait",
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+		.ctl_fops	= &proc_dointvec_jiffies_fops,
 	},
 	[NF_SYSCTL_CT_PROTO_TIMEOUT_TCP_LAST_ACK] = {
 		.procname	= "nf_conntrack_tcp_timeout_last_ack",
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+		.ctl_fops	= &proc_dointvec_jiffies_fops,
 	},
 	[NF_SYSCTL_CT_PROTO_TIMEOUT_TCP_TIME_WAIT] = {
 		.procname	= "nf_conntrack_tcp_timeout_time_wait",
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+		.ctl_fops	= &proc_dointvec_jiffies_fops,
 	},
 	[NF_SYSCTL_CT_PROTO_TIMEOUT_TCP_CLOSE] = {
 		.procname	= "nf_conntrack_tcp_timeout_close",
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+		.ctl_fops	= &proc_dointvec_jiffies_fops,
 	},
 	[NF_SYSCTL_CT_PROTO_TIMEOUT_TCP_RETRANS] = {
 		.procname	= "nf_conntrack_tcp_timeout_max_retrans",
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+		.ctl_fops	= &proc_dointvec_jiffies_fops,
 	},
 	[NF_SYSCTL_CT_PROTO_TIMEOUT_TCP_UNACK] = {
 		.procname	= "nf_conntrack_tcp_timeout_unacknowledged",
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+		.ctl_fops	= &proc_dointvec_jiffies_fops,
 	},
 #if IS_ENABLED(CONFIG_NF_FLOW_TABLE)
 	[NF_SYSCTL_CT_PROTO_TIMEOUT_TCP_OFFLOAD] = {
 		.procname	= "nf_flowtable_tcp_timeout",
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+		.ctl_fops	= &proc_dointvec_jiffies_fops,
 	},
 #endif
 	[NF_SYSCTL_CT_PROTO_TCP_LOOSE] = {
@@ -815,88 +828,88 @@ static struct ctl_table nf_ct_sysctl_table[] = {
 		.procname	= "nf_conntrack_udp_timeout",
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+		.ctl_fops	= &proc_dointvec_jiffies_fops,
 	},
 	[NF_SYSCTL_CT_PROTO_TIMEOUT_UDP_STREAM] = {
 		.procname	= "nf_conntrack_udp_timeout_stream",
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+		.ctl_fops	= &proc_dointvec_jiffies_fops,
 	},
 #if IS_ENABLED(CONFIG_NF_FLOW_TABLE)
 	[NF_SYSCTL_CT_PROTO_TIMEOUT_UDP_OFFLOAD] = {
 		.procname	= "nf_flowtable_udp_timeout",
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+		.ctl_fops	= &proc_dointvec_jiffies_fops,
 	},
 #endif
 	[NF_SYSCTL_CT_PROTO_TIMEOUT_ICMP] = {
 		.procname	= "nf_conntrack_icmp_timeout",
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+		.ctl_fops	= &proc_dointvec_jiffies_fops,
 	},
 	[NF_SYSCTL_CT_PROTO_TIMEOUT_ICMPV6] = {
 		.procname	= "nf_conntrack_icmpv6_timeout",
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+		.ctl_fops	= &proc_dointvec_jiffies_fops,
 	},
 #ifdef CONFIG_NF_CT_PROTO_SCTP
 	[NF_SYSCTL_CT_PROTO_TIMEOUT_SCTP_CLOSED] = {
 		.procname	= "nf_conntrack_sctp_timeout_closed",
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+		.ctl_fops	= &proc_dointvec_jiffies_fops,
 	},
 	[NF_SYSCTL_CT_PROTO_TIMEOUT_SCTP_COOKIE_WAIT] = {
 		.procname	= "nf_conntrack_sctp_timeout_cookie_wait",
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+		.ctl_fops	= &proc_dointvec_jiffies_fops,
 	},
 	[NF_SYSCTL_CT_PROTO_TIMEOUT_SCTP_COOKIE_ECHOED] = {
 		.procname	= "nf_conntrack_sctp_timeout_cookie_echoed",
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+		.ctl_fops	= &proc_dointvec_jiffies_fops,
 	},
 	[NF_SYSCTL_CT_PROTO_TIMEOUT_SCTP_ESTABLISHED] = {
 		.procname	= "nf_conntrack_sctp_timeout_established",
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+		.ctl_fops	= &proc_dointvec_jiffies_fops,
 	},
 	[NF_SYSCTL_CT_PROTO_TIMEOUT_SCTP_SHUTDOWN_SENT] = {
 		.procname	= "nf_conntrack_sctp_timeout_shutdown_sent",
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+		.ctl_fops	= &proc_dointvec_jiffies_fops,
 	},
 	[NF_SYSCTL_CT_PROTO_TIMEOUT_SCTP_SHUTDOWN_RECD] = {
 		.procname	= "nf_conntrack_sctp_timeout_shutdown_recd",
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+		.ctl_fops	= &proc_dointvec_jiffies_fops,
 	},
 	[NF_SYSCTL_CT_PROTO_TIMEOUT_SCTP_SHUTDOWN_ACK_SENT] = {
 		.procname	= "nf_conntrack_sctp_timeout_shutdown_ack_sent",
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+		.ctl_fops	= &proc_dointvec_jiffies_fops,
 	},
 	[NF_SYSCTL_CT_PROTO_TIMEOUT_SCTP_HEARTBEAT_SENT] = {
 		.procname	= "nf_conntrack_sctp_timeout_heartbeat_sent",
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+		.ctl_fops	= &proc_dointvec_jiffies_fops,
 	},
 	[NF_SYSCTL_CT_PROTO_TIMEOUT_SCTP_HEARTBEAT_ACKED] = {
 		.procname       = "nf_conntrack_sctp_timeout_heartbeat_acked",
 		.maxlen         = sizeof(unsigned int),
 		.mode           = 0644,
-		.proc_handler   = proc_dointvec_jiffies,
+		.ctl_fops       = &proc_dointvec_jiffies_fops,
 	},
 #endif
 #ifdef CONFIG_NF_CT_PROTO_DCCP
@@ -904,43 +917,43 @@ static struct ctl_table nf_ct_sysctl_table[] = {
 		.procname	= "nf_conntrack_dccp_timeout_request",
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+		.ctl_fops	= &proc_dointvec_jiffies_fops,
 	},
 	[NF_SYSCTL_CT_PROTO_TIMEOUT_DCCP_RESPOND] = {
 		.procname	= "nf_conntrack_dccp_timeout_respond",
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+		.ctl_fops	= &proc_dointvec_jiffies_fops,
 	},
 	[NF_SYSCTL_CT_PROTO_TIMEOUT_DCCP_PARTOPEN] = {
 		.procname	= "nf_conntrack_dccp_timeout_partopen",
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+		.ctl_fops	= &proc_dointvec_jiffies_fops,
 	},
 	[NF_SYSCTL_CT_PROTO_TIMEOUT_DCCP_OPEN] = {
 		.procname	= "nf_conntrack_dccp_timeout_open",
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+		.ctl_fops	= &proc_dointvec_jiffies_fops,
 	},
 	[NF_SYSCTL_CT_PROTO_TIMEOUT_DCCP_CLOSEREQ] = {
 		.procname	= "nf_conntrack_dccp_timeout_closereq",
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+		.ctl_fops	= &proc_dointvec_jiffies_fops,
 	},
 	[NF_SYSCTL_CT_PROTO_TIMEOUT_DCCP_CLOSING] = {
 		.procname	= "nf_conntrack_dccp_timeout_closing",
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+		.ctl_fops	= &proc_dointvec_jiffies_fops,
 	},
 	[NF_SYSCTL_CT_PROTO_TIMEOUT_DCCP_TIMEWAIT] = {
 		.procname	= "nf_conntrack_dccp_timeout_timewait",
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+		.ctl_fops	= &proc_dointvec_jiffies_fops,
 	},
 	[NF_SYSCTL_CT_PROTO_DCCP_LOOSE] = {
 		.procname	= "nf_conntrack_dccp_loose",
@@ -956,13 +969,13 @@ static struct ctl_table nf_ct_sysctl_table[] = {
 		.procname       = "nf_conntrack_gre_timeout",
 		.maxlen         = sizeof(unsigned int),
 		.mode           = 0644,
-		.proc_handler   = proc_dointvec_jiffies,
+		.ctl_fops       = &proc_dointvec_jiffies_fops,
 	},
 	[NF_SYSCTL_CT_PROTO_TIMEOUT_GRE_STREAM] = {
 		.procname       = "nf_conntrack_gre_timeout_stream",
 		.maxlen         = sizeof(unsigned int),
 		.mode           = 0644,
-		.proc_handler   = proc_dointvec_jiffies,
+		.ctl_fops       = &proc_dointvec_jiffies_fops,
 	},
 #endif
 #ifdef CONFIG_LWTUNNEL

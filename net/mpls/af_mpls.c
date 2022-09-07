@@ -1362,17 +1362,19 @@ done:
 #define MPLS_PERDEV_SYSCTL_OFFSET(field)	\
 	(&((struct mpls_dev *)0)->field)
 
-static int mpls_conf_proc(struct ctl_table *ctl, int write,
-			  void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t mpls_conf_proc_write(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos)
 {
-	int oval = *(int *)ctl->data;
-	int ret = proc_dointvec(ctl, write, buffer, lenp, ppos);
+	int oval = *(int *)ctx->ctl_table->data;
+	ssize_t ret = ret = sysctl_write_intvec_data(ctx->ctl_table->data, ctx->ctl_table,
+			buffer, lenp, ppos,
+			sysctl_conv_intvec, NULL, NULL);
 
-	if (write) {
-		struct mpls_dev *mdev = ctl->extra1;
-		int i = (int *)ctl->data - (int *)mdev;
-		struct net *net = ctl->extra2;
-		int val = *(int *)ctl->data;
+	if (!ret) {
+		struct mpls_dev *mdev = ctx->ctl_table->extra1;
+		int i = (int *)ctx->ctl_table->data - (int *)mdev;
+		struct net *net = ctx->ctl_table->extra2;
+		int val = *(int *)ctx->ctl_table->data;
 
 		if (i == offsetof(struct mpls_dev, input_enabled) &&
 		    val != oval) {
@@ -1384,12 +1386,17 @@ static int mpls_conf_proc(struct ctl_table *ctl, int write,
 	return ret;
 }
 
+static struct ctl_fops mpls_conf_proc_fops = {
+	.read  = sysctl_read_intvec,
+	.write = mpls_conf_proc_write,
+};
+
 static const struct ctl_table mpls_dev_table[] = {
 	{
 		.procname	= "input",
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= mpls_conf_proc,
+		.ctl_fops	= &mpls_conf_proc_fops,
 		.data		= MPLS_PERDEV_SYSCTL_OFFSET(input_enabled),
 	},
 	{ }

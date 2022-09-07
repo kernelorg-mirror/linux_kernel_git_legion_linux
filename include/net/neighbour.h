@@ -419,16 +419,27 @@ void *neigh_seq_start(struct seq_file *, loff_t *, struct neigh_table *,
 void *neigh_seq_next(struct seq_file *, void *, loff_t *);
 void neigh_seq_stop(struct seq_file *, void *);
 
-int neigh_proc_dointvec(struct ctl_table *ctl, int write,
-			void *buffer, size_t *lenp, loff_t *ppos);
-int neigh_proc_dointvec_jiffies(struct ctl_table *ctl, int write,
-				void *buffer,
-				size_t *lenp, loff_t *ppos);
-int neigh_proc_dointvec_ms_jiffies(struct ctl_table *ctl, int write,
-				   void *buffer, size_t *lenp, loff_t *ppos);
+extern struct ctl_fops neigh_proc_dointvec_fops;
+extern struct ctl_fops neigh_proc_dointvec_jiffies_fops;
+extern struct ctl_fops neigh_proc_dointvec_ms_jiffies_fops;
+
+ssize_t neigh_proc_dointvec_read(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos);
+ssize_t neigh_proc_dointvec_write(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos);
+
+ssize_t neigh_proc_dointvec_jiffies_read(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos);
+ssize_t neigh_proc_dointvec_jiffies_write(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos);
+
+ssize_t neigh_proc_dointvec_ms_jiffies_read(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos);
+ssize_t neigh_proc_dointvec_ms_jiffies_write(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos);
 
 int neigh_sysctl_register(struct net_device *dev, struct neigh_parms *p,
-			  proc_handler *proc_handler);
+			  struct ctl_fops *ctl_fops);
 void neigh_sysctl_unregister(struct neigh_parms *p);
 
 static inline void __neigh_parms_put(struct neigh_parms *parms)

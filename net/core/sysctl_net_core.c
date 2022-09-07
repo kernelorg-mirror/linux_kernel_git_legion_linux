@@ -47,18 +47,15 @@ int sysctl_devconf_inherit_init_net __read_mostly;
 EXPORT_SYMBOL(sysctl_devconf_inherit_init_net);
 
 #ifdef CONFIG_RPS
-static int rps_sock_flow_sysctl(struct ctl_table *table, int write,
-				void *buffer, size_t *lenp, loff_t *ppos)
+static DEFINE_MUTEX(sock_flow_mutex);
+
+static ssize_t rps_sock_flow_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
 	unsigned int orig_size, size;
-	int ret, i;
-	struct ctl_table tmp = {
-		.data = &size,
-		.maxlen = sizeof(size),
-		.mode = table->mode
-	};
+	ssize_t ret;
+	int i;
 	struct rps_sock_flow_table *orig_sock_table, *sock_table;
-	static DEFINE_MUTEX(sock_flow_mutex);
 
 	mutex_lock(&sock_flow_mutex);
 
@@ -66,9 +63,10 @@ static int rps_sock_flow_sysctl(struct ctl_table *table, int write,
 					lockdep_is_held(&sock_flow_mutex));
 	size = orig_size = orig_sock_table ? orig_sock_table->mask + 1 : 0;
 
-	ret = proc_dointvec(&tmp, write, buffer, lenp, ppos);
+	ret = sysctl_write_intvec_data(&size, ctx->ctl_table, buffer, lenp, ppos,
+			sysctl_conv_intvec, NULL, NULL);
 
-	if (write) {
+	if (!ret) {
 		if (size) {
 			if (size > 1<<29) {
 				/* Enforce limit to prevent overflow */
@@ -111,6 +109,32 @@ static int rps_sock_flow_sysctl(struct ctl_table *table, int write,
 
 	return ret;
 }
+
+static ssize_t rps_sock_flow_read(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	unsigned int size;
+	ssize_t ret;
+	struct rps_sock_flow_table *sock_table;
+
+	mutex_lock(&sock_flow_mutex);
+
+	sock_table = rcu_dereference_protected(rps_sock_flow_table,
+					lockdep_is_held(&sock_flow_mutex));
+	size = sock_table ? sock_table->mask + 1 : 0;
+
+	ret = sysctl_read_intvec_data(&size, ctx->ctl_table, buffer, lenp, ppos,
+			sysctl_conv_intvec, NULL, NULL);
+
+	mutex_unlock(&sock_flow_mutex);
+
+	return ret;
+}
+
+static struct ctl_fops rps_sock_flow_fops = {
+	.read  = rps_sock_flow_read,
+	.write = rps_sock_flow_write,
+};
 #endif /* CONFIG_RPS */
 
 #ifdef CONFIG_NET_FLOW_LIMIT
@@ -190,18 +214,18 @@ done:
 	return ret;
 }
 
-static int flow_limit_table_len_sysctl(struct ctl_table *table, int write,
-				       void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t flow_limit_table_len_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
 	unsigned int old, *ptr;
-	int ret;
+	ssize_t ret;
 
 	mutex_lock(&flow_limit_update_mutex);
 
-	ptr = table->data;
+	ptr = ctx->ctl_table->data;
 	old = *ptr;
-	ret = proc_dointvec(table, write, buffer, lenp, ppos);
-	if (!ret && write && !is_power_of_2(*ptr)) {
+	ret = sysctl_write_intvec(ctx, file, buffer, lenp, ppos);
+	if (!ret && !is_power_of_2(*ptr)) {
 		*ptr = old;
 		ret = -EINVAL;
 	}
@@ -209,6 +233,24 @@ static int flow_limit_table_len_sysctl(struct ctl_table *table, int write,
 	mutex_unlock(&flow_limit_update_mutex);
 	return ret;
 }
+
+static ssize_t flow_limit_table_len_read(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	ssize_t ret;
+
+	mutex_lock(&flow_limit_update_mutex);
+
+	ret = sysctl_read_intvec(ctx, file, buffer, lenp, ppos);
+
+	mutex_unlock(&flow_limit_update_mutex);
+	return ret;
+}
+
+static struct ctl_fops flow_limit_table_len_fops = {
+	.read  = flow_limit_table_len_read,
+	.write = flow_limit_table_len_write,
+};
 #endif /* CONFIG_NET_FLOW_LIMIT */
 
 #ifdef CONFIG_NET_SCHED
@@ -231,12 +273,12 @@ static int set_default_qdisc(struct ctl_table *table, int write,
 }
 #endif
 
-static int proc_do_dev_weight(struct ctl_table *table, int write,
-			   void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t proc_do_dev_weight_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
-	int ret;
+	ssize_t ret;
 
-	ret = proc_dointvec(table, write, buffer, lenp, ppos);
+	ret = sysctl_write_intvec(ctx, file, buffer, lenp, ppos);
 	if (ret != 0)
 		return ret;
 
@@ -245,6 +287,11 @@ static int proc_do_dev_weight(struct ctl_table *table, int write,
 
 	return ret;
 }
+
+static struct ctl_fops proc_do_dev_weight_fops = {
+	.read  = sysctl_read_intvec,
+	.write = proc_do_dev_weight_write,
+};
 
 static int proc_do_rss_key(struct ctl_table *table, int write,
 			   void *buffer, size_t *lenp, loff_t *ppos)
@@ -372,21 +419,21 @@ static struct ctl_table net_core_table[] = {
 		.data		= &weight_p,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_do_dev_weight,
+		.ctl_fops	= &proc_do_dev_weight_fops,
 	},
 	{
 		.procname	= "dev_weight_rx_bias",
 		.data		= &dev_weight_rx_bias,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_do_dev_weight,
+		.ctl_fops	= &proc_do_dev_weight_fops,
 	},
 	{
 		.procname	= "dev_weight_tx_bias",
 		.data		= &dev_weight_tx_bias,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_do_dev_weight,
+		.ctl_fops	= &proc_do_dev_weight_fops,
 	},
 	{
 		.procname	= "netdev_max_backlog",
@@ -459,7 +506,7 @@ static struct ctl_table net_core_table[] = {
 		.data		= &net_ratelimit_state.interval,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+		.ctl_fops	= &proc_dointvec_jiffies_fops,
 	},
 	{
 		.procname	= "message_burst",
@@ -489,7 +536,7 @@ static struct ctl_table net_core_table[] = {
 		.procname	= "rps_sock_flow_entries",
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= rps_sock_flow_sysctl
+		.ctl_fops	= &rps_sock_flow_fops
 	},
 #endif
 #ifdef CONFIG_NET_FLOW_LIMIT
@@ -503,7 +550,7 @@ static struct ctl_table net_core_table[] = {
 		.data		= &netdev_flow_limit_table_len,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= flow_limit_table_len_sysctl
+		.ctl_fops	= &flow_limit_table_len_fops
 	},
 #endif /* CONFIG_NET_FLOW_LIMIT */
 #ifdef CONFIG_NET_RX_BUSY_POLL
