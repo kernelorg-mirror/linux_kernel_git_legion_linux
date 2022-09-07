@@ -1152,7 +1152,7 @@ static struct ctl_table ipv6_icmp_table_template[] = {
 		.data		= &init_net.ipv6.sysctl.icmpv6_time,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_ms_jiffies,
+		.ctl_fops	= &proc_dointvec_ms_jiffies_fops,
 	},
 	{
 		.procname	= "echo_ignore_all",

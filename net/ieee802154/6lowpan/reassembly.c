@@ -336,7 +336,7 @@ static struct ctl_table lowpan_frags_ns_ctl_table[] = {
 		.procname	= "6lowpanfrag_time",
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+		.ctl_fops	= &proc_dointvec_jiffies_fops,
 	},
 	{ }
 };
@@ -349,7 +349,7 @@ static struct ctl_table lowpan_frags_ctl_table[] = {
 		.data		= &lowpan_frags_secret_interval_unused,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+		.ctl_fops	= &proc_dointvec_jiffies_fops,
 	},
 	{ }
 };

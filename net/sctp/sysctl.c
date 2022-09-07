@@ -45,22 +45,62 @@ static unsigned long max_autoclose_max =
 
 static int proc_sctp_do_hmac_alg(struct ctl_table *ctl, int write,
 				 void *buffer, size_t *lenp, loff_t *ppos);
-static int proc_sctp_do_rto_min(struct ctl_table *ctl, int write,
-				void *buffer, size_t *lenp, loff_t *ppos);
-static int proc_sctp_do_rto_max(struct ctl_table *ctl, int write, void *buffer,
-				size_t *lenp, loff_t *ppos);
-static int proc_sctp_do_udp_port(struct ctl_table *ctl, int write, void *buffer,
-				 size_t *lenp, loff_t *ppos);
 static ssize_t proc_sctp_do_alpha_beta_write(struct ctl_context *ctx, struct file *file,
 					     char *buffer, size_t *lenp, loff_t *ppos);
-static int proc_sctp_do_auth(struct ctl_table *ctl, int write,
-			     void *buffer, size_t *lenp, loff_t *ppos);
-static int proc_sctp_do_probe_interval(struct ctl_table *ctl, int write,
-				       void *buffer, size_t *lenp, loff_t *ppos);
 
 static struct ctl_fops proc_sctp_do_alpha_beta_fops = {
 	.read  = proc_dointvec_minmax_r,
 	.write = proc_sctp_do_alpha_beta_write,
+};
+
+static ssize_t proc_sctp_do_rto_min_read(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos);
+static ssize_t proc_sctp_do_rto_min_write(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos);
+
+static struct ctl_fops proc_sctp_do_rto_min_fops = {
+	.read  = proc_sctp_do_rto_min_read,
+	.write = proc_sctp_do_rto_min_write,
+};
+
+static ssize_t proc_sctp_do_rto_max_read(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos);
+static ssize_t proc_sctp_do_rto_max_write(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos);
+
+static struct ctl_fops proc_sctp_do_rto_max_fops = {
+	.read  = proc_sctp_do_rto_max_read,
+	.write = proc_sctp_do_rto_max_write,
+};
+
+static ssize_t proc_sctp_do_auth_read(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos);
+static ssize_t proc_sctp_do_auth_write(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos);
+
+static struct ctl_fops proc_sctp_do_auth_fops = {
+	.read  = proc_sctp_do_auth_read,
+	.write = proc_sctp_do_auth_write,
+};
+
+static ssize_t proc_sctp_do_udp_port_read(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos);
+static ssize_t proc_sctp_do_udp_port_write(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos);
+
+static struct ctl_fops proc_sctp_do_udp_port_fops = {
+	.read  = proc_sctp_do_udp_port_read,
+	.write = proc_sctp_do_udp_port_write,
+};
+
+static ssize_t proc_sctp_do_probe_interval_read(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos);
+static ssize_t proc_sctp_do_probe_interval_write(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos);
+
+static struct ctl_fops proc_sctp_do_probe_interval_fops = {
+	.read  = proc_sctp_do_probe_interval_read,
+	.write = proc_sctp_do_probe_interval_write,
 };
 
 static struct ctl_table sctp_table[] = {
@@ -104,7 +144,7 @@ static struct ctl_table sctp_net_table[] = {
 		.data		= &init_net.sctp.rto_min,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_sctp_do_rto_min,
+		.ctl_fops	= &proc_sctp_do_rto_min_fops,
 		.extra1         = SYSCTL_ONE,
 		.extra2         = &init_net.sctp.rto_max
 	},
@@ -113,7 +153,7 @@ static struct ctl_table sctp_net_table[] = {
 		.data		= &init_net.sctp.rto_max,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_sctp_do_rto_max,
+		.ctl_fops	= &proc_sctp_do_rto_max_fops,
 		.extra1         = &init_net.sctp.rto_min,
 		.extra2         = &timer_max
 	},
@@ -284,7 +324,7 @@ static struct ctl_table sctp_net_table[] = {
 		.data		= &init_net.sctp.auth_enable,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_sctp_do_auth,
+		.ctl_fops	= &proc_sctp_do_auth_fops,
 	},
 	{
 		.procname	= "intl_enable",
@@ -305,14 +345,14 @@ static struct ctl_table sctp_net_table[] = {
 		.data		= &init_net.sctp.probe_interval,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_sctp_do_probe_interval,
+		.ctl_fops	= &proc_sctp_do_probe_interval_fops,
 	},
 	{
 		.procname	= "udp_port",
 		.data		= &init_net.sctp.udp_port,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_sctp_do_udp_port,
+		.ctl_fops	= &proc_sctp_do_udp_port_fops,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= &udp_port_max,
 	},
@@ -417,60 +457,48 @@ static int proc_sctp_do_hmac_alg(struct ctl_table *ctl, int write,
 	return ret;
 }
 
-static int proc_sctp_do_rto_min(struct ctl_table *ctl, int write,
-				void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t proc_sctp_do_rto_min_write(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct net *net = current->nsproxy->net_ns;
-	unsigned int min = *(unsigned int *) ctl->extra1;
-	unsigned int max = *(unsigned int *) ctl->extra2;
-	struct ctl_table tbl;
-	int ret, new_value;
 
-	memset(&tbl, 0, sizeof(struct ctl_table));
-	tbl.maxlen = sizeof(unsigned int);
-
-	if (write)
-		tbl.data = &new_value;
-	else
-		tbl.data = &net->sctp.rto_min;
-
-	ret = proc_dointvec(&tbl, write, buffer, lenp, ppos);
-	if (write && ret == 0) {
-		if (new_value > max || new_value < min)
-			return -EINVAL;
-
-		net->sctp.rto_min = new_value;
-	}
-
-	return ret;
+	return do_proc_dointvec_w(&net->sctp.rto_min, ctx->ctl_table, buffer, lenp, ppos,
+			do_proc_dointvec_minmax_conv,
+			ctx->ctl_table->extra1,
+			ctx->ctl_table->extra2);
 }
 
-static int proc_sctp_do_rto_max(struct ctl_table *ctl, int write,
-				void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t proc_sctp_do_rto_min_read(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct net *net = current->nsproxy->net_ns;
-	unsigned int min = *(unsigned int *) ctl->extra1;
-	unsigned int max = *(unsigned int *) ctl->extra2;
-	struct ctl_table tbl;
-	int ret, new_value;
 
-	memset(&tbl, 0, sizeof(struct ctl_table));
-	tbl.maxlen = sizeof(unsigned int);
+	return do_proc_dointvec_r(&net->sctp.rto_min, ctx->ctl_table, buffer, lenp, ppos,
+			do_proc_dointvec_minmax_conv,
+			ctx->ctl_table->extra1,
+			ctx->ctl_table->extra2);
+}
 
-	if (write)
-		tbl.data = &new_value;
-	else
-		tbl.data = &net->sctp.rto_max;
+static ssize_t proc_sctp_do_rto_max_write(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos)
+{
+	struct net *net = current->nsproxy->net_ns;
 
-	ret = proc_dointvec(&tbl, write, buffer, lenp, ppos);
-	if (write && ret == 0) {
-		if (new_value > max || new_value < min)
-			return -EINVAL;
+	return do_proc_dointvec_w(&net->sctp.rto_max, ctx->ctl_table, buffer, lenp, ppos,
+			do_proc_dointvec_minmax_conv,
+			ctx->ctl_table->extra1,
+			ctx->ctl_table->extra2);
+}
 
-		net->sctp.rto_max = new_value;
-	}
+static ssize_t proc_sctp_do_rto_max_read(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos)
+{
+	struct net *net = current->nsproxy->net_ns;
 
-	return ret;
+	return do_proc_dointvec_r(&net->sctp.rto_max, ctx->ctl_table, buffer, lenp, ppos,
+			do_proc_dointvec_minmax_conv,
+			ctx->ctl_table->extra1,
+			ctx->ctl_table->extra2);
 }
 
 static ssize_t proc_sctp_do_alpha_beta_write(struct ctl_context *ctx, struct file *file,
@@ -482,23 +510,19 @@ static ssize_t proc_sctp_do_alpha_beta_write(struct ctl_context *ctx, struct fil
 	return proc_dointvec_minmax_w(ctx, file, buffer, lenp, ppos);
 }
 
-static int proc_sctp_do_auth(struct ctl_table *ctl, int write,
-			     void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t proc_sctp_do_auth_write(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct net *net = current->nsproxy->net_ns;
-	struct ctl_table tbl;
-	int new_value, ret;
+	int new_value;
+	ssize_t ret;
 
-	memset(&tbl, 0, sizeof(struct ctl_table));
-	tbl.maxlen = sizeof(unsigned int);
+	ret = do_proc_dointvec_w(&new_value, ctx->ctl_table, buffer, lenp, ppos,
+			do_proc_dointvec_minmax_conv,
+			ctx->ctl_table->extra1,
+			ctx->ctl_table->extra2);
 
-	if (write)
-		tbl.data = &new_value;
-	else
-		tbl.data = &net->sctp.auth_enable;
-
-	ret = proc_dointvec(&tbl, write, buffer, lenp, ppos);
-	if (write && ret == 0) {
+	if (ret == 0) {
 		struct sock *sk = net->sctp.ctl_sock;
 
 		net->sctp.auth_enable = new_value;
@@ -511,29 +535,28 @@ static int proc_sctp_do_auth(struct ctl_table *ctl, int write,
 	return ret;
 }
 
-static int proc_sctp_do_udp_port(struct ctl_table *ctl, int write,
-				 void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t proc_sctp_do_auth_read(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct net *net = current->nsproxy->net_ns;
-	unsigned int min = *(unsigned int *)ctl->extra1;
-	unsigned int max = *(unsigned int *)ctl->extra2;
-	struct ctl_table tbl;
-	int ret, new_value;
 
-	memset(&tbl, 0, sizeof(struct ctl_table));
-	tbl.maxlen = sizeof(unsigned int);
+	return do_proc_dointvec_r(&net->sctp.auth_enable, ctx->ctl_table,
+			buffer, lenp, ppos, do_proc_dointvec_minmax_conv, NULL, NULL);
+}
 
-	if (write)
-		tbl.data = &new_value;
-	else
-		tbl.data = &net->sctp.udp_port;
+static ssize_t proc_sctp_do_udp_port_write(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos)
+{
+	struct net *net = current->nsproxy->net_ns;
+	int new_value;
+	ssize_t ret;
 
-	ret = proc_dointvec(&tbl, write, buffer, lenp, ppos);
-	if (write && ret == 0) {
+	ret = do_proc_dointvec_w(&new_value, ctx->ctl_table, buffer, lenp, ppos,
+			do_proc_dointvec_minmax_conv,
+			ctx->ctl_table->extra1,
+			ctx->ctl_table->extra2);
+	if (ret == 0) {
 		struct sock *sk = net->sctp.ctl_sock;
-
-		if (new_value > max || new_value < min)
-			return -EINVAL;
 
 		net->sctp.udp_port = new_value;
 		sctp_udp_sock_stop(net);
@@ -552,23 +575,27 @@ static int proc_sctp_do_udp_port(struct ctl_table *ctl, int write,
 	return ret;
 }
 
-static int proc_sctp_do_probe_interval(struct ctl_table *ctl, int write,
-				       void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t proc_sctp_do_udp_port_read(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct net *net = current->nsproxy->net_ns;
-	struct ctl_table tbl;
-	int ret, new_value;
 
-	memset(&tbl, 0, sizeof(struct ctl_table));
-	tbl.maxlen = sizeof(unsigned int);
+	return do_proc_dointvec_r(&net->sctp.udp_port, ctx->ctl_table,
+			buffer, lenp, ppos, do_proc_dointvec_minmax_conv, NULL, NULL);
+}
 
-	if (write)
-		tbl.data = &new_value;
-	else
-		tbl.data = &net->sctp.probe_interval;
+static ssize_t proc_sctp_do_probe_interval_write(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos)
+{
+	struct net *net = current->nsproxy->net_ns;
+	int new_value;
+	ssize_t ret;
 
-	ret = proc_dointvec(&tbl, write, buffer, lenp, ppos);
-	if (write && ret == 0) {
+	ret = do_proc_dointvec_w(&new_value, ctx->ctl_table, buffer, lenp, ppos,
+			do_proc_dointvec_minmax_conv,
+			ctx->ctl_table->extra1,
+			ctx->ctl_table->extra2);
+	if (ret == 0) {
 		if (new_value && new_value < SCTP_PROBE_TIMER_MIN)
 			return -EINVAL;
 
@@ -576,6 +603,15 @@ static int proc_sctp_do_probe_interval(struct ctl_table *ctl, int write,
 	}
 
 	return ret;
+}
+
+static ssize_t proc_sctp_do_probe_interval_read(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos)
+{
+	struct net *net = current->nsproxy->net_ns;
+
+	return do_proc_dointvec_r(&net->sctp.probe_interval, ctx->ctl_table,
+			buffer, lenp, ppos, do_proc_dointvec_minmax_conv, NULL, NULL);
 }
 
 int sctp_sysctl_net_register(struct net *net)

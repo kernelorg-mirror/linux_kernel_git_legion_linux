@@ -2374,18 +2374,24 @@ static int devinet_conf_ifindex(struct net *net, struct ipv4_devconf *cnf)
 	}
 }
 
-static int devinet_conf_proc(struct ctl_table *ctl, int write,
-			     void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t devinet_conf_proc_write(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos)
 {
-	int old_value = *(int *)ctl->data;
-	int ret = proc_dointvec(ctl, write, buffer, lenp, ppos);
-	int new_value = *(int *)ctl->data;
+	int *valp = ctx->ctl_table->data;
+	int old_value = *valp;
+	int new_value;
+	ssize_t ret;
 
-	if (write) {
-		struct ipv4_devconf *cnf = ctl->extra1;
-		struct net *net = ctl->extra2;
-		int i = (int *)ctl->data - cnf->data;
+	ret = do_proc_dointvec_w(&new_value, ctx->ctl_table, buffer, lenp, ppos,
+			do_proc_dointvec_minmax_conv, NULL, NULL);
+
+	if (!ret) {
+		struct ipv4_devconf *cnf = ctx->ctl_table->extra1;
+		struct net *net = ctx->ctl_table->extra2;
+		int i = (int *)ctx->ctl_table->data - cnf->data;
 		int ifindex;
+
+		*valp = new_value;
 
 		set_bit(i, cnf->state);
 
@@ -2426,21 +2432,27 @@ static int devinet_conf_proc(struct ctl_table *ctl, int write,
 	return ret;
 }
 
-static int devinet_sysctl_forward(struct ctl_table *ctl, int write,
-				  void *buffer, size_t *lenp, loff_t *ppos)
+static struct ctl_fops devinet_conf_proc_fops = {
+	.read  = proc_dointvec_minmax_r,
+	.write = devinet_conf_proc_write,
+};
+
+static ssize_t devinet_sysctl_forward_write(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos)
 {
-	int *valp = ctl->data;
+	int *valp = ctx->ctl_table->data;
 	int val = *valp;
 	loff_t pos = *ppos;
-	struct net *net = ctl->extra2;
-	int ret;
+	struct net *net = ctx->ctl_table->extra2;
+	ssize_t ret;
 
-	if (write && !ns_capable(net->user_ns, CAP_NET_ADMIN))
+	if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
 		return -EPERM;
 
-	ret = proc_dointvec(ctl, write, buffer, lenp, ppos);
+	ret = do_proc_dointvec_w(ctx->ctl_table->data, ctx->ctl_table,
+			buffer, lenp, ppos, do_proc_dointvec_minmax_conv, NULL, NULL);
 
-	if (write && *valp != val) {
+	if (*valp != val) {
 		if (valp != &IPV4_DEVCONF_DFLT(net, FORWARDING)) {
 			if (!rtnl_trylock()) {
 				/* Restore the original values before restarting */
@@ -2451,7 +2463,7 @@ static int devinet_sysctl_forward(struct ctl_table *ctl, int write,
 			if (valp == &IPV4_DEVCONF_ALL(net, FORWARDING)) {
 				inet_forward_change(net);
 			} else {
-				struct ipv4_devconf *cnf = ctl->extra1;
+				struct ipv4_devconf *cnf = ctx->ctl_table->extra1;
 				struct in_device *idev =
 					container_of(cnf, struct in_device, cnf);
 				if (*valp)
@@ -2473,19 +2485,32 @@ static int devinet_sysctl_forward(struct ctl_table *ctl, int write,
 	return ret;
 }
 
-static int ipv4_doint_and_flush(struct ctl_table *ctl, int write,
-				void *buffer, size_t *lenp, loff_t *ppos)
-{
-	int *valp = ctl->data;
-	int val = *valp;
-	int ret = proc_dointvec(ctl, write, buffer, lenp, ppos);
-	struct net *net = ctl->extra2;
+static struct ctl_fops devinet_sysctl_forward_fops = {
+	.read  = proc_dointvec_minmax_r,
+	.write = devinet_sysctl_forward_write,
+};
 
-	if (write && *valp != val)
+static ssize_t ipv4_doint_and_flush_write(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos)
+{
+	int *valp = ctx->ctl_table->data;
+	int val = *valp;
+	ssize_t ret;
+	struct net *net = ctx->ctl_table->extra2;
+
+	ret = do_proc_dointvec_w(ctx->ctl_table->data, ctx->ctl_table,
+			buffer, lenp, ppos, do_proc_dointvec_minmax_conv, NULL, NULL);
+
+	if (*valp != val)
 		rt_cache_flush(net);
 
 	return ret;
 }
+
+static struct ctl_fops ipv4_doint_and_flush_fops = {
+	.read  = proc_dointvec_minmax_r,
+	.write = ipv4_doint_and_flush_write,
+};
 
 #define DEVINET_SYSCTL_ENTRY(attr, name, mval, proc) \
 	{ \
@@ -2494,21 +2519,21 @@ static int ipv4_doint_and_flush(struct ctl_table *ctl, int write,
 				  IPV4_DEVCONF_ ## attr - 1, \
 		.maxlen		= sizeof(int), \
 		.mode		= mval, \
-		.proc_handler	= proc, \
+		.ctl_fops	= proc, \
 		.extra1		= &ipv4_devconf, \
 	}
 
 #define DEVINET_SYSCTL_RW_ENTRY(attr, name) \
-	DEVINET_SYSCTL_ENTRY(attr, name, 0644, devinet_conf_proc)
+	DEVINET_SYSCTL_ENTRY(attr, name, 0644, &devinet_conf_proc_fops)
 
 #define DEVINET_SYSCTL_RO_ENTRY(attr, name) \
-	DEVINET_SYSCTL_ENTRY(attr, name, 0444, devinet_conf_proc)
+	DEVINET_SYSCTL_ENTRY(attr, name, 0444, &devinet_conf_proc_fops)
 
 #define DEVINET_SYSCTL_COMPLEX_ENTRY(attr, name, proc) \
 	DEVINET_SYSCTL_ENTRY(attr, name, 0644, proc)
 
 #define DEVINET_SYSCTL_FLUSHING_ENTRY(attr, name) \
-	DEVINET_SYSCTL_COMPLEX_ENTRY(attr, name, ipv4_doint_and_flush)
+	DEVINET_SYSCTL_COMPLEX_ENTRY(attr, name, &ipv4_doint_and_flush_fops)
 
 static struct devinet_sysctl_table {
 	struct ctl_table_header *sysctl_header;
@@ -2516,7 +2541,7 @@ static struct devinet_sysctl_table {
 } devinet_sysctl = {
 	.devinet_vars = {
 		DEVINET_SYSCTL_COMPLEX_ENTRY(FORWARDING, "forwarding",
-					     devinet_sysctl_forward),
+					     &devinet_sysctl_forward_fops),
 		DEVINET_SYSCTL_RO_ENTRY(MC_FORWARDING, "mc_forwarding"),
 		DEVINET_SYSCTL_RW_ENTRY(BC_FORWARDING, "bc_forwarding"),
 
@@ -2645,7 +2670,7 @@ static struct ctl_table ctl_forward_entry[] = {
 					IPV4_DEVCONF_FORWARDING - 1],
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= devinet_sysctl_forward,
+		.ctl_fops	= &devinet_sysctl_forward_fops,
 		.extra1		= &ipv4_devconf,
 		.extra2		= &init_net,
 	},

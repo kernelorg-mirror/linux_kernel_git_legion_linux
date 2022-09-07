@@ -160,8 +160,14 @@ static int max_t3[] = { 8191 }; /* Must fit in 16 bits when multiplied by BCT3MU
 static int min_priority[1];
 static int max_priority[] = { 127 }; /* From DECnet spec */
 
-static int dn_forwarding_proc(struct ctl_table *, int, void *, size_t *,
-		loff_t *);
+static ssize_t dn_forwarding_proc_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos);
+
+static struct ctl_fops dn_forwarding_proc_fops = {
+	.read  = proc_dointvec_minmax_r,
+	.write = dn_forwarding_proc_write,
+};
+
 static struct dn_dev_sysctl_table {
 	struct ctl_table_header *sysctl_header;
 	struct ctl_table dn_dev_vars[5];
@@ -173,7 +179,7 @@ static struct dn_dev_sysctl_table {
 		.data = (void *)DN_DEV_PARMS_OFFSET(forwarding),
 		.maxlen = sizeof(int),
 		.mode = 0644,
-		.proc_handler = dn_forwarding_proc,
+		.ctl_fops = &dn_forwarding_proc_fops,
 	},
 	{
 		.procname = "priority",
@@ -244,24 +250,26 @@ static void dn_dev_sysctl_unregister(struct dn_dev_parms *parms)
 	}
 }
 
-static int dn_forwarding_proc(struct ctl_table *table, int write,
-		void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t dn_forwarding_proc_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
 #ifdef CONFIG_DECNET_ROUTER
-	struct net_device *dev = table->extra1;
+	struct net_device *dev = ctx->ctl_table->extra1;
 	struct dn_dev *dn_db;
-	int err;
+	ssize_t err;
 	int tmp, old;
 
-	if (table->extra1 == NULL)
+	if (ctx->ctl_table->extra1 == NULL)
 		return -EINVAL;
 
 	dn_db = rcu_dereference_raw(dev->dn_ptr);
 	old = dn_db->parms.forwarding;
 
-	err = proc_dointvec(table, write, buffer, lenp, ppos);
+	err = do_proc_dointvec_w(&ctx->ctl_table->data, ctx->ctl_table,
+			buffer, lenp, ppos,
+			do_proc_dointvec_minmax_conv, NULL, NULL);
 
-	if ((err >= 0) && write) {
+	if (err >= 0) {
 		if (dn_db->parms.forwarding < 0)
 			dn_db->parms.forwarding = 0;
 		if (dn_db->parms.forwarding > 2)

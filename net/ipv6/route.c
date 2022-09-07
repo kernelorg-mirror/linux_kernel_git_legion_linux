@@ -6319,18 +6319,17 @@ static int rt6_stats_seq_show(struct seq_file *seq, void *v)
 
 #ifdef CONFIG_SYSCTL
 
-static int ipv6_sysctl_rtcache_flush(struct ctl_table *ctl, int write,
-			      void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t ipv6_sysctl_rtcache_flush_write(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct net *net;
 	int delay;
-	int ret;
-	if (!write)
-		return -EINVAL;
+	ssize_t ret;
 
-	net = (struct net *)ctl->extra1;
+	net = (struct net *)ctx->ctl_table->extra1;
 	delay = net->ipv6.sysctl.flush_delay;
-	ret = proc_dointvec(ctl, write, buffer, lenp, ppos);
+	ret = do_proc_dointvec_w(ctx->ctl_table->data, ctx->ctl_table,
+			buffer, lenp, ppos, do_proc_dointvec_minmax_conv, NULL, NULL);
 	if (ret)
 		return ret;
 
@@ -6338,76 +6337,80 @@ static int ipv6_sysctl_rtcache_flush(struct ctl_table *ctl, int write,
 	return 0;
 }
 
+static struct ctl_fops ipv6_sysctl_rtcache_flush_fops = {
+	.write = ipv6_sysctl_rtcache_flush_write,
+};
+
 static struct ctl_table ipv6_route_table_template[] = {
 	{
 		.procname	=	"max_size",
 		.data		=	&init_net.ipv6.sysctl.ip6_rt_max_size,
 		.maxlen		=	sizeof(int),
 		.mode		=	0644,
-		.proc_handler	=	proc_dointvec,
+		.ctl_fops	=	&proc_dointvec_minmax_fops,
 	},
 	{
 		.procname	=	"gc_thresh",
 		.data		=	&ip6_dst_ops_template.gc_thresh,
 		.maxlen		=	sizeof(int),
 		.mode		=	0644,
-		.proc_handler	=	proc_dointvec,
+		.ctl_fops	=	&proc_dointvec_minmax_fops,
 	},
 	{
 		.procname	=	"flush",
 		.data		=	&init_net.ipv6.sysctl.flush_delay,
 		.maxlen		=	sizeof(int),
 		.mode		=	0200,
-		.proc_handler	=	ipv6_sysctl_rtcache_flush
+		.ctl_fops	=	&ipv6_sysctl_rtcache_flush_fops,
 	},
 	{
 		.procname	=	"gc_min_interval",
 		.data		=	&init_net.ipv6.sysctl.ip6_rt_gc_min_interval,
 		.maxlen		=	sizeof(int),
 		.mode		=	0644,
-		.proc_handler	=	proc_dointvec_jiffies,
+		.ctl_fops	=	&proc_dointvec_jiffies_fops,
 	},
 	{
 		.procname	=	"gc_timeout",
 		.data		=	&init_net.ipv6.sysctl.ip6_rt_gc_timeout,
 		.maxlen		=	sizeof(int),
 		.mode		=	0644,
-		.proc_handler	=	proc_dointvec_jiffies,
+		.ctl_fops	=	&proc_dointvec_jiffies_fops,
 	},
 	{
 		.procname	=	"gc_interval",
 		.data		=	&init_net.ipv6.sysctl.ip6_rt_gc_interval,
 		.maxlen		=	sizeof(int),
 		.mode		=	0644,
-		.proc_handler	=	proc_dointvec_jiffies,
+		.ctl_fops	=	&proc_dointvec_jiffies_fops,
 	},
 	{
 		.procname	=	"gc_elasticity",
 		.data		=	&init_net.ipv6.sysctl.ip6_rt_gc_elasticity,
 		.maxlen		=	sizeof(int),
 		.mode		=	0644,
-		.proc_handler	=	proc_dointvec,
+		.ctl_fops	=	&proc_dointvec_minmax_fops,
 	},
 	{
 		.procname	=	"mtu_expires",
 		.data		=	&init_net.ipv6.sysctl.ip6_rt_mtu_expires,
 		.maxlen		=	sizeof(int),
 		.mode		=	0644,
-		.proc_handler	=	proc_dointvec_jiffies,
+		.ctl_fops	=	&proc_dointvec_jiffies_fops,
 	},
 	{
 		.procname	=	"min_adv_mss",
 		.data		=	&init_net.ipv6.sysctl.ip6_rt_min_advmss,
 		.maxlen		=	sizeof(int),
 		.mode		=	0644,
-		.proc_handler	=	proc_dointvec,
+		.ctl_fops	=	&proc_dointvec_minmax_fops,
 	},
 	{
 		.procname	=	"gc_min_interval_ms",
 		.data		=	&init_net.ipv6.sysctl.ip6_rt_gc_min_interval,
 		.maxlen		=	sizeof(int),
 		.mode		=	0644,
-		.proc_handler	=	proc_dointvec_ms_jiffies,
+		.ctl_fops	=	&proc_dointvec_ms_jiffies_fops,
 	},
 	{
 		.procname	=	"skip_notify_on_dev_down",
