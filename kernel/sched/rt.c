@@ -26,31 +26,48 @@ int sysctl_sched_rt_runtime = 950000;
 
 #ifdef CONFIG_SYSCTL
 static int sysctl_sched_rr_timeslice = (MSEC_PER_SEC / HZ) * RR_TIMESLICE;
-static int sched_rt_handler(struct ctl_table *table, int write, void *buffer,
-		size_t *lenp, loff_t *ppos);
-static int sched_rr_handler(struct ctl_table *table, int write, void *buffer,
-		size_t *lenp, loff_t *ppos);
+
+static ssize_t sched_rt_read(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos);
+static ssize_t sched_rt_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos);
+
+static struct ctl_fops sched_rt_fops = {
+	.read  = sched_rt_read,
+	.write = sched_rt_write,
+};
+
+static ssize_t sched_rr_read(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos);
+static ssize_t sched_rr_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos);
+
+static struct ctl_fops sched_rr_fops = {
+	.read  = sched_rr_read,
+	.write = sched_rr_write,
+};
+
 static struct ctl_table sched_rt_sysctls[] = {
 	{
 		.procname       = "sched_rt_period_us",
 		.data           = &sysctl_sched_rt_period,
 		.maxlen         = sizeof(unsigned int),
 		.mode           = 0644,
-		.proc_handler   = sched_rt_handler,
+		.ctl_fops       = &sched_rt_fops,
 	},
 	{
 		.procname       = "sched_rt_runtime_us",
 		.data           = &sysctl_sched_rt_runtime,
 		.maxlen         = sizeof(int),
 		.mode           = 0644,
-		.proc_handler   = sched_rt_handler,
+		.ctl_fops       = &sched_rt_fops,
 	},
 	{
 		.procname       = "sched_rr_timeslice_ms",
 		.data           = &sysctl_sched_rr_timeslice,
 		.maxlen         = sizeof(int),
 		.mode           = 0644,
-		.proc_handler   = sched_rr_handler,
+		.ctl_fops       = &sched_rr_fops,
 	},
 	{}
 };
@@ -2982,20 +2999,21 @@ static void sched_rt_do_global(void)
 	raw_spin_unlock_irqrestore(&def_rt_bandwidth.rt_runtime_lock, flags);
 }
 
-static int sched_rt_handler(struct ctl_table *table, int write, void *buffer,
-		size_t *lenp, loff_t *ppos)
+static DEFINE_MUTEX(sched_rt_mutex);
+
+static ssize_t sched_rt_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
 	int old_period, old_runtime;
-	static DEFINE_MUTEX(mutex);
-	int ret;
+	ssize_t ret;
 
-	mutex_lock(&mutex);
+	mutex_lock(&sched_rt_mutex);
 	old_period = sysctl_sched_rt_period;
 	old_runtime = sysctl_sched_rt_runtime;
 
-	ret = proc_dointvec(table, write, buffer, lenp, ppos);
+	ret = sysctl_write_intvec(ctx, file, buffer, lenp, ppos);
 
-	if (!ret && write) {
+	if (!ret) {
 		ret = sched_rt_global_validate();
 		if (ret)
 			goto undo;
@@ -3016,29 +3034,54 @@ undo:
 		sysctl_sched_rt_period = old_period;
 		sysctl_sched_rt_runtime = old_runtime;
 	}
-	mutex_unlock(&mutex);
+	mutex_unlock(&sched_rt_mutex);
 
 	return ret;
 }
 
-static int sched_rr_handler(struct ctl_table *table, int write, void *buffer,
-		size_t *lenp, loff_t *ppos)
+static ssize_t sched_rt_read(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
-	int ret;
-	static DEFINE_MUTEX(mutex);
+	ssize_t ret;
 
-	mutex_lock(&mutex);
-	ret = proc_dointvec(table, write, buffer, lenp, ppos);
+	mutex_lock(&sched_rt_mutex);
+	ret = sysctl_read_intvec(ctx, file, buffer, lenp, ppos);
+	mutex_unlock(&sched_rt_mutex);
+
+	return ret;
+}
+
+static DEFINE_MUTEX(sched_rr_mutex);
+
+static ssize_t sched_rr_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	ssize_t ret;
+
+	mutex_lock(&sched_rr_mutex);
+	ret = sysctl_write_intvec(ctx, file, buffer, lenp, ppos);
 	/*
 	 * Make sure that internally we keep jiffies.
 	 * Also, writing zero resets the timeslice to default:
 	 */
-	if (!ret && write) {
+	if (!ret) {
 		sched_rr_timeslice =
 			sysctl_sched_rr_timeslice <= 0 ? RR_TIMESLICE :
 			msecs_to_jiffies(sysctl_sched_rr_timeslice);
 	}
-	mutex_unlock(&mutex);
+	mutex_unlock(&sched_rr_mutex);
+
+	return ret;
+}
+
+static ssize_t sched_rr_read(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	ssize_t ret;
+
+	mutex_lock(&sched_rr_mutex);
+	ret = sysctl_read_intvec(ctx, file, buffer, lenp, ppos);
+	mutex_unlock(&sched_rr_mutex);
 
 	return ret;
 }
