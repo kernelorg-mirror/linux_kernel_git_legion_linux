@@ -1787,23 +1787,21 @@ static void uclamp_sync_util_min_rt_default(void)
 	rcu_read_unlock();
 }
 
-static int sysctl_sched_uclamp_handler(struct ctl_table *table, int write,
-				void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t sysctl_sched_uclamp_write(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos)
 {
 	bool update_root_tg = false;
 	int old_min, old_max, old_min_rt;
-	int result;
+	ssize_t result;
 
 	mutex_lock(&uclamp_mutex);
 	old_min = sysctl_sched_uclamp_util_min;
 	old_max = sysctl_sched_uclamp_util_max;
 	old_min_rt = sysctl_sched_uclamp_util_min_rt_default;
 
-	result = proc_dointvec(table, write, buffer, lenp, ppos);
+	result = sysctl_write_intvec(ctx, file, buffer, lenp, ppos);
 	if (result)
 		goto undo;
-	if (!write)
-		goto done;
 
 	if (sysctl_sched_uclamp_util_min > sysctl_sched_uclamp_util_max ||
 	    sysctl_sched_uclamp_util_max > SCHED_CAPACITY_SCALE	||
@@ -1851,6 +1849,23 @@ done:
 
 	return result;
 }
+
+static ssize_t sysctl_sched_uclamp_read(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos)
+{
+	ssize_t result;
+
+	mutex_lock(&uclamp_mutex);
+	result = sysctl_write_intvec(ctx, file, buffer, lenp, ppos);
+	mutex_unlock(&uclamp_mutex);
+
+	return result;
+}
+
+static struct ctl_fops sysctl_sched_uclamp_fops = {
+	.read  = sysctl_sched_uclamp_read,
+	.write = sysctl_sched_uclamp_write,
+};
 #endif
 #endif
 
@@ -4478,21 +4493,21 @@ static struct ctl_table sched_core_sysctls[] = {
 		.data           = &sysctl_sched_uclamp_util_min,
 		.maxlen         = sizeof(unsigned int),
 		.mode           = 0644,
-		.proc_handler   = sysctl_sched_uclamp_handler,
+		.ctl_fops       = &sysctl_sched_uclamp_fops,
 	},
 	{
 		.procname       = "sched_util_clamp_max",
 		.data           = &sysctl_sched_uclamp_util_max,
 		.maxlen         = sizeof(unsigned int),
 		.mode           = 0644,
-		.proc_handler   = sysctl_sched_uclamp_handler,
+		.ctl_fops       = &sysctl_sched_uclamp_fops,
 	},
 	{
 		.procname       = "sched_util_clamp_min_rt_default",
 		.data           = &sysctl_sched_uclamp_util_min_rt_default,
 		.maxlen         = sizeof(unsigned int),
 		.mode           = 0644,
-		.proc_handler   = sysctl_sched_uclamp_handler,
+		.ctl_fops       = &sysctl_sched_uclamp_fops,
 	},
 #endif /* CONFIG_UCLAMP_TASK */
 	{}

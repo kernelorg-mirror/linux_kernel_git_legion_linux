@@ -65,17 +65,22 @@ static struct latency_record latency_record[MAXLR];
 int latencytop_enabled;
 
 #ifdef CONFIG_SYSCTL
-static int sysctl_latencytop(struct ctl_table *table, int write, void *buffer,
-		size_t *lenp, loff_t *ppos)
+static ssize_t sysctl_latencytop_write(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos)
 {
-	int err;
+	ssize_t err;
 
-	err = proc_dointvec(table, write, buffer, lenp, ppos);
-	if (latencytop_enabled)
+	err = sysctl_write_intvec(ctx, file, buffer, lenp, ppos);
+	if (!err && latencytop_enabled)
 		force_schedstat_enabled();
 
 	return err;
 }
+
+static struct ctl_fops sysctl_latencytop_fops = {
+	.read  = sysctl_read_intvec,
+	.write = sysctl_latencytop_write,
+};
 
 static struct ctl_table latencytop_sysctl[] = {
 	{
@@ -83,7 +88,7 @@ static struct ctl_table latencytop_sysctl[] = {
 		.data       = &latencytop_enabled,
 		.maxlen     = sizeof(int),
 		.mode       = 0644,
-		.proc_handler   = sysctl_latencytop,
+		.ctl_fops   = &sysctl_latencytop_fops,
 	},
 	{}
 };
