@@ -8134,20 +8134,19 @@ static bool is_permanent_ops_registered(void)
 	return false;
 }
 
-static int
-ftrace_enable_sysctl(struct ctl_table *table, int write,
-		     void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t ftrace_enable_write(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
-	int ret = -ENODEV;
+	ssize_t ret = -ENODEV;
 
 	mutex_lock(&ftrace_lock);
 
 	if (unlikely(ftrace_disabled))
 		goto out;
 
-	ret = proc_dointvec(table, write, buffer, lenp, ppos);
+	ret = proc_dointvec_minmax_w(ctx, file, buffer, lenp, ppos);
 
-	if (ret || !write || (last_ftrace_enabled == !!ftrace_enabled))
+	if (ret || (last_ftrace_enabled == !!ftrace_enabled))
 		goto out;
 
 	if (ftrace_enabled) {
@@ -8178,13 +8177,34 @@ ftrace_enable_sysctl(struct ctl_table *table, int write,
 	return ret;
 }
 
+static ssize_t ftrace_enable_read(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	ssize_t ret = -ENODEV;
+
+	mutex_lock(&ftrace_lock);
+
+	if (unlikely(ftrace_disabled))
+		goto out;
+
+	ret = proc_dointvec_minmax_w(ctx, file, buffer, lenp, ppos);
+ out:
+	mutex_unlock(&ftrace_lock);
+	return ret;
+}
+
+static struct ctl_fops ftrace_enable_fops = {
+	.read  = ftrace_enable_read,
+	.write = ftrace_enable_write,
+};
+
 static struct ctl_table ftrace_sysctls[] = {
 	{
 		.procname       = "ftrace_enabled",
 		.data           = &ftrace_enabled,
 		.maxlen         = sizeof(int),
 		.mode           = 0644,
-		.proc_handler   = ftrace_enable_sysctl,
+		.ctl_fops       = &ftrace_enable_fops,
 	},
 	{}
 };

@@ -408,8 +408,7 @@ static inline void arch_ftrace_set_direct_caller(struct pt_regs *regs,
 
 extern int stack_tracer_enabled;
 
-int stack_trace_sysctl(struct ctl_table *table, int write, void *buffer,
-		       size_t *lenp, loff_t *ppos);
+extern struct ctl_fops sysctl_stack_trace_fops;
 
 /* DO NOT MODIFY THIS VARIABLE DIRECTLY! */
 DECLARE_PER_CPU(int, disable_stack_tracer);
@@ -1128,8 +1127,7 @@ extern int tracepoint_printk;
 extern void disable_trace_on_warning(void);
 extern int __disable_trace_on_warning;
 
-int tracepoint_printk_sysctl(struct ctl_table *table, int write,
-			     void *buffer, size_t *lenp, loff_t *ppos);
+extern struct ctl_fops sysctl_tracepoint_printk_fops;
 
 #else /* CONFIG_TRACING */
 static inline void  disable_trace_on_warning(void) { }
