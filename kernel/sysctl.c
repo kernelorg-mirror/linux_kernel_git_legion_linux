@@ -1850,7 +1850,7 @@ static struct ctl_table kern_table[] = {
 		.data		= &stack_tracer_enabled,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= stack_trace_sysctl,
+		.ctl_fops	= &sysctl_stack_trace_fops,
 	},
 #endif
 #ifdef CONFIG_TRACING
@@ -1873,7 +1873,7 @@ static struct ctl_table kern_table[] = {
 		.data		= &tracepoint_printk,
 		.maxlen		= sizeof(tracepoint_printk),
 		.mode		= 0644,
-		.proc_handler	= tracepoint_printk_sysctl,
+		.ctl_fops	= &sysctl_tracepoint_printk_fops,
 	},
 #endif
 #ifdef CONFIG_MODULES

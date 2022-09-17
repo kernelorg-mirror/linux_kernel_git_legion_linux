@@ -2876,17 +2876,16 @@ static void output_printk(struct trace_event_buffer *fbuffer)
 	raw_spin_unlock_irqrestore(&tracepoint_iter_lock, flags);
 }
 
-int tracepoint_printk_sysctl(struct ctl_table *table, int write,
-			     void *buffer, size_t *lenp,
-			     loff_t *ppos)
+static ssize_t sysctl_write_tracepoint_printk(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos)
 {
 	int save_tracepoint_printk;
-	int ret;
+	ssize_t ret;
 
 	mutex_lock(&tracepoint_printk_mutex);
 	save_tracepoint_printk = tracepoint_printk;
 
-	ret = proc_dointvec(table, write, buffer, lenp, ppos);
+	ret = sysctl_write_intvec(ctx, file, buffer, lenp, ppos);
 
 	/*
 	 * This will force exiting early, as tracepoint_printk
@@ -2908,6 +2907,23 @@ int tracepoint_printk_sysctl(struct ctl_table *table, int write,
 
 	return ret;
 }
+
+static ssize_t sysctl_read_tracepoint_printk(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos)
+{
+	ssize_t ret;
+
+	mutex_lock(&tracepoint_printk_mutex);
+	ret = sysctl_read_intvec(ctx, file, buffer, lenp, ppos);
+	mutex_unlock(&tracepoint_printk_mutex);
+
+	return ret;
+}
+
+struct ctl_fops sysctl_tracepoint_printk_fops = {
+	.read  = sysctl_read_tracepoint_printk,
+	.write = sysctl_write_tracepoint_printk,
+};
 
 void trace_event_buffer_commit(struct trace_event_buffer *fbuffer)
 {
