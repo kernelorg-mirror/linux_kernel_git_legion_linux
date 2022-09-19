@@ -655,7 +655,7 @@ static struct ctl_table ipmi_table[] = {
 	  .data		= &poweroff_powercycle,
 	  .maxlen	= sizeof(poweroff_powercycle),
 	  .mode		= 0644,
-	  .proc_handler	= proc_dointvec },
+	  .ctl_fops	= &proc_dointvec_minmax_fops },
 	{ }
 };
 

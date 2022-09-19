@@ -182,20 +182,20 @@ static void mac_hid_stop_emulation(void)
 	mac_hid_destroy_emumouse();
 }
 
-static int mac_hid_toggle_emumouse(struct ctl_table *table, int write,
-				   void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t sysctl_write_mac_hid_toggle_emumouse(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos)
 {
-	int *valp = table->data;
+	int *valp = ctx->ctl_table->data;
 	int old_val = *valp;
-	int rc;
+	ssize_t rc;
 
 	rc = mutex_lock_killable(&mac_hid_emumouse_mutex);
 	if (rc)
 		return rc;
 
-	rc = proc_dointvec(table, write, buffer, lenp, ppos);
+	rc = sysctl_write_intvec(ctx, file, buffer, lenp, ppos);
 
-	if (rc == 0 && write && *valp != old_val) {
+	if (rc == 0 && *valp != old_val) {
 		if (*valp == 1)
 			rc = mac_hid_start_emulation();
 		else if (*valp == 0)
@@ -213,6 +213,27 @@ static int mac_hid_toggle_emumouse(struct ctl_table *table, int write,
 	return rc;
 }
 
+static ssize_t sysctl_read_mac_hid_toggle_emumouse(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos)
+{
+	ssize_t rc;
+
+	rc = mutex_lock_killable(&mac_hid_emumouse_mutex);
+	if (rc)
+		return rc;
+
+	rc = sysctl_read_intvec(ctx, file, buffer, lenp, ppos);
+
+	mutex_unlock(&mac_hid_emumouse_mutex);
+
+	return rc;
+}
+
+static struct ctl_fops sysctl_mac_hid_toggle_emumouse_fops = {
+	.read  = sysctl_read_mac_hid_toggle_emumouse,
+	.write = sysctl_write_mac_hid_toggle_emumouse,
+};
+
 /* file(s) in /proc/sys/dev/mac_hid */
 static struct ctl_table mac_hid_files[] = {
 	{
@@ -220,7 +241,7 @@ static struct ctl_table mac_hid_files[] = {
 		.data		= &mouse_emulate_buttons,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= mac_hid_toggle_emumouse,
+		.ctl_fops	= &sysctl_mac_hid_toggle_emumouse_fops,
 	},
 	{
 		.procname	= "mouse_button2_keycode",
