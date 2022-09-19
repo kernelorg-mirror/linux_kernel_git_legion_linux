@@ -1503,12 +1503,17 @@ static int proc_do_uuid(struct ctl_table *table, int write, void *buf,
 	return proc_dostring(&fake_table, 0, buf, lenp, ppos);
 }
 
-/* The same as proc_dointvec, but writes don't change anything. */
-static int proc_do_rointvec(struct ctl_table *table, int write, void *buf,
-			    size_t *lenp, loff_t *ppos)
+static ssize_t proc_write_rointvec(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
-	return write ? 0 : proc_dointvec(table, 0, buf, lenp, ppos);
+	return 0;
 }
+
+/* The same as proc_dointvec, but writes don't change anything. */
+static struct ctl_fops proc_do_rointvec_fops = {
+	.read  = sysctl_read_intvec,
+	.write = proc_write_rointvec,
+};
 
 static struct ctl_table random_table[] = {
 	{
@@ -1530,14 +1535,14 @@ static struct ctl_table random_table[] = {
 		.data		= &sysctl_random_write_wakeup_bits,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_do_rointvec,
+		.ctl_fops	= &proc_do_rointvec_fops,
 	},
 	{
 		.procname	= "urandom_min_reseed_secs",
 		.data		= &sysctl_random_min_urandom_seed,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_do_rointvec,
+		.ctl_fops	= &proc_do_rointvec_fops,
 	},
 	{
 		.procname	= "boot_id",

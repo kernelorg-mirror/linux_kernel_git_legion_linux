@@ -3600,15 +3600,14 @@ static void cdrom_update_settings(void)
 	mutex_unlock(&cdrom_mutex);
 }
 
-static int cdrom_sysctl_handler(struct ctl_table *ctl, int write,
-				void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t sysctl_write_cdrom_settings(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos)
 {
-	int ret;
-	
-	ret = proc_dointvec(ctl, write, buffer, lenp, ppos);
+	ssize_t ret;
 
-	if (write) {
-	
+	ret = sysctl_write_intvec(ctx, file, buffer, lenp, ppos);
+
+	if (!ret) {
 		/* we only care for 1 or 0. */
 		autoclose        = !!cdrom_sysctl_settings.autoclose;
 		autoeject        = !!cdrom_sysctl_settings.autoeject;
@@ -3622,8 +3621,13 @@ static int cdrom_sysctl_handler(struct ctl_table *ctl, int write,
 		cdrom_update_settings();
 	}
 
-        return ret;
+	return ret;
 }
+
+static struct ctl_fops sysctl_cdrom_settings_fops = {
+	.read  = sysctl_read_intvec,
+	.write = sysctl_write_cdrom_settings,
+};
 
 /* Place files in /proc/sys/dev/cdrom */
 static struct ctl_table cdrom_table[] = {
@@ -3639,35 +3643,35 @@ static struct ctl_table cdrom_table[] = {
 		.data		= &cdrom_sysctl_settings.autoclose,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= cdrom_sysctl_handler,
+		.ctl_fops	= &sysctl_cdrom_settings_fops,
 	},
 	{
 		.procname	= "autoeject",
 		.data		= &cdrom_sysctl_settings.autoeject,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= cdrom_sysctl_handler,
+		.ctl_fops	= &sysctl_cdrom_settings_fops,
 	},
 	{
 		.procname	= "debug",
 		.data		= &cdrom_sysctl_settings.debug,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= cdrom_sysctl_handler,
+		.ctl_fops	= &sysctl_cdrom_settings_fops,
 	},
 	{
 		.procname	= "lock",
 		.data		= &cdrom_sysctl_settings.lock,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= cdrom_sysctl_handler,
+		.ctl_fops	= &sysctl_cdrom_settings_fops,
 	},
 	{
 		.procname	= "check_media",
 		.data		= &cdrom_sysctl_settings.check,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= cdrom_sysctl_handler
+		.ctl_fops	= &sysctl_cdrom_settings_fops,
 	},
 	{ }
 };
