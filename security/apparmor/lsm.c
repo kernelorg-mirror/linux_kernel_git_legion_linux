@@ -1737,16 +1737,34 @@ static int __init alloc_buffers(void)
 }
 
 #ifdef CONFIG_SYSCTL
-static int apparmor_dointvec(struct ctl_table *table, int write,
-			     void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t
+sysctl_read_unprivileged_userns_apparmor_policy(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos)
 {
 	if (!aa_current_policy_admin_capable(NULL))
 		return -EPERM;
 	if (!apparmor_enabled)
 		return -EINVAL;
 
-	return proc_dointvec(table, write, buffer, lenp, ppos);
+	return sysctl_read_intvec(ctx, file, buffer, lenp, ppos);
 }
+
+static ssize_t
+sysctl_write_unprivileged_userns_apparmor_policy(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos)
+{
+	if (!aa_current_policy_admin_capable(NULL))
+		return -EPERM;
+	if (!apparmor_enabled)
+		return -EINVAL;
+
+	return sysctl_write_intvec(ctx, file, buffer, lenp, ppos);
+}
+
+static struct ctl_fops sysctl_unprivileged_userns_apparmor_policy_fops = {
+	.read  = sysctl_read_unprivileged_userns_apparmor_policy,
+	.write = sysctl_write_unprivileged_userns_apparmor_policy,
+};
 
 static struct ctl_path apparmor_sysctl_path[] = {
 	{ .procname = "kernel", },
@@ -1759,7 +1777,7 @@ static struct ctl_table apparmor_sysctl_table[] = {
 		.data           = &unprivileged_userns_apparmor_policy,
 		.maxlen         = sizeof(int),
 		.mode           = 0600,
-		.proc_handler   = apparmor_dointvec,
+		.ctl_fops       = &sysctl_unprivileged_userns_apparmor_policy_fops,
 	},
 	{ }
 };
