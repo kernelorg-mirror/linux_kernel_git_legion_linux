@@ -69,15 +69,16 @@ static struct ctl_fops auto_msgmni_fops = {
 	.write = auto_msgmni_write,
 };
 
-static int proc_ipc_sem_dointvec(struct ctl_table *table, int write,
-	void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t sysctl_write_ipc_sem(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct ipc_namespace *ns =
-		container_of(table->data, struct ipc_namespace, sem_ctls);
-	int ret, semmni;
+		container_of(ctx->ctl_table->data, struct ipc_namespace, sem_ctls);
+	int semmni;
+	ssize_t ret;
 
 	semmni = ns->sem_ctls[3];
-	ret = proc_dointvec(table, write, buffer, lenp, ppos);
+	ret = sysctl_write_intvec(ctx, file, buffer, lenp, ppos);
 
 	if (!ret)
 		ret = sem_check_semmni(ns);
@@ -89,6 +90,11 @@ static int proc_ipc_sem_dointvec(struct ctl_table *table, int write,
 		ns->sem_ctls[3] = semmni;
 	return ret;
 }
+
+static struct ctl_fops sysctl_ipc_sem_fops = {
+	.read  = sysctl_read_intvec,
+	.write = sysctl_write_ipc_sem,
+};
 
 int ipc_mni = IPCMNI;
 int ipc_mni_shift = IPCMNI_SHIFT;
@@ -168,7 +174,7 @@ static struct ctl_table ipc_sysctls[] = {
 		.data		= &init_ipc_ns.sem_ctls,
 		.maxlen		= 4*sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_ipc_sem_dointvec,
+		.ctl_fops	= &sysctl_ipc_sem_fops,
 	},
 #ifdef CONFIG_CHECKPOINT_RESTORE
 	{
