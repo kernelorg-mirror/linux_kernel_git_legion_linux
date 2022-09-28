@@ -46,18 +46,22 @@ static void sysctl_test_api_dointvec_null_tbl_data(struct kunit *test)
 	 * not try to read because .data is NULL.
 	 */
 	len = 1234;
-	KUNIT_EXPECT_EQ(test, 0, proc_dointvec(&null_data_table,
-					       KUNIT_PROC_READ, buffer, &len,
-					       &pos));
+	KUNIT_EXPECT_EQ(test, 0, sysctl_read_intvec_data(null_data_table.data,
+						    &null_data_table,
+						    buffer, &len, &pos,
+						    sysctl_conv_intvec,
+						    NULL, NULL));
 	KUNIT_EXPECT_EQ(test, 0, len);
 
 	/*
 	 * See above.
 	 */
 	len = 1234;
-	KUNIT_EXPECT_EQ(test, 0, proc_dointvec(&null_data_table,
-					       KUNIT_PROC_WRITE, buffer, &len,
-					       &pos));
+	KUNIT_EXPECT_EQ(test, 0, sysctl_write_intvec_data(null_data_table.data,
+						    &null_data_table,
+						    buffer, &len, &pos,
+						    sysctl_conv_intvec,
+						    NULL, NULL));
 	KUNIT_EXPECT_EQ(test, 0, len);
 }
 
@@ -92,18 +96,22 @@ static void sysctl_test_api_dointvec_table_maxlen_unset(struct kunit *test)
 	 * cannot do anything because its internal .data buffer has zero length.
 	 */
 	len = 1234;
-	KUNIT_EXPECT_EQ(test, 0, proc_dointvec(&data_maxlen_unset_table,
-					       KUNIT_PROC_READ, buffer, &len,
-					       &pos));
+	KUNIT_EXPECT_EQ(test, 0, sysctl_read_intvec_data(data_maxlen_unset_table.data,
+						    &data_maxlen_unset_table,
+						    buffer, &len, &pos,
+						    sysctl_conv_intvec,
+						    NULL, NULL));
 	KUNIT_EXPECT_EQ(test, 0, len);
 
 	/*
 	 * See previous comment.
 	 */
 	len = 1234;
-	KUNIT_EXPECT_EQ(test, 0, proc_dointvec(&data_maxlen_unset_table,
-					       KUNIT_PROC_WRITE, buffer, &len,
-					       &pos));
+	KUNIT_EXPECT_EQ(test, 0, sysctl_write_intvec_data(data_maxlen_unset_table.data,
+						    &data_maxlen_unset_table,
+						    buffer, &len, &pos,
+						    sysctl_conv_intvec,
+						    NULL, NULL));
 	KUNIT_EXPECT_EQ(test, 0, len);
 }
 
@@ -133,12 +141,18 @@ static void sysctl_test_api_dointvec_table_len_is_zero(struct kunit *test)
 	size_t len = 0;
 	loff_t pos;
 
-	KUNIT_EXPECT_EQ(test, 0, proc_dointvec(&table, KUNIT_PROC_READ, buffer,
-					       &len, &pos));
+	KUNIT_EXPECT_EQ(test, 0, sysctl_read_intvec_data(table.data,
+						    &table,
+						    buffer, &len, &pos,
+						    sysctl_conv_intvec,
+						    NULL, NULL));
 	KUNIT_EXPECT_EQ(test, 0, len);
 
-	KUNIT_EXPECT_EQ(test, 0, proc_dointvec(&table, KUNIT_PROC_WRITE, buffer,
-					       &len, &pos));
+	KUNIT_EXPECT_EQ(test, 0, sysctl_write_intvec_data(table.data,
+						    &table,
+						    buffer, &len, &pos,
+						    sysctl_conv_intvec,
+						    NULL, NULL));
 	KUNIT_EXPECT_EQ(test, 0, len);
 }
 
@@ -172,8 +186,11 @@ static void sysctl_test_api_dointvec_table_read_but_position_set(
 	 */
 	loff_t pos = 1;
 
-	KUNIT_EXPECT_EQ(test, 0, proc_dointvec(&table, KUNIT_PROC_READ, buffer,
-					       &len, &pos));
+	KUNIT_EXPECT_EQ(test, 0, sysctl_read_intvec_data(table.data,
+						    &table,
+						    buffer, &len, &pos,
+						    sysctl_conv_intvec,
+						    NULL, NULL));
 	KUNIT_EXPECT_EQ(test, 0, len);
 }
 
@@ -201,8 +218,11 @@ static void sysctl_test_dointvec_read_happy_single_positive(struct kunit *test)
 	/* Store 13 in the data field. */
 	*((int *)table.data) = 13;
 
-	KUNIT_EXPECT_EQ(test, 0, proc_dointvec(&table, KUNIT_PROC_READ,
-					       user_buffer, &len, &pos));
+	KUNIT_EXPECT_EQ(test, 0, sysctl_read_intvec_data(table.data,
+						    &table,
+						    user_buffer, &len, &pos,
+						    sysctl_conv_intvec,
+						    NULL, NULL));
 	KUNIT_ASSERT_EQ(test, 3, len);
 	buffer[len] = '\0';
 	/* And we read 13 back out. */
@@ -231,8 +251,11 @@ static void sysctl_test_dointvec_read_happy_single_negative(struct kunit *test)
 	char __user *user_buffer = (char __user *)buffer;
 	*((int *)table.data) = -16;
 
-	KUNIT_EXPECT_EQ(test, 0, proc_dointvec(&table, KUNIT_PROC_READ,
-					       user_buffer, &len, &pos));
+	KUNIT_EXPECT_EQ(test, 0, sysctl_read_intvec_data(table.data,
+						    &table,
+						    user_buffer, &len, &pos,
+						    sysctl_conv_intvec,
+						    NULL, NULL));
 	KUNIT_ASSERT_EQ(test, 4, len);
 	buffer[len] = '\0';
 	KUNIT_EXPECT_STREQ(test, "-16\n", buffer);
@@ -262,8 +285,11 @@ static void sysctl_test_dointvec_write_happy_single_positive(struct kunit *test)
 
 	memcpy(buffer, input, len);
 
-	KUNIT_EXPECT_EQ(test, 0, proc_dointvec(&table, KUNIT_PROC_WRITE,
-					       user_buffer, &len, &pos));
+	KUNIT_EXPECT_EQ(test, 0, sysctl_write_intvec_data(table.data,
+						    &table,
+						    user_buffer, &len, &pos,
+						    sysctl_conv_intvec,
+						    NULL, NULL));
 	KUNIT_EXPECT_EQ(test, sizeof(input) - 1, len);
 	KUNIT_EXPECT_EQ(test, sizeof(input) - 1, pos);
 	KUNIT_EXPECT_EQ(test, 9, *((int *)table.data));
@@ -292,8 +318,11 @@ static void sysctl_test_dointvec_write_happy_single_negative(struct kunit *test)
 
 	memcpy(buffer, input, len);
 
-	KUNIT_EXPECT_EQ(test, 0, proc_dointvec(&table, KUNIT_PROC_WRITE,
-					       user_buffer, &len, &pos));
+	KUNIT_EXPECT_EQ(test, 0, sysctl_write_intvec_data(table.data,
+						    &table,
+						    user_buffer, &len, &pos,
+						    sysctl_conv_intvec,
+						    NULL, NULL));
 	KUNIT_EXPECT_EQ(test, sizeof(input) - 1, len);
 	KUNIT_EXPECT_EQ(test, sizeof(input) - 1, pos);
 	KUNIT_EXPECT_EQ(test, -9, *((int *)table.data));
@@ -332,8 +361,11 @@ static void sysctl_test_api_dointvec_write_single_less_int_min(
 					 abs_of_less_than_min),
 			max_len);
 
-	KUNIT_EXPECT_EQ(test, -EINVAL, proc_dointvec(&table, KUNIT_PROC_WRITE,
-						     user_buffer, &len, &pos));
+	KUNIT_EXPECT_EQ(test, -EINVAL, sysctl_write_intvec_data(table.data,
+						    &table,
+						    user_buffer, &len, &pos,
+						    sysctl_conv_intvec,
+						    NULL, NULL));
 	KUNIT_EXPECT_EQ(test, max_len, len);
 	KUNIT_EXPECT_EQ(test, 0, *((int *)table.data));
 }
@@ -364,8 +396,11 @@ static void sysctl_test_api_dointvec_write_single_greater_int_max(
 	KUNIT_ASSERT_LT(test, (size_t)snprintf(buffer, max_len, "%lu",
 					       greater_than_max),
 			max_len);
-	KUNIT_EXPECT_EQ(test, -EINVAL, proc_dointvec(&table, KUNIT_PROC_WRITE,
-						     user_buffer, &len, &pos));
+	KUNIT_EXPECT_EQ(test, -EINVAL, sysctl_write_intvec_data(table.data,
+						    &table,
+						    user_buffer, &len, &pos,
+						    sysctl_conv_intvec,
+						    NULL, NULL));
 	KUNIT_ASSERT_EQ(test, max_len, len);
 	KUNIT_EXPECT_EQ(test, 0, *((int *)table.data));
 }
