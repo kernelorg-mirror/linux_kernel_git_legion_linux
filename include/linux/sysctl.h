@@ -66,8 +66,6 @@ typedef int proc_handler(struct ctl_table *ctl, int write, void *buffer,
 		size_t *lenp, loff_t *ppos);
 
 int proc_dostring(struct ctl_table *, int, void *, size_t *, loff_t *);
-int proc_dobool(struct ctl_table *table, int write, void *buffer,
-		size_t *lenp, loff_t *ppos);
 int proc_dou8vec_minmax(struct ctl_table *table, int write, void *buffer,
 			size_t *lenp, loff_t *ppos);
 int proc_doulongvec_minmax(struct ctl_table *, int, void *, size_t *, loff_t *);
@@ -126,7 +124,10 @@ ssize_t sysctl_read_intvec_userhz_jiffies(struct ctl_context *, struct file *, c
 ssize_t sysctl_write_intvec_userhz_jiffies(struct ctl_context *, struct file *, char *, size_t *, loff_t *);
 ssize_t sysctl_read_intvec_ms_jiffies(struct ctl_context *, struct file *, char *, size_t *, loff_t *);
 ssize_t sysctl_write_intvec_ms_jiffies(struct ctl_context *, struct file *, char *, size_t *, loff_t *);
+ssize_t sysctl_read_bool(struct ctl_context *, struct file *, char *, size_t *, loff_t *);
+ssize_t sysctl_write_bool(struct ctl_context *, struct file *, char *, size_t *, loff_t *);
 
+extern struct ctl_fops sysctl_bool_fops;
 extern struct ctl_fops sysctl_intvec_fops;
 extern struct ctl_fops sysctl_uintvec_fops;
 extern struct ctl_fops sysctl_large_bitmap_fops;

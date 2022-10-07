@@ -732,9 +732,9 @@ out:
 }
 
 /**
- * proc_dobool - read/write a bool
- * @table: the sysctl table
- * @write: %TRUE if this is a write to the sysctl file
+ * sysctl_read/write_bool - read/write a bool
+ * @ctx: the operation context which contains sysctl table
+ * @file: the opened sysctl file
  * @buffer: the user buffer
  * @lenp: the size of the user buffer
  * @ppos: file position
@@ -744,14 +744,18 @@ out:
  *
  * Returns 0 on success.
  */
-int proc_dobool(struct ctl_table *table, int write, void *buffer,
-		size_t *lenp, loff_t *ppos)
+ssize_t sysctl_read_bool(struct ctl_context *ctx, struct file *file,
+			 char *buffer, size_t *lenp, loff_t *ppos)
 {
-	if (write)
-		return sysctl_write_intvec_data(table->data, table, buffer, lenp, ppos,
-				sysctl_conv_bool, NULL, NULL);
-	return sysctl_read_intvec_data(table->data, table, buffer, lenp, ppos,
-			sysctl_conv_bool, NULL, NULL);
+	return sysctl_read_intvec_data(ctx->ctl_table->data, ctx->ctl_table,
+			buffer, lenp, ppos, sysctl_conv_bool, NULL, NULL);
+}
+
+ssize_t sysctl_write_bool(struct ctl_context *ctx, struct file *file,
+			  char *buffer, size_t *lenp, loff_t *ppos)
+{
+	return sysctl_write_intvec_data(ctx->ctl_table->data, ctx->ctl_table,
+			buffer, lenp, ppos, sysctl_conv_bool, NULL, NULL);
 }
 
 #ifdef CONFIG_COMPACTION
@@ -1500,12 +1504,6 @@ int proc_dostring(struct ctl_table *table, int write,
 	return -ENOSYS;
 }
 
-int proc_dobool(struct ctl_table *table, int write,
-		void *buffer, size_t *lenp, loff_t *ppos)
-{
-	return -ENOSYS;
-}
-
 int proc_dou8vec_minmax(struct ctl_table *table, int write,
 			void *buffer, size_t *lenp, loff_t *ppos)
 {
@@ -1591,6 +1589,18 @@ int sysctl_write_intvec_data(void *tbl_data, struct ctl_table *table,
 	return -ENOSYS;
 }
 
+ssize_t sysctl_read_bool(struct ctl_context *ctx, struct file *file,
+			 char *buffer, size_t *lenp, loff_t *ppos)
+{
+	return -ENOSYS;
+}
+
+ssize_t sysctl_write_bool(struct ctl_context *ctx, struct file *file,
+			  char *buffer, size_t *lenp, loff_t *ppos)
+{
+	return -ENOSYS;
+}
+
 ssize_t sysctl_read_intvec(struct ctl_context *ctx, struct file *file,
 			       char *buffer, size_t *lenp, loff_t *ppos)
 {
@@ -1658,6 +1668,11 @@ ssize_t sysctl_write_large_bitmap(struct ctl_context *ctx, struct file *file,
 }
 
 #endif /* CONFIG_PROC_SYSCTL */
+
+struct ctl_fops sysctl_bool_fops = {
+	.read  = sysctl_read_bool,
+	.write = sysctl_write_bool,
+};
 
 struct ctl_fops sysctl_intvec_fops = {
 	.read  = sysctl_read_intvec,
@@ -2583,8 +2598,10 @@ int __init sysctl_init_bases(void)
  * No sense putting this after each symbol definition, twice,
  * exception granted :-)
  */
-EXPORT_SYMBOL(proc_dobool);
 EXPORT_SYMBOL(sysctl_conv_bool);
+EXPORT_SYMBOL(sysctl_read_bool);
+EXPORT_SYMBOL(sysctl_write_bool);
+EXPORT_SYMBOL(sysctl_bool_fops);
 EXPORT_SYMBOL(sysctl_read_intvec_jiffies);
 EXPORT_SYMBOL(sysctl_write_intvec_jiffies);
 EXPORT_SYMBOL(sysctl_intvec_jiffies_fops);
