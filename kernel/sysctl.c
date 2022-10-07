@@ -2463,7 +2463,7 @@ static struct ctl_table vm_table[] = {
 		.data		= &sysctl_stat_interval,
 		.maxlen		= sizeof(sysctl_stat_interval),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+		.ctl_fops	= &sysctl_intvec_jiffies_fops,
 	},
 	{
 		.procname	= "stat_refresh",

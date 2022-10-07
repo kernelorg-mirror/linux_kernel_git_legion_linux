@@ -2171,7 +2171,7 @@ static struct ctl_table vm_page_writeback_sysctls[] = {
 		.data		= &laptop_mode,
 		.maxlen		= sizeof(laptop_mode),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+		.ctl_fops	= &sysctl_intvec_jiffies_fops,
 	},
 	{}
 };
