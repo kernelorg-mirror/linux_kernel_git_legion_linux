@@ -315,7 +315,7 @@ static struct ctl_table dn_table[] = {
 		.data = &sysctl_decnet_mem,
 		.maxlen = sizeof(sysctl_decnet_mem),
 		.mode = 0644,
-		.proc_handler = proc_doulongvec_minmax
+		.ctl_fops = &sysctl_ulongvec_fops,
 	},
 	{
 		.procname = "decnet_rmem",

@@ -324,13 +324,13 @@ static struct ctl_table lowpan_frags_ns_ctl_table[] = {
 		.procname	= "6lowpanfrag_high_thresh",
 		.maxlen		= sizeof(unsigned long),
 		.mode		= 0644,
-		.proc_handler	= proc_doulongvec_minmax,
+		.ctl_fops	= &sysctl_ulongvec_fops,
 	},
 	{
 		.procname	= "6lowpanfrag_low_thresh",
 		.maxlen		= sizeof(unsigned long),
 		.mode		= 0644,
-		.proc_handler	= proc_doulongvec_minmax,
+		.ctl_fops	= &sysctl_ulongvec_fops,
 	},
 	{
 		.procname	= "6lowpanfrag_time",

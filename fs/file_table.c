@@ -81,12 +81,17 @@ EXPORT_SYMBOL_GPL(get_max_files);
 /*
  * Handle nr_files sysctl
  */
-static int proc_nr_files(struct ctl_table *table, int write, void *buffer,
-			 size_t *lenp, loff_t *ppos)
+static ssize_t sysctl_read_files_stat(struct ctl_context *ctx, struct file *file,
+				       char *buffer, size_t *lenp, loff_t *ppos)
 {
 	files_stat.nr_files = get_nr_files();
-	return proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
+	return sysctl_read_ulongvec(ctx, file, buffer, lenp, ppos);
 }
+
+static struct ctl_fops sysctl_files_stat_fops = {
+	.read  = sysctl_read_files_stat,
+	.write = sysctl_write_ulongvec,
+};
 
 static struct ctl_table fs_stat_sysctls[] = {
 	{
@@ -94,14 +99,14 @@ static struct ctl_table fs_stat_sysctls[] = {
 		.data		= &files_stat,
 		.maxlen		= sizeof(files_stat),
 		.mode		= 0444,
-		.proc_handler	= proc_nr_files,
+		.ctl_fops	= &sysctl_files_stat_fops,
 	},
 	{
 		.procname	= "file-max",
 		.data		= &files_stat.max_files,
 		.maxlen		= sizeof(files_stat.max_files),
 		.mode		= 0644,
-		.proc_handler	= proc_doulongvec_minmax,
+		.ctl_fops	= &sysctl_ulongvec_fops,
 		.extra1		= SYSCTL_LONG_ZERO,
 		.extra2		= SYSCTL_LONG_MAX,
 	},

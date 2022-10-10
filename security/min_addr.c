@@ -26,23 +26,40 @@ static void update_mmap_min_addr(void)
 }
 
 /*
- * sysctl handler which just sets dac_mmap_min_addr = the new value and then
+ * sysctl operations which just sets dac_mmap_min_addr = the new value and then
  * calls update_mmap_min_addr() so non MAP_FIXED hints get rounded properly
  */
-int mmap_min_addr_handler(struct ctl_table *table, int write,
-			  void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t sysctl_write_dac_mmap_min_addr(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos)
 {
-	int ret;
+	ssize_t ret;
 
-	if (write && !capable(CAP_SYS_RAWIO))
+	if (!capable(CAP_SYS_RAWIO))
 		return -EPERM;
 
-	ret = proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
+	ret = sysctl_write_ulongvec(ctx, file, buffer, lenp, ppos);
 
 	update_mmap_min_addr();
 
 	return ret;
 }
+
+static ssize_t sysctl_read_dac_mmap_min_addr(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos)
+{
+	ssize_t ret;
+
+	ret = sysctl_read_ulongvec(ctx, file, buffer, lenp, ppos);
+
+	update_mmap_min_addr();
+
+	return ret;
+}
+
+struct ctl_fops sysctl_dac_mmap_min_addr_fops = {
+	.read  = sysctl_read_dac_mmap_min_addr,
+	.write = sysctl_write_dac_mmap_min_addr,
+};
 
 static int __init init_mmap_min_addr(void)
 {

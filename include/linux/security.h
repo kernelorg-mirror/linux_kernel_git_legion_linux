@@ -220,8 +220,7 @@ struct request_sock;
 #define LSM_UNSAFE_NO_NEW_PRIVS	4
 
 #ifdef CONFIG_MMU
-extern int mmap_min_addr_handler(struct ctl_table *table, int write,
-				 void *buffer, size_t *lenp, loff_t *ppos);
+extern struct ctl_fops sysctl_dac_mmap_min_addr_fops;
 #endif
 
 /* security_inode_init_security callback function to write xattrs */

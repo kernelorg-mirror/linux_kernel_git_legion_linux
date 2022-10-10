@@ -66,7 +66,7 @@ static long ue_int_max = INT_MAX;
 		.procname	= name,				\
 		.maxlen		= sizeof(long),			\
 		.mode		= 0644,				\
-		.proc_handler	= proc_doulongvec_minmax,	\
+		.ctl_fops	= &sysctl_ulongvec_fops,	\
 		.extra1		= &ue_zero,			\
 		.extra2		= &ue_int_max,			\
 	}

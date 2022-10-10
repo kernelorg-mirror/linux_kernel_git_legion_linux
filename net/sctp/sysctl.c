@@ -109,7 +109,7 @@ static struct ctl_table sctp_table[] = {
 		.data		= &sysctl_sctp_mem,
 		.maxlen		= sizeof(sysctl_sctp_mem),
 		.mode		= 0644,
-		.proc_handler	= proc_doulongvec_minmax
+		.proc_handler	= &sysctl_ulongvec_fops,
 	},
 	{
 		.procname	= "sctp_rmem",
@@ -388,7 +388,7 @@ static struct ctl_table sctp_net_table[] = {
 		.data		= &init_net.sctp.max_autoclose,
 		.maxlen		= sizeof(unsigned long),
 		.mode		= 0644,
-		.proc_handler	= &proc_doulongvec_minmax,
+		.proc_handler	= &sysctl_ulongvec_fops,
 		.extra1		= &max_autoclose_min,
 		.extra2		= &max_autoclose_max,
 	},

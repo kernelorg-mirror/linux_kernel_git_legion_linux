@@ -543,19 +543,24 @@ static struct ctl_fops dirty_ratio_fops = {
 	.write = dirty_ratio_write,
 };
 
-static int dirty_bytes_handler(struct ctl_table *table, int write,
-		void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t sysctl_write_dirty_bytes(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
 {
 	unsigned long old_bytes = vm_dirty_bytes;
-	int ret;
+	ssize_t ret;
 
-	ret = proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
-	if (ret == 0 && write && vm_dirty_bytes != old_bytes) {
+	ret = sysctl_write_ulongvec(ctx, file, buffer, lenp, ppos);
+	if (ret == 0 && vm_dirty_bytes != old_bytes) {
 		writeback_set_ratelimit();
 		vm_dirty_ratio = 0;
 	}
 	return ret;
 }
+
+static struct ctl_fops sysctl_dirty_bytes_fops = {
+	.read = sysctl_read_ulongvec,
+	.write = sysctl_write_dirty_bytes,
+};
 #endif
 
 static unsigned long wp_next_time(unsigned long cur_time)
@@ -2102,7 +2107,7 @@ static int page_writeback_cpu_online(unsigned int cpu)
 
 #ifdef CONFIG_SYSCTL
 
-/* this is needed for the proc_doulongvec_minmax of vm_dirty_bytes */
+/* this is needed for the sysctl_write_ulongvec of vm_dirty_bytes */
 static const unsigned long dirty_bytes_min = 2 * PAGE_SIZE;
 
 static struct ctl_table vm_page_writeback_sysctls[] = {
@@ -2137,7 +2142,7 @@ static struct ctl_table vm_page_writeback_sysctls[] = {
 		.data       = &vm_dirty_bytes,
 		.maxlen     = sizeof(vm_dirty_bytes),
 		.mode       = 0644,
-		.proc_handler   = dirty_bytes_handler,
+		.ctl_fops   = &sysctl_dirty_bytes_fops,
 		.extra1     = (void *)&dirty_bytes_min,
 	},
 	{

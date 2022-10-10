@@ -485,16 +485,15 @@ int call_usermodehelper(const char *path, char **argv, char **envp, int wait)
 }
 EXPORT_SYMBOL(call_usermodehelper);
 
-static int proc_cap_handler(struct ctl_table *table, int write,
-			 void *buffer, size_t *lenp, loff_t *ppos)
+ssize_t sysctl_write_caps(struct ctl_context *ctx, struct file *file,
+			  char *buffer, size_t *lenp, loff_t *ppos)
 {
-	struct ctl_table t;
 	unsigned long cap_array[_KERNEL_CAPABILITY_U32S];
 	kernel_cap_t new_cap;
 	int err, i;
 
-	if (write && (!capable(CAP_SETPCAP) ||
-		      !capable(CAP_SYS_MODULE)))
+	if (!capable(CAP_SETPCAP) ||
+	    !capable(CAP_SYS_MODULE))
 		return -EPERM;
 
 	/*
@@ -503,23 +502,21 @@ static int proc_cap_handler(struct ctl_table *table, int write,
 	 */
 	spin_lock(&umh_sysctl_lock);
 	for (i = 0; i < _KERNEL_CAPABILITY_U32S; i++)  {
-		if (table->data == CAP_BSET)
+		if (ctx->ctl_table->data == CAP_BSET)
 			cap_array[i] = usermodehelper_bset.cap[i];
-		else if (table->data == CAP_PI)
+		else if (ctx->ctl_table->data == CAP_PI)
 			cap_array[i] = usermodehelper_inheritable.cap[i];
 		else
 			BUG();
 	}
 	spin_unlock(&umh_sysctl_lock);
 
-	t = *table;
-	t.data = &cap_array;
-
 	/*
-	 * actually read or write and array of ulongs from userspace.  Remember
+	 * actually write array of ulongs from userspace.  Remember
 	 * these are least significant 32 bits first
 	 */
-	err = proc_doulongvec_minmax(&t, write, buffer, lenp, ppos);
+	err = sysctl_write_ulongvec_data(&cap_array, ctx->ctl_table,
+			buffer, lenp, ppos, 1l, 1l);
 	if (err < 0)
 		return err;
 
@@ -533,17 +530,45 @@ static int proc_cap_handler(struct ctl_table *table, int write,
 	/*
 	 * Drop everything not in the new_cap (but don't add things)
 	 */
-	if (write) {
-		spin_lock(&umh_sysctl_lock);
-		if (table->data == CAP_BSET)
-			usermodehelper_bset = cap_intersect(usermodehelper_bset, new_cap);
-		if (table->data == CAP_PI)
-			usermodehelper_inheritable = cap_intersect(usermodehelper_inheritable, new_cap);
-		spin_unlock(&umh_sysctl_lock);
-	}
+	spin_lock(&umh_sysctl_lock);
+	if (ctx->ctl_table->data == CAP_BSET)
+		usermodehelper_bset = cap_intersect(usermodehelper_bset, new_cap);
+	if (ctx->ctl_table->data == CAP_PI)
+		usermodehelper_inheritable = cap_intersect(usermodehelper_inheritable, new_cap);
+	spin_unlock(&umh_sysctl_lock);
 
 	return 0;
 }
+
+ssize_t sysctl_read_caps(struct ctl_context *ctx, struct file *file,
+			 char *buffer, size_t *lenp, loff_t *ppos)
+{
+	unsigned long cap_array[_KERNEL_CAPABILITY_U32S];
+	int i;
+
+	/*
+	 * convert from the global kernel_cap_t to the ulong array to print to
+	 * userspace if this is a read.
+	 */
+	spin_lock(&umh_sysctl_lock);
+	for (i = 0; i < _KERNEL_CAPABILITY_U32S; i++)  {
+		if (ctx->ctl_table->data == CAP_BSET)
+			cap_array[i] = usermodehelper_bset.cap[i];
+		else if (ctx->ctl_table->data == CAP_PI)
+			cap_array[i] = usermodehelper_inheritable.cap[i];
+		else
+			BUG();
+	}
+	spin_unlock(&umh_sysctl_lock);
+
+	return sysctl_read_ulongvec_data(&cap_array, ctx->ctl_table,
+			buffer, lenp, ppos, 1l, 1l);
+}
+
+static struct ctl_fops sysctl_cap_fops = {
+	.read = sysctl_read_caps,
+	.write = sysctl_write_caps,
+};
 
 struct ctl_table usermodehelper_table[] = {
 	{
@@ -551,14 +576,14 @@ struct ctl_table usermodehelper_table[] = {
 		.data		= CAP_BSET,
 		.maxlen		= _KERNEL_CAPABILITY_U32S * sizeof(unsigned long),
 		.mode		= 0600,
-		.proc_handler	= proc_cap_handler,
+		.ctl_fops	= &sysctl_cap_fops,
 	},
 	{
 		.procname	= "inheritable",
 		.data		= CAP_PI,
 		.maxlen		= _KERNEL_CAPABILITY_U32S * sizeof(unsigned long),
 		.mode		= 0600,
-		.proc_handler	= proc_cap_handler,
+		.ctl_fops	= &sysctl_cap_fops,
 	},
 	{ }
 };

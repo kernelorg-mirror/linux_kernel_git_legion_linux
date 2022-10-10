@@ -63,7 +63,7 @@ static struct ctl_table tipc_table[] = {
 		.data           = &sysctl_tipc_sk_filter,
 		.maxlen         = sizeof(sysctl_tipc_sk_filter),
 		.mode           = 0644,
-		.proc_handler   = proc_doulongvec_minmax,
+		.ctl_fops   = &sysctl_ulongvec_fops,
 	},
 #ifdef CONFIG_TIPC_CRYPTO
 	{
@@ -89,7 +89,7 @@ static struct ctl_table tipc_table[] = {
 		.data		= &sysctl_tipc_bc_retruni,
 		.maxlen		= sizeof(sysctl_tipc_bc_retruni),
 		.mode		= 0644,
-		.proc_handler	= proc_doulongvec_minmax,
+		.ctl_fops	= &sysctl_ulongvec_fops,
 	},
 	{}
 };

@@ -123,14 +123,13 @@ struct hugepage_subpool *hugepage_new_subpool(struct hstate *h, long max_hpages,
 						long min_hpages);
 void hugepage_put_subpool(struct hugepage_subpool *spool);
 
+extern struct ctl_fops sysctl_hugetlb_fops;
+extern struct ctl_fops sysctl_hugetlb_overcommit_fops;
+extern struct ctl_fops sysctl_hugetlb_mempolicy_fops;
+
 void reset_vma_resv_huge_pages(struct vm_area_struct *vma);
 void clear_vma_resv_huge_pages(struct vm_area_struct *vma);
-int hugetlb_sysctl_handler(struct ctl_table *, int, void *, size_t *, loff_t *);
-int hugetlb_overcommit_handler(struct ctl_table *, int, void *, size_t *,
-		loff_t *);
 int hugetlb_treat_movable_handler(struct ctl_table *, int, void *, size_t *,
-		loff_t *);
-int hugetlb_mempolicy_sysctl_handler(struct ctl_table *, int, void *, size_t *,
 		loff_t *);
 
 int move_hugetlb_page_tables(struct vm_area_struct *vma,

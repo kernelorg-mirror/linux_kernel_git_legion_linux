@@ -54,13 +54,13 @@ static struct ctl_table nf_ct_frag6_sysctl_table[] = {
 		.procname	= "nf_conntrack_frag6_low_thresh",
 		.maxlen		= sizeof(unsigned long),
 		.mode		= 0644,
-		.proc_handler	= proc_doulongvec_minmax,
+		.ctl_fops	= &sysctl_ulongvec_fops,
 	},
 	{
 		.procname	= "nf_conntrack_frag6_high_thresh",
 		.maxlen		= sizeof(unsigned long),
 		.mode		= 0644,
-		.proc_handler	= proc_doulongvec_minmax,
+		.ctl_fops	= &sysctl_ulongvec_fops,
 	},
 	{ }
 };

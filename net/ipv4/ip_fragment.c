@@ -552,13 +552,13 @@ static struct ctl_table ip4_frags_ns_ctl_table[] = {
 		.procname	= "ipfrag_high_thresh",
 		.maxlen		= sizeof(unsigned long),
 		.mode		= 0644,
-		.proc_handler	= proc_doulongvec_minmax,
+		.ctl_fops	= &sysctl_ulongvec_fops,
 	},
 	{
 		.procname	= "ipfrag_low_thresh",
 		.maxlen		= sizeof(unsigned long),
 		.mode		= 0644,
-		.proc_handler	= proc_doulongvec_minmax,
+		.ctl_fops	= &sysctl_ulongvec_fops,
 	},
 	{
 		.procname	= "ipfrag_time",

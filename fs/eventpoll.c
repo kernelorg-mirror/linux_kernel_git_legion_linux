@@ -313,7 +313,7 @@ static struct ctl_table epoll_table[] = {
 		.data		= &max_user_watches,
 		.maxlen		= sizeof(max_user_watches),
 		.mode		= 0644,
-		.proc_handler	= proc_doulongvec_minmax,
+		.ctl_fops	= &sysctl_ulongvec_fops,
 		.extra1		= &long_zero,
 		.extra2		= &long_max,
 	},

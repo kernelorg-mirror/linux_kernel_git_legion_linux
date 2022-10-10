@@ -106,13 +106,18 @@ long get_nr_dirty_inodes(void)
  */
 static struct inodes_stat_t inodes_stat;
 
-static int proc_nr_inodes(struct ctl_table *table, int write, void *buffer,
-			  size_t *lenp, loff_t *ppos)
+static ssize_t sysctl_read_inodes_stat(struct ctl_context *ctx, struct file *file,
+				       char *buffer, size_t *lenp, loff_t *ppos)
 {
 	inodes_stat.nr_inodes = get_nr_inodes();
 	inodes_stat.nr_unused = get_nr_inodes_unused();
-	return proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
+	return sysctl_read_ulongvec(ctx, file, buffer, lenp, ppos);
 }
+
+static struct ctl_fops sysctl_inodes_stat_fops = {
+	.read  = sysctl_read_inodes_stat,
+	.write = sysctl_write_ulongvec,
+};
 
 static struct ctl_table inodes_sysctls[] = {
 	{
@@ -120,14 +125,14 @@ static struct ctl_table inodes_sysctls[] = {
 		.data		= &inodes_stat,
 		.maxlen		= 2*sizeof(long),
 		.mode		= 0444,
-		.proc_handler	= proc_nr_inodes,
+		.ctl_fops	= &sysctl_inodes_stat_fops,
 	},
 	{
 		.procname	= "inode-state",
 		.data		= &inodes_stat,
 		.maxlen		= 7*sizeof(long),
 		.mode		= 0444,
-		.proc_handler	= proc_nr_inodes,
+		.ctl_fops	= &sysctl_inodes_stat_fops,
 	},
 	{ }
 };

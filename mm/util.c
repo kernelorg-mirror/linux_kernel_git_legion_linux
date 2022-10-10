@@ -954,16 +954,21 @@ struct ctl_fops overcommit_policy_fops = {
 	.write = overcommit_policy_write,
 };
 
-int overcommit_kbytes_handler(struct ctl_table *table, int write, void *buffer,
-		size_t *lenp, loff_t *ppos)
+static ssize_t sysctl_write_overcommit_kbytes(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos)
 {
-	int ret;
+	ssize_t ret;
 
-	ret = proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
-	if (ret == 0 && write)
+	ret = sysctl_write_ulongvec(ctx, file, buffer, lenp, ppos);
+	if (ret == 0)
 		sysctl_overcommit_ratio = 0;
 	return ret;
 }
+
+struct ctl_fops sysctl_overcommit_kbytes_fops = {
+	.read = sysctl_read_ulongvec,
+	.write = sysctl_write_overcommit_kbytes,
+};
 
 /*
  * Committed memory limit enforced when OVERCOMMIT_NEVER policy is used

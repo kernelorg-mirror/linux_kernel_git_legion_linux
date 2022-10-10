@@ -417,13 +417,13 @@ static struct ctl_table ip6_frags_ns_ctl_table[] = {
 		.procname	= "ip6frag_high_thresh",
 		.maxlen		= sizeof(unsigned long),
 		.mode		= 0644,
-		.proc_handler	= proc_doulongvec_minmax,
+		.ctl_fops	= &sysctl_ulongvec_fops,
 	},
 	{
 		.procname	= "ip6frag_low_thresh",
 		.maxlen		= sizeof(unsigned long),
 		.mode		= 0644,
-		.proc_handler	= proc_doulongvec_minmax,
+		.ctl_fops	= &sysctl_ulongvec_fops,
 	},
 	{
 		.procname	= "ip6frag_time",

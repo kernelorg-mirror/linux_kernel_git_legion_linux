@@ -114,6 +114,14 @@ int sysctl_write_intvec_data(void *tbl_data, struct ctl_table *table,
 					 int write, int *min, int *max),
 			     int *min, int *max);
 
+int sysctl_read_ulongvec_data(void *data, struct ctl_table *table,
+			      void *buffer, size_t *lenp, loff_t *ppos,
+			      unsigned long convmul, unsigned long convdiv);
+
+int sysctl_write_ulongvec_data(void *data, struct ctl_table *table,
+			       void *buffer, size_t *lenp, loff_t *ppos,
+			       unsigned long convmul, unsigned long convdiv);
+
 ssize_t sysctl_read_uintvec(struct ctl_context *, struct file *, char *, size_t *, loff_t *);
 ssize_t sysctl_write_uintvec(struct ctl_context *, struct file *, char *, size_t *, loff_t *);
 ssize_t sysctl_read_intvec(struct ctl_context *, struct file *, char *, size_t *, loff_t *);
@@ -126,6 +134,8 @@ ssize_t sysctl_read_intvec_ms_jiffies(struct ctl_context *, struct file *, char 
 ssize_t sysctl_write_intvec_ms_jiffies(struct ctl_context *, struct file *, char *, size_t *, loff_t *);
 ssize_t sysctl_read_bool(struct ctl_context *, struct file *, char *, size_t *, loff_t *);
 ssize_t sysctl_write_bool(struct ctl_context *, struct file *, char *, size_t *, loff_t *);
+ssize_t sysctl_read_ulongvec(struct ctl_context *, struct file *, char *, size_t *, loff_t *);
+ssize_t sysctl_write_ulongvec(struct ctl_context *, struct file *, char *, size_t *, loff_t *);
 
 extern struct ctl_fops sysctl_bool_fops;
 extern struct ctl_fops sysctl_intvec_fops;
@@ -134,6 +144,7 @@ extern struct ctl_fops sysctl_large_bitmap_fops;
 extern struct ctl_fops sysctl_intvec_jiffies_fops;
 extern struct ctl_fops sysctl_intvec_userhz_jiffies_fops;
 extern struct ctl_fops sysctl_intvec_ms_jiffies_fops;
+extern struct ctl_fops sysctl_ulongvec_fops;
 
 /*
  * Register a set of sysctl names by calling register_sysctl_table

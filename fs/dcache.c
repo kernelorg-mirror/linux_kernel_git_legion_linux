@@ -174,14 +174,19 @@ static long get_nr_dentry_negative(void)
 	return sum < 0 ? 0 : sum;
 }
 
-static int proc_nr_dentry(struct ctl_table *table, int write, void *buffer,
-			  size_t *lenp, loff_t *ppos)
+static ssize_t sysctl_read_dentry_stat(struct ctl_context *ctx, struct file *file,
+				       char *buffer, size_t *lenp, loff_t *ppos)
 {
 	dentry_stat.nr_dentry = get_nr_dentry();
 	dentry_stat.nr_unused = get_nr_dentry_unused();
 	dentry_stat.nr_negative = get_nr_dentry_negative();
-	return proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
+	return sysctl_read_ulongvec(ctx, file, buffer, lenp, ppos);
 }
+
+static struct ctl_fops sysctl_dentry_stat_fops = {
+	.read  = sysctl_read_dentry_stat,
+	.write = sysctl_write_ulongvec,
+};
 
 static struct ctl_table fs_dcache_sysctls[] = {
 	{
@@ -189,7 +194,7 @@ static struct ctl_table fs_dcache_sysctls[] = {
 		.data		= &dentry_stat,
 		.maxlen		= 6*sizeof(long),
 		.mode		= 0444,
-		.proc_handler	= proc_nr_dentry,
+		.ctl_fops	= &sysctl_dentry_stat_fops,
 	},
 	{ }
 };

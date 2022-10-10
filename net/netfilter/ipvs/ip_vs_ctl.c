@@ -1916,7 +1916,7 @@ static struct ctl_table vs_vars[] = {
 		.procname	= "sync_qlen_max",
 		.maxlen		= sizeof(unsigned long),
 		.mode		= 0644,
-		.proc_handler	= proc_doulongvec_minmax,
+		.ctl_fops	= &sysctl_ulongvec_fops,
 	},
 	{
 		.procname	= "sync_sock_size",

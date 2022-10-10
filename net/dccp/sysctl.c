@@ -26,7 +26,7 @@ static struct ctl_table dccp_default_table[] = {
 		.data		= &sysctl_dccp_sequence_window,
 		.maxlen		= sizeof(sysctl_dccp_sequence_window),
 		.mode		= 0644,
-		.proc_handler	= proc_doulongvec_minmax,
+		.ctl_fops	= &sysctl_ulongvec_fops,
 		.extra1		= &seqw_min,		/* RFC 4340, 7.5.2 */
 		.extra2		= &seqw_max,
 	},

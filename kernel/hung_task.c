@@ -228,22 +228,23 @@ static long hung_timeout_jiffies(unsigned long last_checked,
 /*
  * Process updating of timeout sysctl
  */
-static int proc_dohung_task_timeout_secs(struct ctl_table *table, int write,
-				  void __user *buffer,
-				  size_t *lenp, loff_t *ppos)
+static ssize_t sysctl_write_hung_task_timeout_secs(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos)
 {
-	int ret;
+	ssize_t ret;
 
-	ret = proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
+	ret = sysctl_write_ulongvec(ctx, file, buffer, lenp, ppos);
 
-	if (ret || !write)
-		goto out;
+	if (!ret)
+		wake_up_process(watchdog_task);
 
-	wake_up_process(watchdog_task);
-
- out:
 	return ret;
 }
+
+static struct ctl_fops sysctl_hung_task_timeout_secs_fops = {
+	.read  = sysctl_read_ulongvec,
+	.write = sysctl_write_hung_task_timeout_secs,
+};
 
 /*
  * This is needed for proc_doulongvec_minmax of sysctl_hung_task_timeout_secs
@@ -284,7 +285,7 @@ static struct ctl_table hung_task_sysctls[] = {
 		.data		= &sysctl_hung_task_timeout_secs,
 		.maxlen		= sizeof(unsigned long),
 		.mode		= 0644,
-		.proc_handler	= proc_dohung_task_timeout_secs,
+		.ctl_fops	= &sysctl_hung_task_timeout_secs_fops,
 		.extra2		= (void *)&hung_task_timeout_max,
 	},
 	{
@@ -292,7 +293,7 @@ static struct ctl_table hung_task_sysctls[] = {
 		.data		= &sysctl_hung_task_check_interval_secs,
 		.maxlen		= sizeof(unsigned long),
 		.mode		= 0644,
-		.proc_handler	= proc_dohung_task_timeout_secs,
+		.ctl_fops	= &sysctl_hung_task_timeout_secs_fops,
 		.extra2		= (void *)&hung_task_timeout_max,
 	},
 	{

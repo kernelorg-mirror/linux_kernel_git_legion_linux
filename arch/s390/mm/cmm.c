@@ -243,44 +243,60 @@ static int cmm_skip_blanks(char *cp, char **endp)
 	return str != cp;
 }
 
-static int cmm_pages_handler(struct ctl_table *ctl, int write,
-			     void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t sysctl_write_cmm_pages(struct ctl_context *ctx, struct file *file,
+				      char *buffer, size_t *lenp, loff_t *ppos)
 {
 	long nr = cmm_get_pages();
-	struct ctl_table ctl_entry = {
-		.procname	= ctl->procname,
-		.data		= &nr,
-		.maxlen		= sizeof(long),
-	};
-	int rc;
+	ssize_t rc;
 
-	rc = proc_doulongvec_minmax(&ctl_entry, write, buffer, lenp, ppos);
-	if (rc < 0 || !write)
+	rc = sysctl_write_ulongvec_data(&nr, ctx->ctl_table, buffer, lenp, ppos, 1l, 1l);
+	if (rc < 0)
 		return rc;
 
 	cmm_set_pages(nr);
 	return 0;
 }
 
-static int cmm_timed_pages_handler(struct ctl_table *ctl, int write,
-				   void *buffer, size_t *lenp,
-				   loff_t *ppos)
+static ssize_t sysctl_read_cmm_pages(struct ctl_context *ctx, struct file *file,
+				     char *buffer, size_t *lenp, loff_t *ppos)
+{
+	long nr = cmm_get_pages();
+
+	return sysctl_read_ulongvec_data(&nr, ctx->ctl_table, buffer, lenp, ppos, 1l, 1l);
+}
+
+static struct ctl_fops sysctl_cmm_pages_fops = {
+	.read  = sysctl_read_cmm_pages,
+	.write = sysctl_write_cmm_pages,
+};
+
+static ssize_t sysctl_write_cmm_timed_pages(struct ctl_context *ctx, struct file *file,
+					    char *buffer, size_t *lenp, loff_t *ppos)
 {
 	long nr = cmm_get_timed_pages();
-	struct ctl_table ctl_entry = {
-		.procname	= ctl->procname,
-		.data		= &nr,
-		.maxlen		= sizeof(long),
-	};
-	int rc;
+	ssize_t rc;
 
-	rc = proc_doulongvec_minmax(&ctl_entry, write, buffer, lenp, ppos);
-	if (rc < 0 || !write)
+	rc = sysctl_write_ulongvec_data(&nr, ctx->ctl_table, buffer, lenp, ppos, 1l, 1l);
+	if (rc < 0)
 		return rc;
 
 	cmm_add_timed_pages(nr);
 	return 0;
 }
+
+static ssize_t sysctl_read_cmm_timed_pages(struct ctl_context *ctx, struct file *file,
+					   char *buffer, size_t *lenp, loff_t *ppos)
+{
+	long nr = cmm_get_timed_pages();
+
+	return sysctl_read_ulongvec_data(&nr, ctx->ctl_table, buffer, lenp, ppos, 1l, 1l);
+}
+
+static struct ctl_fops sysctl_cmm_timed_pages_fops = {
+	.read  = sysctl_read_cmm_timed_pages,
+	.write = sysctl_write_cmm_timed_pages,
+};
+
 
 static int cmm_timeout_handler(struct ctl_table *ctl, int write,
 			       void *buffer, size_t *lenp, loff_t *ppos)
@@ -320,12 +336,12 @@ static struct ctl_table cmm_table[] = {
 	{
 		.procname	= "cmm_pages",
 		.mode		= 0644,
-		.proc_handler	= cmm_pages_handler,
+		.ctl_fops	= &sysctl_cmm_pages_fops,
 	},
 	{
 		.procname	= "cmm_timed_pages",
 		.mode		= 0644,
-		.proc_handler	= cmm_timed_pages_handler,
+		.ctl_fops	= &sysctl_cmm_timed_pages_fops,
 	},
 	{
 		.procname	= "cmm_timeout",

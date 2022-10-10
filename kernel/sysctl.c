@@ -785,23 +785,19 @@ static int proc_dointvec_minmax_warn_RT_change(struct ctl_table *table,
  * Taint values can only be increased
  * This means we can safely use a temporary.
  */
-static int proc_taint(struct ctl_table *table, int write,
-			       void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t sysctl_write_taint(struct ctl_context *ctx, struct file *file,
+				  char *buffer, size_t *lenp, loff_t *ppos)
 {
-	struct ctl_table t;
 	unsigned long tmptaint = get_taint();
-	int err;
+	ssize_t err;
 
-	if (write && !capable(CAP_SYS_ADMIN))
+	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	t = *table;
-	t.data = &tmptaint;
-	err = proc_doulongvec_minmax(&t, write, buffer, lenp, ppos);
-	if (err < 0)
-		return err;
+	err = sysctl_write_ulongvec_data(&tmptaint, ctx->ctl_table,
+					 buffer, lenp, ppos, 1l, 1l);
 
-	if (write) {
+	if (!err) {
 		int i;
 
 		/*
@@ -823,6 +819,20 @@ static int proc_taint(struct ctl_table *table, int write,
 
 	return err;
 }
+
+static ssize_t sysctl_read_taint(struct ctl_context *ctx, struct file *file,
+				 char *buffer, size_t *lenp, loff_t *ppos)
+{
+	unsigned long tmptaint = get_taint();
+
+	return sysctl_read_ulongvec_data(&tmptaint, ctx->ctl_table,
+					 buffer, lenp, ppos, 1l, 1l);
+}
+
+static struct ctl_fops sysctl_taint_fops = {
+	.read  = sysctl_read_taint,
+	.write = sysctl_write_taint,
+};
 
 /**
  * sysctl_read_uintvec - read a vector of unsigned ints with min/max values
@@ -955,8 +965,8 @@ static int sysrq_sysctl_handler(struct ctl_table *table, int write,
 }
 #endif
 
-static int do_proc_doulongvec_minmax(void *data, struct ctl_table *table,
-		int write, void *buffer, size_t *lenp, loff_t *ppos,
+int sysctl_write_ulongvec_data(void *data, struct ctl_table *table,
+		void *buffer, size_t *lenp, loff_t *ppos,
 		unsigned long convmul, unsigned long convdiv)
 {
 	unsigned long *i, *min, *max;
@@ -964,7 +974,7 @@ static int do_proc_doulongvec_minmax(void *data, struct ctl_table *table,
 	size_t left;
 	char *p;
 
-	if (!data || !table->maxlen || !*lenp || (*ppos && !write)) {
+	if (!data || !table->maxlen || !*lenp) {
 		*lenp = 0;
 		return 0;
 	}
@@ -975,55 +985,76 @@ static int do_proc_doulongvec_minmax(void *data, struct ctl_table *table,
 	vleft = table->maxlen / sizeof(unsigned long);
 	left = *lenp;
 
-	if (write) {
-		if (proc_first_pos_non_zero_ignore(ppos, table))
-			goto out;
+	if (proc_first_pos_non_zero_ignore(ppos, table))
+		goto out;
 
-		if (left > PAGE_SIZE - 1)
-			left = PAGE_SIZE - 1;
-		p = buffer;
+	if (left > PAGE_SIZE - 1)
+		left = PAGE_SIZE - 1;
+	p = buffer;
+
+	for (; left && vleft--; i++, first = 0) {
+		unsigned long val;
+		bool neg;
+
+		left -= proc_skip_spaces(&p);
+		if (!left)
+			break;
+
+		err = proc_get_long(&p, &left, &val, &neg,
+				     proc_wspace_sep,
+				     sizeof(proc_wspace_sep), NULL);
+		if (err || neg) {
+			err = -EINVAL;
+			break;
+		}
+
+		val = convmul * val / convdiv;
+		if ((min && val < *min) || (max && val > *max)) {
+			err = -EINVAL;
+			break;
+		}
+		*i = val;
 	}
+
+	if (!err)
+		left -= proc_skip_spaces(&p);
+	if (first)
+		return err ? : -EINVAL;
+	*lenp -= left;
+out:
+	*ppos += *lenp;
+	return err;
+}
+
+int sysctl_read_ulongvec_data(void *data, struct ctl_table *table,
+		void *buffer, size_t *lenp, loff_t *ppos,
+		unsigned long convmul, unsigned long convdiv)
+{
+	unsigned long *i;
+	int vleft, first = 1, err = 0;
+	size_t left;
+
+	if (!data || !table->maxlen || !*lenp || *ppos) {
+		*lenp = 0;
+		return 0;
+	}
+
+	i = (unsigned long *) data;
+	vleft = table->maxlen / sizeof(unsigned long);
+	left = *lenp;
 
 	for (; left && vleft--; i++, first = 0) {
 		unsigned long val;
 
-		if (write) {
-			bool neg;
-
-			left -= proc_skip_spaces(&p);
-			if (!left)
-				break;
-
-			err = proc_get_long(&p, &left, &val, &neg,
-					     proc_wspace_sep,
-					     sizeof(proc_wspace_sep), NULL);
-			if (err || neg) {
-				err = -EINVAL;
-				break;
-			}
-
-			val = convmul * val / convdiv;
-			if ((min && val < *min) || (max && val > *max)) {
-				err = -EINVAL;
-				break;
-			}
-			*i = val;
-		} else {
-			val = convdiv * (*i) / convmul;
-			if (!first)
-				proc_put_char(&buffer, &left, '\t');
-			proc_put_long(&buffer, &left, val, false);
-		}
+		val = convdiv * (*i) / convmul;
+		if (!first)
+			proc_put_char(&buffer, &left, '\t');
+		proc_put_long(&buffer, &left, val, false);
 	}
 
-	if (!write && !first && left && !err)
+	if (!first && left && !err)
 		proc_put_char(&buffer, &left, '\n');
-	if (write && !err)
-		left -= proc_skip_spaces(&p);
-	if (write && first)
-		return err ? : -EINVAL;
 	*lenp -= left;
-out:
 	*ppos += *lenp;
 	return err;
 }
@@ -1047,12 +1078,27 @@ out:
 int proc_doulongvec_minmax(struct ctl_table *table, int write,
 			   void *buffer, size_t *lenp, loff_t *ppos)
 {
-	return do_proc_doulongvec_minmax(table->data, table, write, buffer, lenp, ppos, 1l, 1l);
+	if (write)
+		return sysctl_write_ulongvec_data(table->data, table, buffer, lenp, ppos, 1l, 1l);
+	return sysctl_read_ulongvec_data(table->data, table, buffer, lenp, ppos, 1l, 1l);
+}
+
+ssize_t sysctl_read_ulongvec(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	return sysctl_read_ulongvec_data(ctx->ctl_table->data, ctx->ctl_table,
+			buffer, lenp, ppos, 1l, 1l);
+}
+
+ssize_t sysctl_write_ulongvec(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	return sysctl_write_ulongvec_data(ctx->ctl_table->data, ctx->ctl_table,
+			buffer, lenp, ppos, 1l, 1l);
 }
 
 /**
  * proc_doulongvec_ms_jiffies_minmax - read a vector of millisecond values with min/max values
- * @table: the sysctl table
  * @write: %TRUE if this is a write to the sysctl file
  * @buffer: the user buffer
  * @lenp: the size of the user buffer
@@ -1070,7 +1116,11 @@ int proc_doulongvec_minmax(struct ctl_table *table, int write,
 int proc_doulongvec_ms_jiffies_minmax(struct ctl_table *table, int write,
 				      void *buffer, size_t *lenp, loff_t *ppos)
 {
-	return do_proc_doulongvec_minmax(table->data, table, write, buffer, lenp, ppos, HZ, 1000l);
+	if (write)
+		return sysctl_write_ulongvec_data(table->data, table,
+				buffer, lenp, ppos, HZ, 1000l);
+	return sysctl_read_ulongvec_data(table->data, table,
+			buffer, lenp, ppos, HZ, 1000l);
 }
 
 
@@ -1516,6 +1566,32 @@ int proc_doulongvec_minmax(struct ctl_table *table, int write,
 	return -ENOSYS;
 }
 
+int sysctl_read_ulongvec_data(void *data, struct ctl_table *table,
+		void *buffer, size_t *lenp, loff_t *ppos,
+		unsigned long convmul, unsigned long convdiv)
+{
+	return -ENOSYS;
+}
+
+int sysctl_write_ulongvec_data(void *data, struct ctl_table *table,
+		void *buffer, size_t *lenp, loff_t *ppos,
+		unsigned long convmul, unsigned long convdiv)
+{
+	return -ENOSYS;
+}
+
+ssize_t sysctl_read_ulongvec(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	return -ENOSYS;
+}
+
+ssize_t sysctl_write_ulongvec(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	return -ENOSYS;
+}
+
 int sysctl_conv_uintvec(unsigned long *lvalp,
 				  unsigned int *valp,
 				  int write, unsigned int *min, unsigned int *max)
@@ -1699,6 +1775,11 @@ struct ctl_fops sysctl_uintvec_fops = {
 	.write = sysctl_write_uintvec,
 };
 
+struct ctl_fops sysctl_ulongvec_fops = {
+	.read  = sysctl_read_ulongvec,
+	.write = sysctl_write_ulongvec,
+};
+
 struct ctl_fops sysctl_large_bitmap_fops = {
 	.read = sysctl_read_large_bitmap,
 	.write = sysctl_write_large_bitmap,
@@ -1760,7 +1841,7 @@ static struct ctl_table kern_table[] = {
 		.procname	= "tainted",
 		.maxlen 	= sizeof(long),
 		.mode		= 0644,
-		.proc_handler	= proc_taint,
+		.ctl_fops	= &sysctl_taint_fops,
 	},
 	{
 		.procname	= "sysctl_writes_strict",
@@ -1967,7 +2048,7 @@ static struct ctl_table kern_table[] = {
 		.data		= &panic_print,
 		.maxlen		= sizeof(unsigned long),
 		.mode		= 0644,
-		.proc_handler	= proc_doulongvec_minmax,
+		.ctl_fops	= &sysctl_ulongvec_fops,
 	},
 	{
 		.procname	= "ngroups_max",
@@ -2064,7 +2145,7 @@ static struct ctl_table kern_table[] = {
 		.data		= &acpi_realmode_flags,
 		.maxlen		= sizeof (unsigned long),
 		.mode		= 0644,
-		.proc_handler	= proc_doulongvec_minmax,
+		.ctl_fops	= &sysctl_ulongvec_fops,
 	},
 #endif
 #ifdef CONFIG_SYSCTL_ARCH_UNALIGN_NO_WARN
@@ -2214,7 +2295,7 @@ static struct ctl_table vm_table[] = {
 		.data		= &sysctl_overcommit_kbytes,
 		.maxlen		= sizeof(sysctl_overcommit_kbytes),
 		.mode		= 0644,
-		.proc_handler	= overcommit_kbytes_handler,
+		.ctl_fops	= &sysctl_overcommit_kbytes_fops,
 	},
 	{
 		.procname	= "page-cluster",
@@ -2247,7 +2328,7 @@ static struct ctl_table vm_table[] = {
 		.data		= NULL,
 		.maxlen		= sizeof(unsigned long),
 		.mode		= 0644,
-		.proc_handler	= hugetlb_sysctl_handler,
+		.ctl_fops	= &sysctl_hugetlb_fops,
 	},
 #ifdef CONFIG_NUMA
 	{
@@ -2255,7 +2336,7 @@ static struct ctl_table vm_table[] = {
 		.data           = NULL,
 		.maxlen         = sizeof(unsigned long),
 		.mode           = 0644,
-		.proc_handler   = &hugetlb_mempolicy_sysctl_handler,
+		.ctl_fops       = &sysctl_hugetlb_mempolicy_fops,
 	},
 	{
 		.procname		= "numa_stat",
@@ -2279,7 +2360,7 @@ static struct ctl_table vm_table[] = {
 		.data		= NULL,
 		.maxlen		= sizeof(unsigned long),
 		.mode		= 0644,
-		.proc_handler	= hugetlb_overcommit_handler,
+		.ctl_fops	= &sysctl_hugetlb_overcommit_fops,
 	},
 #endif
 	{
@@ -2464,7 +2545,7 @@ static struct ctl_table vm_table[] = {
 		.data		= &dac_mmap_min_addr,
 		.maxlen		= sizeof(unsigned long),
 		.mode		= 0644,
-		.proc_handler	= mmap_min_addr_handler,
+		.ctl_fops	= &sysctl_dac_mmap_min_addr_fops,
 	},
 #endif
 #ifdef CONFIG_NUMA
@@ -2517,14 +2598,14 @@ static struct ctl_table vm_table[] = {
 		.data		= &sysctl_user_reserve_kbytes,
 		.maxlen		= sizeof(sysctl_user_reserve_kbytes),
 		.mode		= 0644,
-		.proc_handler	= proc_doulongvec_minmax,
+		.ctl_fops	= &sysctl_ulongvec_fops,
 	},
 	{
 		.procname	= "admin_reserve_kbytes",
 		.data		= &sysctl_admin_reserve_kbytes,
 		.maxlen		= sizeof(sysctl_admin_reserve_kbytes),
 		.mode		= 0644,
-		.proc_handler	= proc_doulongvec_minmax,
+		.ctl_fops	= &sysctl_ulongvec_fops,
 	},
 #ifdef CONFIG_HAVE_ARCH_MMAP_RND_BITS
 	{

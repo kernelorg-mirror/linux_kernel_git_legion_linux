@@ -370,15 +370,28 @@ static struct ctl_fops proc_dointvec_minmax_bpf_restricted_fops = {
 
 # endif /* CONFIG_HAVE_EBPF_JIT */
 
-static int
-proc_dolongvec_minmax_bpf_restricted(struct ctl_table *table, int write,
-				     void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t sysctl_read_bpf_jit_limit(struct ctl_context *ctx, struct file *file,
+					 char *buffer, size_t *lenp, loff_t *ppos)
 {
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	return proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
+	return sysctl_read_ulongvec(ctx, file, buffer, lenp, ppos);
 }
+
+static ssize_t sysctl_write_bpf_jit_limit(struct ctl_context *ctx, struct file *file,
+					  char *buffer, size_t *lenp, loff_t *ppos)
+{
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	return sysctl_write_ulongvec(ctx, file, buffer, lenp, ppos);
+}
+
+static struct ctl_fops sysctl_bpf_jit_limit_fops = {
+	.read  = sysctl_read_bpf_jit_limit,
+	.write = sysctl_write_bpf_jit_limit,
+};
 #endif
 
 static struct ctl_table net_core_table[] = {
@@ -489,7 +502,7 @@ static struct ctl_table net_core_table[] = {
 		.data		= &bpf_jit_limit,
 		.maxlen		= sizeof(long),
 		.mode		= 0600,
-		.proc_handler	= proc_dolongvec_minmax_bpf_restricted,
+		.ctl_fops	= &sysctl_bpf_jit_limit_fops,
 		.extra1		= SYSCTL_LONG_ONE,
 		.extra2		= &bpf_jit_limit_max,
 	},
