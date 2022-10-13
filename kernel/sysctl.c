@@ -1060,29 +1060,18 @@ int sysctl_read_ulongvec_data(void *data, struct ctl_table *table,
 }
 
 /**
- * proc_doulongvec_minmax - read a vector of long integers with min/max values
- * @table: the sysctl table
- * @write: %TRUE if this is a write to the sysctl file
+ * sysctl_read_ulongvec - write a vector of long integers with min/max values
+ * @ctx: the operation context which contains sysctl table
+ * @file: the opened sysctl file
  * @buffer: the user buffer
  * @lenp: the size of the user buffer
  * @ppos: file position
  *
- * Reads/writes up to table->maxlen/sizeof(unsigned long) unsigned long
- * values from/to the user buffer, treated as an ASCII string.
- *
- * This routine will ensure the values are within the range specified by
- * table->extra1 (min) and table->extra2 (max).
+ * Writes up to table->maxlen/sizeof(unsigned long) unsigned long
+ * values to the user buffer, treated as an ASCII string.
  *
  * Returns 0 on success.
  */
-int proc_doulongvec_minmax(struct ctl_table *table, int write,
-			   void *buffer, size_t *lenp, loff_t *ppos)
-{
-	if (write)
-		return sysctl_write_ulongvec_data(table->data, table, buffer, lenp, ppos, 1l, 1l);
-	return sysctl_read_ulongvec_data(table->data, table, buffer, lenp, ppos, 1l, 1l);
-}
-
 ssize_t sysctl_read_ulongvec(struct ctl_context *ctx, struct file *file,
 		char *buffer, size_t *lenp, loff_t *ppos)
 {
@@ -1090,6 +1079,19 @@ ssize_t sysctl_read_ulongvec(struct ctl_context *ctx, struct file *file,
 			buffer, lenp, ppos, 1l, 1l);
 }
 
+/**
+ * sysctl_write_ulongvec - read a vector of long integers with min/max values
+ * @ctx: the operation context which contains sysctl table
+ * @file: the opened sysctl file
+ * @buffer: the user buffer
+ * @lenp: the size of the user buffer
+ * @ppos: file position
+ *
+ * Reads up to table->maxlen/sizeof(unsigned long) unsigned long
+ * values from the user buffer, treated as an ASCII string.
+ *
+ * Returns 0 on success.
+ */
 ssize_t sysctl_write_ulongvec(struct ctl_context *ctx, struct file *file,
 		char *buffer, size_t *lenp, loff_t *ppos)
 {
@@ -1556,12 +1558,6 @@ int proc_dostring(struct ctl_table *table, int write,
 
 int proc_dou8vec_minmax(struct ctl_table *table, int write,
 			void *buffer, size_t *lenp, loff_t *ppos)
-{
-	return -ENOSYS;
-}
-
-int proc_doulongvec_minmax(struct ctl_table *table, int write,
-		    void *buffer, size_t *lenp, loff_t *ppos)
 {
 	return -ENOSYS;
 }
@@ -2705,7 +2701,6 @@ EXPORT_SYMBOL(sysctl_uintvec_fops);
 EXPORT_SYMBOL(sysctl_read_uintvec);
 EXPORT_SYMBOL(sysctl_write_uintvec);
 EXPORT_SYMBOL(proc_dostring);
-EXPORT_SYMBOL(proc_doulongvec_minmax);
 EXPORT_SYMBOL(proc_doulongvec_ms_jiffies_minmax);
 EXPORT_SYMBOL(sysctl_large_bitmap_fops);
 EXPORT_SYMBOL(sysctl_read_large_bitmap);
