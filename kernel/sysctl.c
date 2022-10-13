@@ -889,36 +889,6 @@ ssize_t sysctl_write_uintvec(struct ctl_context *ctx, struct file *file,
 }
 
 /**
- * proc_douintvec_minmax - read a vector of unsigned ints with min/max values
- * @table: the sysctl table
- * @write: %TRUE if this is a write to the sysctl file
- * @buffer: the user buffer
- * @lenp: the size of the user buffer
- * @ppos: file position
- *
- * Reads/writes up to table->maxlen/sizeof(unsigned int) unsigned integer
- * values from/to the user buffer, treated as an ASCII string. Negative
- * strings are not allowed.
- *
- * This routine will ensure the values are within the range specified by
- * table->extra1 (min) and table->extra2 (max). There is a final sanity
- * check for UINT_MAX to avoid having to support wrap around uses from
- * userspace.
- *
- * Returns 0 on success or -ERANGE on write when the range check fails.
- */
-int proc_douintvec_minmax(struct ctl_table *table, int write,
-                         void *buffer, size_t *lenp, loff_t *ppos)
-{
-	if (write)
-		return sysctl_write_uintvec_data(table->data, table, buffer, lenp, ppos,
-				 sysctl_conv_uintvec, table->extra1, table->extra2);
-
-	return sysctl_read_uintvec_data(table->data, table, buffer, lenp, ppos,
-				 sysctl_conv_uintvec, NULL, NULL);
-}
-
-/**
  * proc_dou8vec_minmax - read a vector of unsigned chars with min/max values
  * @table: the sysctl table
  * @write: %TRUE if this is a write to the sysctl file
@@ -2504,7 +2474,6 @@ EXPORT_SYMBOL(proc_dointvec);
 EXPORT_SYMBOL(proc_douintvec);
 EXPORT_SYMBOL(proc_dointvec_jiffies);
 EXPORT_SYMBOL(proc_dointvec_minmax);
-EXPORT_SYMBOL_GPL(proc_douintvec_minmax);
 EXPORT_SYMBOL(sysctl_conv_uintvec);
 EXPORT_SYMBOL(sysctl_read_uintvec_data);
 EXPORT_SYMBOL(sysctl_write_uintvec_data);
