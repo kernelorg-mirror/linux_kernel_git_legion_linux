@@ -83,7 +83,6 @@ int proc_dointvec_ms_jiffies(struct ctl_table *, int, void *, size_t *,
 int proc_doulongvec_minmax(struct ctl_table *, int, void *, size_t *, loff_t *);
 int proc_doulongvec_ms_jiffies_minmax(struct ctl_table *table, int, void *,
 		size_t *, loff_t *);
-int proc_do_large_bitmap(struct ctl_table *, int, void *, size_t *, loff_t *);
 int proc_do_static_key(struct ctl_table *table, int write, void *buffer,
 		size_t *lenp, loff_t *ppos);
 

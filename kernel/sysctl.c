@@ -1408,31 +1408,6 @@ ssize_t sysctl_write_large_bitmap(struct ctl_context *ctx, struct file *file,
 					      buffer, lenp, ppos);
 }
 
-/**
- * proc_do_large_bitmap - write to a large bitmap
- * @data: the bitmap
- * @table: the sysctl table
- * @buffer: the user buffer
- * @lenp: the size of the user buffer
- * @ppos: file position
- *
- * The bitmap is stored at data and the bitmap length (in bits)
- * in table->maxlen.
- *
- * We use a range comma separated format (e.g. 1,3-4,10-10) so that
- * large bitmaps may be represented in a compact manner. Writing into
- * the file will clear the bitmap then update it with the given input.
- *
- * Returns 0 on success.
- */
-int proc_do_large_bitmap(struct ctl_table *table, int write,
-                        void *buffer, size_t *lenp, loff_t *ppos)
-{
-	if (write)
-		return sysctl_write_large_bitmap_data(table->data, table, buffer, lenp, ppos);
-	return sysctl_read_large_bitmap_data(table->data, table, buffer, lenp, ppos);
-}
-
 #else /* CONFIG_PROC_SYSCTL */
 
 int proc_dostring(struct ctl_table *table, int write,
@@ -2430,7 +2405,6 @@ EXPORT_SYMBOL(proc_dointvec_ms_jiffies);
 EXPORT_SYMBOL(proc_dostring);
 EXPORT_SYMBOL(proc_doulongvec_minmax);
 EXPORT_SYMBOL(proc_doulongvec_ms_jiffies_minmax);
-EXPORT_SYMBOL(proc_do_large_bitmap);
 EXPORT_SYMBOL(sysctl_large_bitmap_fops);
 EXPORT_SYMBOL(sysctl_read_large_bitmap);
 EXPORT_SYMBOL(sysctl_write_large_bitmap);
