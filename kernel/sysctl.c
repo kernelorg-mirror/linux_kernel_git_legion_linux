@@ -754,29 +754,6 @@ int proc_dobool(struct ctl_table *table, int write, void *buffer,
 			sysctl_conv_bool, NULL, NULL);
 }
 
-/**
- * proc_dointvec - read a vector of integers
- * @table: the sysctl table
- * @write: %TRUE if this is a write to the sysctl file
- * @buffer: the user buffer
- * @lenp: the size of the user buffer
- * @ppos: file position
- *
- * Reads/writes up to table->maxlen/sizeof(unsigned int) integer
- * values from/to the user buffer, treated as an ASCII string. 
- *
- * Returns 0 on success.
- */
-int proc_dointvec(struct ctl_table *table, int write, void *buffer,
-		  size_t *lenp, loff_t *ppos)
-{
-	if (write)
-		return sysctl_write_intvec_data(table->data, table, buffer, lenp, ppos,
-				sysctl_conv_intvec, NULL, NULL);
-	return sysctl_read_intvec_data(table->data, table, buffer, lenp, ppos,
-			sysctl_conv_intvec, NULL, NULL);
-}
-
 #ifdef CONFIG_COMPACTION
 static int proc_dointvec_minmax_warn_RT_change(struct ctl_table *table,
 		int write, void *buffer, size_t *lenp, loff_t *ppos)
@@ -1525,12 +1502,6 @@ int proc_dostring(struct ctl_table *table, int write,
 
 int proc_dobool(struct ctl_table *table, int write,
 		void *buffer, size_t *lenp, loff_t *ppos)
-{
-	return -ENOSYS;
-}
-
-int proc_dointvec(struct ctl_table *table, int write,
-		  void *buffer, size_t *lenp, loff_t *ppos)
 {
 	return -ENOSYS;
 }
@@ -2614,7 +2585,6 @@ int __init sysctl_init_bases(void)
  */
 EXPORT_SYMBOL(proc_dobool);
 EXPORT_SYMBOL(sysctl_conv_bool);
-EXPORT_SYMBOL(proc_dointvec);
 EXPORT_SYMBOL(sysctl_read_intvec_jiffies);
 EXPORT_SYMBOL(sysctl_write_intvec_jiffies);
 EXPORT_SYMBOL(sysctl_intvec_jiffies_fops);

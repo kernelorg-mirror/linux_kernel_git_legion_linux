@@ -1189,7 +1189,6 @@ static int sysctl_check_table(const char *path, struct ctl_table *table)
 			err |= sysctl_err(path, entry, "Not a file");
 
 		if ((entry->proc_handler == proc_dostring) ||
-		    (entry->proc_handler == proc_dointvec) ||
 		    (entry->ctl_fops == &sysctl_uintvec_fops) ||
 		    (entry->proc_handler == proc_dou8vec_minmax) ||
 		    (entry->proc_handler == proc_doulongvec_minmax) ||
