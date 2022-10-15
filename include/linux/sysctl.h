@@ -71,7 +71,6 @@ int proc_dobool(struct ctl_table *table, int write, void *buffer,
 int proc_dointvec(struct ctl_table *, int, void *, size_t *, loff_t *);
 int proc_dou8vec_minmax(struct ctl_table *table, int write, void *buffer,
 			size_t *lenp, loff_t *ppos);
-int proc_dointvec_jiffies(struct ctl_table *, int, void *, size_t *, loff_t *);
 int proc_dointvec_ms_jiffies(struct ctl_table *, int, void *, size_t *,
 		loff_t *);
 int proc_doulongvec_minmax(struct ctl_table *, int, void *, size_t *, loff_t *);

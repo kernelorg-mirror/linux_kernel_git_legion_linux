@@ -1165,30 +1165,20 @@ static int do_proc_dointvec_ms_jiffies_conv(bool *negp, unsigned long *lvalp,
 }
 
 /**
- * proc_dointvec_jiffies - read a vector of integers as seconds
+ * sysctl_read_intvec_jiffies - write a vector of integers as seconds
  * @table: the sysctl table
  * @write: %TRUE if this is a write to the sysctl file
  * @buffer: the user buffer
  * @lenp: the size of the user buffer
  * @ppos: file position
  *
- * Reads/writes up to table->maxlen/sizeof(unsigned int) integer
- * values from/to the user buffer, treated as an ASCII string. 
+ * Writes up to table->maxlen/sizeof(unsigned int) integer
+ * values to the user buffer, treated as an ASCII string.
  * The values read are assumed to be in seconds, and are converted into
  * jiffies.
  *
  * Returns 0 on success.
  */
-int proc_dointvec_jiffies(struct ctl_table *table, int write,
-			  void *buffer, size_t *lenp, loff_t *ppos)
-{
-	if (write)
-		return sysctl_write_intvec_data(table->data, table, buffer, lenp, ppos,
-				do_proc_dointvec_jiffies_conv, NULL, NULL);
-	return sysctl_read_intvec_data(table->data, table, buffer, lenp, ppos,
-			do_proc_dointvec_jiffies_conv, NULL, NULL);
-}
-
 ssize_t sysctl_read_intvec_jiffies(struct ctl_context *ctx, struct file *file,
 		char *buffer, size_t *lenp, loff_t *ppos)
 {
@@ -1196,6 +1186,21 @@ ssize_t sysctl_read_intvec_jiffies(struct ctl_context *ctx, struct file *file,
 			buffer, lenp, ppos, do_proc_dointvec_jiffies_conv, NULL, NULL);
 }
 
+/**
+ * sysctl_write_intvec_jiffies - read a vector of integers as seconds
+ * @table: the sysctl table
+ * @write: %TRUE if this is a write to the sysctl file
+ * @buffer: the user buffer
+ * @lenp: the size of the user buffer
+ * @ppos: file position
+ *
+ * Reads up to table->maxlen/sizeof(unsigned int) integer
+ * values from the user buffer, treated as an ASCII string.
+ * The values read are assumed to be in seconds, and are converted into
+ * jiffies.
+ *
+ * Returns success.
+ */
 ssize_t sysctl_write_intvec_jiffies(struct ctl_context *ctx, struct file *file,
 		char *buffer, size_t *lenp, loff_t *ppos)
 {
@@ -1526,12 +1531,6 @@ int proc_dointvec(struct ctl_table *table, int write,
 
 int proc_dou8vec_minmax(struct ctl_table *table, int write,
 			void *buffer, size_t *lenp, loff_t *ppos)
-{
-	return -ENOSYS;
-}
-
-int proc_dointvec_jiffies(struct ctl_table *table, int write,
-		    void *buffer, size_t *lenp, loff_t *ppos)
 {
 	return -ENOSYS;
 }
@@ -2616,7 +2615,6 @@ int __init sysctl_init_bases(void)
 EXPORT_SYMBOL(proc_dobool);
 EXPORT_SYMBOL(sysctl_conv_bool);
 EXPORT_SYMBOL(proc_dointvec);
-EXPORT_SYMBOL(proc_dointvec_jiffies);
 EXPORT_SYMBOL(sysctl_read_intvec_jiffies);
 EXPORT_SYMBOL(sysctl_write_intvec_jiffies);
 EXPORT_SYMBOL(sysctl_intvec_jiffies_fops);
