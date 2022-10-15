@@ -1253,7 +1253,7 @@ ssize_t sysctl_write_intvec_userhz_jiffies(struct ctl_context *ctx, struct file 
 }
 
 /**
- * proc_dointvec_ms_jiffies - read a vector of integers as 1 milliseconds
+ * sysctl_read_intvec_ms_jiffies - write a vector of integers as 1 milliseconds
  * @table: the sysctl table
  * @write: %TRUE if this is a write to the sysctl file
  * @buffer: the user buffer
@@ -1261,23 +1261,13 @@ ssize_t sysctl_write_intvec_userhz_jiffies(struct ctl_context *ctx, struct file 
  * @ppos: file position
  * @ppos: the current position in the file
  *
- * Reads/writes up to table->maxlen/sizeof(unsigned int) integer
- * values from/to the user buffer, treated as an ASCII string. 
- * The values read are assumed to be in 1/1000 seconds, and 
+ * Writes up to table->maxlen/sizeof(unsigned int) integer
+ * values to the user buffer, treated as an ASCII string.
+ * The values read are assumed to be in 1/1000 seconds, and
  * are converted into jiffies.
  *
  * Returns 0 on success.
  */
-int proc_dointvec_ms_jiffies(struct ctl_table *table, int write, void *buffer,
-		size_t *lenp, loff_t *ppos)
-{
-	if (write)
-		return sysctl_write_intvec_data(table->data, table, buffer, lenp, ppos,
-				do_proc_dointvec_ms_jiffies_conv, NULL, NULL);
-	return sysctl_read_intvec_data(table->data, table, buffer, lenp, ppos,
-			do_proc_dointvec_ms_jiffies_conv, NULL, NULL);
-}
-
 ssize_t sysctl_read_intvec_ms_jiffies(struct ctl_context *ctx, struct file *file,
 		char *buffer, size_t *lenp, loff_t *ppos)
 {
@@ -1285,6 +1275,22 @@ ssize_t sysctl_read_intvec_ms_jiffies(struct ctl_context *ctx, struct file *file
 			buffer, lenp, ppos, do_proc_dointvec_ms_jiffies_conv, NULL, NULL);
 }
 
+/**
+ * sysctl_write_intvec_ms_jiffies - read a vector of integers as 1 milliseconds
+ * @table: the sysctl table
+ * @write: %TRUE if this is a write to the sysctl file
+ * @buffer: the user buffer
+ * @lenp: the size of the user buffer
+ * @ppos: file position
+ * @ppos: the current position in the file
+ *
+ * Reads up to table->maxlen/sizeof(unsigned int) integer
+ * values from the user buffer, treated as an ASCII string.
+ * The values read are assumed to be in 1/1000 seconds, and
+ * are converted into jiffies.
+ *
+ * Returns 0 on success.
+ */
 ssize_t sysctl_write_intvec_ms_jiffies(struct ctl_context *ctx, struct file *file,
 		char *buffer, size_t *lenp, loff_t *ppos)
 {
@@ -1531,12 +1537,6 @@ int proc_dointvec(struct ctl_table *table, int write,
 
 int proc_dou8vec_minmax(struct ctl_table *table, int write,
 			void *buffer, size_t *lenp, loff_t *ppos)
-{
-	return -ENOSYS;
-}
-
-int proc_dointvec_ms_jiffies(struct ctl_table *table, int write,
-			     void *buffer, size_t *lenp, loff_t *ppos)
 {
 	return -ENOSYS;
 }
@@ -2636,7 +2636,6 @@ EXPORT_SYMBOL(sysctl_write_uintvec_data);
 EXPORT_SYMBOL(sysctl_uintvec_fops);
 EXPORT_SYMBOL(sysctl_read_uintvec);
 EXPORT_SYMBOL(sysctl_write_uintvec);
-EXPORT_SYMBOL(proc_dointvec_ms_jiffies);
 EXPORT_SYMBOL(proc_dostring);
 EXPORT_SYMBOL(proc_doulongvec_minmax);
 EXPORT_SYMBOL(proc_doulongvec_ms_jiffies_minmax);
