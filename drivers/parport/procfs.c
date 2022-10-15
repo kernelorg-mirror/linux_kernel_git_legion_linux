@@ -389,7 +389,7 @@ parport_device_sysctl_template = {
 			.data		= NULL,
 			.maxlen		= sizeof(unsigned long),
 			.mode		= 0644,
-			.proc_handler	= proc_doulongvec_ms_jiffies_minmax,
+			.ctl_fops	= &sysctl_ulongvec_ms_jiffies_fops,
 			.extra1		= (void*) &parport_min_timeslice_value,
 			.extra2		= (void*) &parport_max_timeslice_value
 		},
@@ -440,7 +440,7 @@ parport_default_sysctl_table = {
 			.data		= &parport_default_timeslice,
 			.maxlen		= sizeof(parport_default_timeslice),
 			.mode		= 0644,
-			.proc_handler	= proc_doulongvec_ms_jiffies_minmax,
+			.ctl_fops	= &sysctl_ulongvec_ms_jiffies_fops,
 			.extra1		= (void*) &parport_min_timeslice_value,
 			.extra2		= (void*) &parport_max_timeslice_value
 		},

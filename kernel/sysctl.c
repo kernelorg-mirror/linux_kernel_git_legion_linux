@@ -1125,6 +1125,50 @@ int proc_doulongvec_ms_jiffies_minmax(struct ctl_table *table, int write,
 			buffer, lenp, ppos, HZ, 1000l);
 }
 
+/**
+ * sysctl_read_ulongvec_ms_jiffies - write a vector of long integers with min/max values
+ * @ctx: the operation context which contains sysctl table
+ * @file: the opened sysctl file
+ * @buffer: the user buffer
+ * @lenp: the size of the user buffer
+ * @ppos: file position
+ *
+ * Writes up to table->maxlen/sizeof(unsigned long) unsigned long
+ * values to the user buffer, treated as an ASCII string. The values
+ * are treated as milliseconds, and converted to jiffies when they are stored.
+ *
+ * Returns 0 on success.
+ */
+ssize_t sysctl_read_ulongvec_ms_jiffies(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	return sysctl_read_ulongvec_data(ctx->ctl_table->data, ctx->ctl_table,
+					 buffer, lenp, ppos, HZ, 1000l);
+}
+
+/**
+ * sysctl_write_ulongvec_ms_jiffies - read a vector of long integers with min/max values
+ * @ctx: the operation context which contains sysctl table
+ * @file: the opened sysctl file
+ * @buffer: the user buffer
+ * @lenp: the size of the user buffer
+ * @ppos: file position
+ *
+ * Reads up to table->maxlen/sizeof(unsigned long) unsigned long
+ * values from the user buffer, treated as an ASCII string. The values
+ * are treated as milliseconds, and converted to jiffies when they are stored.
+ *
+ * This routine will ensure the values are within the range specified by
+ * table->extra1 (min) and table->extra2 (max).
+ *
+ * Returns 0 on success.
+ */
+ssize_t sysctl_write_ulongvec_ms_jiffies(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	return sysctl_write_ulongvec_data(ctx->ctl_table->data, ctx->ctl_table,
+					  buffer, lenp, ppos, HZ, 1000l);
+}
 
 static int do_proc_dointvec_jiffies_conv(bool *negp, unsigned long *lvalp,
 					 int *valp,
@@ -1727,6 +1771,18 @@ int proc_doulongvec_ms_jiffies_minmax(struct ctl_table *table, int write,
 	return -ENOSYS;
 }
 
+ssize_t sysctl_read_ulongvec_ms_jiffies(struct ctl_context *ctx, struct file *file,
+					char *buffer, size_t *lenp, loff_t *ppos)
+{
+	return -ENOSYS;
+}
+
+ssize_t sysctl_write_ulongvec_ms_jiffies(struct ctl_context *ctx, struct file *file,
+					 char *buffer, size_t *lenp, loff_t *ppos)
+{
+	return -ENOSYS;
+}
+
 ssize_t sysctl_read_large_bitmap(struct ctl_context *ctx, struct file *file,
 			    char *buffer, size_t *lenp, loff_t *ppos)
 {
@@ -1774,6 +1830,11 @@ struct ctl_fops sysctl_uintvec_fops = {
 struct ctl_fops sysctl_ulongvec_fops = {
 	.read  = sysctl_read_ulongvec,
 	.write = sysctl_write_ulongvec,
+};
+
+struct ctl_fops sysctl_ulongvec_ms_jiffies_fops = {
+	.read  = sysctl_read_ulongvec_ms_jiffies,
+	.write = sysctl_write_ulongvec_ms_jiffies,
 };
 
 struct ctl_fops sysctl_large_bitmap_fops = {
@@ -2702,6 +2763,9 @@ EXPORT_SYMBOL(sysctl_read_uintvec);
 EXPORT_SYMBOL(sysctl_write_uintvec);
 EXPORT_SYMBOL(proc_dostring);
 EXPORT_SYMBOL(proc_doulongvec_ms_jiffies_minmax);
+EXPORT_SYMBOL(sysctl_read_ulongvec_ms_jiffies);
+EXPORT_SYMBOL(sysctl_write_ulongvec_ms_jiffies);
+EXPORT_SYMBOL(sysctl_ulongvec_ms_jiffies_fops);
 EXPORT_SYMBOL(sysctl_large_bitmap_fops);
 EXPORT_SYMBOL(sysctl_read_large_bitmap);
 EXPORT_SYMBOL(sysctl_write_large_bitmap);

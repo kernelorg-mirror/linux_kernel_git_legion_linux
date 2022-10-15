@@ -135,6 +135,8 @@ ssize_t sysctl_read_bool(struct ctl_context *, struct file *, char *, size_t *, 
 ssize_t sysctl_write_bool(struct ctl_context *, struct file *, char *, size_t *, loff_t *);
 ssize_t sysctl_read_ulongvec(struct ctl_context *, struct file *, char *, size_t *, loff_t *);
 ssize_t sysctl_write_ulongvec(struct ctl_context *, struct file *, char *, size_t *, loff_t *);
+ssize_t sysctl_read_ulongvec_ms_jiffies(struct ctl_context *, struct file *, char *, size_t *, loff_t *);
+ssize_t sysctl_write_ulongvec_ms_jiffies(struct ctl_context *, struct file *, char *, size_t *, loff_t *);
 
 extern struct ctl_fops sysctl_bool_fops;
 extern struct ctl_fops sysctl_intvec_fops;
@@ -144,6 +146,7 @@ extern struct ctl_fops sysctl_intvec_jiffies_fops;
 extern struct ctl_fops sysctl_intvec_userhz_jiffies_fops;
 extern struct ctl_fops sysctl_intvec_ms_jiffies_fops;
 extern struct ctl_fops sysctl_ulongvec_fops;
+extern struct ctl_fops sysctl_ulongvec_ms_jiffies_fops;
 
 /*
  * Register a set of sysctl names by calling register_sysctl_table
