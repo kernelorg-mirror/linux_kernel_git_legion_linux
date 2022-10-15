@@ -1100,32 +1100,6 @@ ssize_t sysctl_write_ulongvec(struct ctl_context *ctx, struct file *file,
 }
 
 /**
- * proc_doulongvec_ms_jiffies_minmax - read a vector of millisecond values with min/max values
- * @write: %TRUE if this is a write to the sysctl file
- * @buffer: the user buffer
- * @lenp: the size of the user buffer
- * @ppos: file position
- *
- * Reads/writes up to table->maxlen/sizeof(unsigned long) unsigned long
- * values from/to the user buffer, treated as an ASCII string. The values
- * are treated as milliseconds, and converted to jiffies when they are stored.
- *
- * This routine will ensure the values are within the range specified by
- * table->extra1 (min) and table->extra2 (max).
- *
- * Returns 0 on success.
- */
-int proc_doulongvec_ms_jiffies_minmax(struct ctl_table *table, int write,
-				      void *buffer, size_t *lenp, loff_t *ppos)
-{
-	if (write)
-		return sysctl_write_ulongvec_data(table->data, table,
-				buffer, lenp, ppos, HZ, 1000l);
-	return sysctl_read_ulongvec_data(table->data, table,
-			buffer, lenp, ppos, HZ, 1000l);
-}
-
-/**
  * sysctl_read_ulongvec_ms_jiffies - write a vector of long integers with min/max values
  * @ctx: the operation context which contains sysctl table
  * @file: the opened sysctl file
@@ -1761,12 +1735,6 @@ ssize_t sysctl_read_intvec_ms_jiffies(struct ctl_context *ctx, struct file *file
 
 ssize_t sysctl_write_intvec_ms_jiffies(struct ctl_context *ctx, struct file *file,
 		char *buffer, size_t *lenp, loff_t *ppos)
-{
-	return -ENOSYS;
-}
-
-int proc_doulongvec_ms_jiffies_minmax(struct ctl_table *table, int write,
-				      void *buffer, size_t *lenp, loff_t *ppos)
 {
 	return -ENOSYS;
 }
@@ -2762,7 +2730,6 @@ EXPORT_SYMBOL(sysctl_uintvec_fops);
 EXPORT_SYMBOL(sysctl_read_uintvec);
 EXPORT_SYMBOL(sysctl_write_uintvec);
 EXPORT_SYMBOL(proc_dostring);
-EXPORT_SYMBOL(proc_doulongvec_ms_jiffies_minmax);
 EXPORT_SYMBOL(sysctl_read_ulongvec_ms_jiffies);
 EXPORT_SYMBOL(sysctl_write_ulongvec_ms_jiffies);
 EXPORT_SYMBOL(sysctl_ulongvec_ms_jiffies_fops);
