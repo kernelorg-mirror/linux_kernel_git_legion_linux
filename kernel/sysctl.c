@@ -1204,30 +1204,20 @@ ssize_t sysctl_write_intvec_jiffies(struct ctl_context *ctx, struct file *file,
 }
 
 /**
- * proc_dointvec_userhz_jiffies - read a vector of integers as 1/USER_HZ seconds
- * @table: the sysctl table
- * @write: %TRUE if this is a write to the sysctl file
+ * sysctl_read_intvec_userhz_jiffies - write a vector of integers as 1/USER_HZ seconds
+ * @ctx: the operation context which contains sysctl table
+ * @file: the opened sysctl file
  * @buffer: the user buffer
  * @lenp: the size of the user buffer
  * @ppos: pointer to the file position
  *
- * Reads/writes up to table->maxlen/sizeof(unsigned int) integer
- * values from/to the user buffer, treated as an ASCII string. 
- * The values read are assumed to be in 1/USER_HZ seconds, and 
+ * Writes up to table->maxlen/sizeof(unsigned int) integer
+ * values to the user buffer, treated as an ASCII string.
+ * The values read are assumed to be in 1/USER_HZ seconds, and
  * are converted into jiffies.
  *
  * Returns 0 on success.
  */
-int proc_dointvec_userhz_jiffies(struct ctl_table *table, int write,
-				 void *buffer, size_t *lenp, loff_t *ppos)
-{
-	if (write)
-		return sysctl_write_intvec_data(table->data, table, buffer, lenp, ppos,
-				do_proc_dointvec_userhz_jiffies_conv, NULL, NULL);
-	return sysctl_read_intvec_data(table->data, table, buffer, lenp, ppos,
-			do_proc_dointvec_userhz_jiffies_conv, NULL, NULL);
-}
-
 ssize_t sysctl_read_intvec_userhz_jiffies(struct ctl_context *ctx, struct file *file,
 		char *buffer, size_t *lenp, loff_t *ppos)
 {
@@ -1235,6 +1225,21 @@ ssize_t sysctl_read_intvec_userhz_jiffies(struct ctl_context *ctx, struct file *
 			buffer, lenp, ppos, do_proc_dointvec_userhz_jiffies_conv, NULL, NULL);
 }
 
+/**
+ * sysctl_write_intvec_userhz_jiffies - read a vector of integers as 1/USER_HZ seconds
+ * @ctx: the operation context which contains sysctl table
+ * @file: the opened sysctl file
+ * @buffer: the user buffer
+ * @lenp: the size of the user buffer
+ * @ppos: pointer to the file position
+ *
+ * Reads up to table->maxlen/sizeof(unsigned int) integer
+ * values from the user buffer, treated as an ASCII string.
+ * The values read are assumed to be in 1/USER_HZ seconds, and
+ * are converted into jiffies.
+ *
+ * Returns 0 on success.
+ */
 ssize_t sysctl_write_intvec_userhz_jiffies(struct ctl_context *ctx, struct file *file,
 		char *buffer, size_t *lenp, loff_t *ppos)
 {
@@ -1526,12 +1531,6 @@ int proc_dou8vec_minmax(struct ctl_table *table, int write,
 }
 
 int proc_dointvec_jiffies(struct ctl_table *table, int write,
-		    void *buffer, size_t *lenp, loff_t *ppos)
-{
-	return -ENOSYS;
-}
-
-int proc_dointvec_userhz_jiffies(struct ctl_table *table, int write,
 		    void *buffer, size_t *lenp, loff_t *ppos)
 {
 	return -ENOSYS;
@@ -2639,7 +2638,6 @@ EXPORT_SYMBOL(sysctl_write_uintvec_data);
 EXPORT_SYMBOL(sysctl_uintvec_fops);
 EXPORT_SYMBOL(sysctl_read_uintvec);
 EXPORT_SYMBOL(sysctl_write_uintvec);
-EXPORT_SYMBOL(proc_dointvec_userhz_jiffies);
 EXPORT_SYMBOL(proc_dointvec_ms_jiffies);
 EXPORT_SYMBOL(proc_dostring);
 EXPORT_SYMBOL(proc_doulongvec_minmax);
