@@ -142,68 +142,6 @@ static const int max_extfrag_threshold = 1000;
 
 #ifdef CONFIG_PROC_SYSCTL
 
-static int _proc_do_string(char *data, int maxlen, int write,
-		char *buffer, size_t *lenp, loff_t *ppos)
-{
-	size_t len;
-	char c, *p;
-
-	if (!data || !maxlen || !*lenp) {
-		*lenp = 0;
-		return 0;
-	}
-
-	if (write) {
-		if (sysctl_writes_strict == SYSCTL_WRITES_STRICT) {
-			/* Only continue writes not past the end of buffer. */
-			len = strlen(data);
-			if (len > maxlen - 1)
-				len = maxlen - 1;
-
-			if (*ppos > len)
-				return 0;
-			len = *ppos;
-		} else {
-			/* Start writing from beginning of buffer. */
-			len = 0;
-		}
-
-		*ppos += *lenp;
-		p = buffer;
-		while ((p - buffer) < *lenp && len < maxlen - 1) {
-			c = *(p++);
-			if (c == 0 || c == '\n')
-				break;
-			data[len++] = c;
-		}
-		data[len] = 0;
-	} else {
-		len = strlen(data);
-		if (len > maxlen)
-			len = maxlen;
-
-		if (*ppos > len) {
-			*lenp = 0;
-			return 0;
-		}
-
-		data += *ppos;
-		len  -= *ppos;
-
-		if (len > *lenp)
-			len = *lenp;
-		if (len)
-			memcpy(buffer, data, len);
-		if (len < *lenp) {
-			buffer[len] = '\n';
-			len++;
-		}
-		*lenp = len;
-		*ppos += len;
-	}
-	return 0;
-}
-
 static void warn_sysctl_write(struct ctl_table *table)
 {
 	pr_warn_once("%s wrote to %s when file position was not 0!\n"
@@ -238,6 +176,82 @@ static bool proc_first_pos_non_zero_ignore(loff_t *ppos,
 	}
 }
 
+int sysctl_write_string_data(char *data, int maxlen, struct ctl_table *table,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	size_t len;
+	char c, *p;
+
+	proc_first_pos_non_zero_ignore(ppos, table);
+
+	if (!data || !maxlen || !*lenp) {
+		*lenp = 0;
+		return 0;
+	}
+
+	if (sysctl_writes_strict == SYSCTL_WRITES_STRICT) {
+		/* Only continue writes not past the end of buffer. */
+		len = strlen(data);
+		if (len > maxlen - 1)
+			len = maxlen - 1;
+
+		if (*ppos > len)
+			return 0;
+		len = *ppos;
+	} else {
+		/* Start writing from beginning of buffer. */
+		len = 0;
+	}
+
+	*ppos += *lenp;
+	p = buffer;
+	while ((p - buffer) < *lenp && len < maxlen - 1) {
+		c = *(p++);
+		if (c == 0 || c == '\n')
+			break;
+		data[len++] = c;
+	}
+	data[len] = 0;
+
+	return 0;
+}
+
+int sysctl_read_string_data(char *data, int maxlen, struct ctl_table *table,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	size_t len;
+
+	if (!data || !maxlen || !*lenp) {
+		*lenp = 0;
+		return 0;
+	}
+
+	len = strlen(data);
+	if (len > maxlen)
+		len = maxlen;
+
+	if (*ppos > len) {
+		*lenp = 0;
+		return 0;
+	}
+
+	data += *ppos;
+	len  -= *ppos;
+
+	if (len > *lenp)
+		len = *lenp;
+	if (len)
+		memcpy(buffer, data, len);
+	if (len < *lenp) {
+		buffer[len] = '\n';
+		len++;
+	}
+	*lenp = len;
+	*ppos += len;
+
+	return 0;
+}
+
 /**
  * proc_dostring - read a string sysctl
  * @table: the sysctl table
@@ -259,10 +273,58 @@ int proc_dostring(struct ctl_table *table, int write,
 		  void *buffer, size_t *lenp, loff_t *ppos)
 {
 	if (write)
-		proc_first_pos_non_zero_ignore(ppos, table);
+		return sysctl_write_string_data(table->data, table->maxlen, table,
+				buffer, lenp, ppos);
+	return sysctl_read_string_data(table->data, table->maxlen, table,
+			buffer, lenp, ppos);
+}
 
-	return _proc_do_string(table->data, table->maxlen, write, buffer, lenp,
-			ppos);
+/**
+ * sysctl_write_string - read a string sysctl
+ * @ctx: the operation context which contains sysctl table
+ * @file: the opened sysctl file
+ * @buffer: the user buffer
+ * @lenp: the size of the user buffer
+ * @ppos: file position
+ *
+ * Reads a string from the user buffer. If the kernel
+ * buffer provided is not large enough to hold the string, the
+ * string is truncated. The copied string is %NULL-terminated.
+ * If the string is being read by the user process, it is copied
+ * and a newline '\n' is added. It is truncated if the buffer is
+ * not large enough.
+ *
+ * Returns 0 on success.
+ */
+ssize_t sysctl_write_string(struct ctl_context *ctx, struct file *file,
+			    char *buffer, size_t *lenp, loff_t *ppos)
+{
+	return sysctl_write_string_data(ctx->ctl_table->data, ctx->ctl_table->maxlen,
+			ctx->ctl_table, buffer, lenp, ppos);
+}
+
+/**
+ * sysctl_read_string - write a string sysctl
+ * @ctx: the operation context which contains sysctl table
+ * @file: the opened sysctl file
+ * @buffer: the user buffer
+ * @lenp: the size of the user buffer
+ * @ppos: file position
+ *
+ * Writes a string to the user buffer. If the kernel
+ * buffer provided is not large enough to hold the string, the
+ * string is truncated. The copied string is %NULL-terminated.
+ * If the string is being read by the user process, it is copied
+ * and a newline '\n' is added. It is truncated if the buffer is
+ * not large enough.
+ *
+ * Returns 0 on success.
+ */
+ssize_t sysctl_read_string(struct ctl_context *ctx, struct file *file,
+			   char *buffer, size_t *lenp, loff_t *ppos)
+{
+	return sysctl_read_string_data(ctx->ctl_table->data, ctx->ctl_table->maxlen,
+			ctx->ctl_table, buffer, lenp, ppos);
 }
 
 static size_t proc_skip_spaces(char **buf)
@@ -1574,6 +1636,18 @@ int proc_dostring(struct ctl_table *table, int write,
 	return -ENOSYS;
 }
 
+ssize_t sysctl_read_string(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	return -ENOSYS;
+}
+
+ssize_t sysctl_write_string(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	return -ENOSYS;
+}
+
 int proc_dou8vec_minmax(struct ctl_table *table, int write,
 			void *buffer, size_t *lenp, loff_t *ppos)
 {
@@ -1765,6 +1839,11 @@ ssize_t sysctl_write_large_bitmap(struct ctl_context *ctx, struct file *file,
 
 #endif /* CONFIG_PROC_SYSCTL */
 
+struct ctl_fops sysctl_string_fops = {
+	.read  = sysctl_read_string,
+	.write = sysctl_write_string,
+};
+
 struct ctl_fops sysctl_bool_fops = {
 	.read  = sysctl_read_bool,
 	.write = sysctl_write_bool,
@@ -1891,7 +1970,7 @@ static struct ctl_table kern_table[] = {
 		.data		= reboot_command,
 		.maxlen		= 256,
 		.mode		= 0644,
-		.proc_handler	= proc_dostring,
+		.ctl_fops	= &sysctl_string_fops,
 	},
 	{
 		.procname	= "stop-a",
@@ -1973,7 +2052,7 @@ static struct ctl_table kern_table[] = {
 		.data		= &modprobe_path,
 		.maxlen		= KMOD_PATH_LEN,
 		.mode		= 0644,
-		.proc_handler	= proc_dostring,
+		.ctl_fops	= &sysctl_string_fops,
 	},
 	{
 		.procname	= "modules_disabled",
@@ -1992,7 +2071,7 @@ static struct ctl_table kern_table[] = {
 		.data		= &uevent_helper,
 		.maxlen		= UEVENT_HELPER_PATH_LEN,
 		.mode		= 0644,
-		.proc_handler	= proc_dostring,
+		.ctl_fops	= &sysctl_string_fops,
 	},
 #endif
 #ifdef CONFIG_MAGIC_SYSRQ
@@ -2730,6 +2809,11 @@ EXPORT_SYMBOL(sysctl_uintvec_fops);
 EXPORT_SYMBOL(sysctl_read_uintvec);
 EXPORT_SYMBOL(sysctl_write_uintvec);
 EXPORT_SYMBOL(proc_dostring);
+EXPORT_SYMBOL(sysctl_read_string_data);
+EXPORT_SYMBOL(sysctl_write_string_data);
+EXPORT_SYMBOL(sysctl_read_string);
+EXPORT_SYMBOL(sysctl_write_string);
+EXPORT_SYMBOL(sysctl_string_fops);
 EXPORT_SYMBOL(sysctl_read_ulongvec_ms_jiffies);
 EXPORT_SYMBOL(sysctl_write_ulongvec_ms_jiffies);
 EXPORT_SYMBOL(sysctl_ulongvec_ms_jiffies_fops);

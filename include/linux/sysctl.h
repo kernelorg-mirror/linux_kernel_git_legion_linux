@@ -119,6 +119,14 @@ int sysctl_write_ulongvec_data(void *data, struct ctl_table *table,
 			       void *buffer, size_t *lenp, loff_t *ppos,
 			       unsigned long convmul, unsigned long convdiv);
 
+int sysctl_read_string_data(char *data, int maxlen, struct ctl_table *table,
+			    char *buffer, size_t *lenp, loff_t *ppos);
+
+int sysctl_write_string_data(char *data, int maxlen, struct ctl_table *table,
+			     char *buffer, size_t *lenp, loff_t *ppos);
+
+ssize_t sysctl_read_string(struct ctl_context *, struct file *, char *, size_t *, loff_t *);
+ssize_t sysctl_write_string(struct ctl_context *, struct file *, char *, size_t *, loff_t *);
 ssize_t sysctl_read_uintvec(struct ctl_context *, struct file *, char *, size_t *, loff_t *);
 ssize_t sysctl_write_uintvec(struct ctl_context *, struct file *, char *, size_t *, loff_t *);
 ssize_t sysctl_read_intvec(struct ctl_context *, struct file *, char *, size_t *, loff_t *);
@@ -136,6 +144,7 @@ ssize_t sysctl_write_ulongvec(struct ctl_context *, struct file *, char *, size_
 ssize_t sysctl_read_ulongvec_ms_jiffies(struct ctl_context *, struct file *, char *, size_t *, loff_t *);
 ssize_t sysctl_write_ulongvec_ms_jiffies(struct ctl_context *, struct file *, char *, size_t *, loff_t *);
 
+extern struct ctl_fops sysctl_string_fops;
 extern struct ctl_fops sysctl_bool_fops;
 extern struct ctl_fops sysctl_intvec_fops;
 extern struct ctl_fops sysctl_uintvec_fops;

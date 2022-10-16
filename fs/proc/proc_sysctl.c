@@ -1198,6 +1198,7 @@ static int sysctl_check_table(const char *path, struct ctl_table *table)
 		    (entry->ctl_fops == &sysctl_intvec_fops) ||
 		    (entry->ctl_fops == &sysctl_ulongvec_fops) ||
 		    (entry->ctl_fops == &sysctl_ulongvec_ms_jiffies_fops) ||
+		    (entry->ctl_fops == &sysctl_string_fops) ||
 		    (entry->ctl_fops == &sysctl_large_bitmap_fops)) {
 			if (!entry->data)
 				err |= sysctl_err(path, entry, "No data");
