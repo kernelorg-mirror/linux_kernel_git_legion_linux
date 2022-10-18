@@ -248,7 +248,7 @@ static struct ctl_table dn_table[] = {
 		.data = node_name,
 		.maxlen = 7,
 		.mode = 0644,
-		.proc_handler = proc_dostring,
+		.ctl_fops = &sysctl_string_fops,
 	},
 	{
 		.procname = "default_device",

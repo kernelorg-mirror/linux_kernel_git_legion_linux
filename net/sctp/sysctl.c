@@ -43,8 +43,6 @@ static unsigned long max_autoclose_max =
 	(MAX_SCHEDULE_TIMEOUT / HZ > UINT_MAX)
 	? UINT_MAX : MAX_SCHEDULE_TIMEOUT / HZ;
 
-static int proc_sctp_do_hmac_alg(struct ctl_table *ctl, int write,
-				 void *buffer, size_t *lenp, loff_t *ppos);
 static ssize_t proc_sctp_do_alpha_beta_write(struct ctl_context *ctx, struct file *file,
 					     char *buffer, size_t *lenp, loff_t *ppos);
 
@@ -101,6 +99,16 @@ static ssize_t proc_sctp_do_probe_interval_write(struct ctl_context *ctx,
 static struct ctl_fops proc_sctp_do_probe_interval_fops = {
 	.read  = proc_sctp_do_probe_interval_read,
 	.write = proc_sctp_do_probe_interval_write,
+};
+
+static ssize_t sysctl_read_cookie_hmac_alg(struct ctl_context *ctx, struct file *file,
+				            char *buffer, size_t *lenp, loff_t *ppos);
+static ssize_t sysctl_write_cookie_hmac_alg(struct ctl_context *ctx, struct file *file,
+				            char *buffer, size_t *lenp, loff_t *ppos);
+
+static struct ctl_fops sysctl_cookie_hmac_alg_fops = {
+	.read  = sysctl_read_cookie_hmac_alg,
+	.write = sysctl_write_cookie_hmac_alg,
 };
 
 static struct ctl_table sctp_table[] = {
@@ -196,7 +204,7 @@ static struct ctl_table sctp_net_table[] = {
 		.data		= &init_net.sctp.sctp_hmac_alg,
 		.maxlen		= 8,
 		.mode		= 0644,
-		.proc_handler	= proc_sctp_do_hmac_alg,
+		.ctl_fops	= &sysctl_cookie_hmac_alg_fops,
 	},
 	{
 		.procname	= "valid_cookie_life",
@@ -412,28 +420,17 @@ static struct ctl_table sctp_net_table[] = {
 	{ /* sentinel */ }
 };
 
-static int proc_sctp_do_hmac_alg(struct ctl_table *ctl, int write,
-				 void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t sysctl_write_cookie_hmac_alg(struct ctl_context *ctx, struct file *file,
+				            char *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct net *net = current->nsproxy->net_ns;
-	struct ctl_table tbl;
 	bool changed = false;
 	char *none = "none";
 	char tmp[8] = {0};
-	int ret;
+	ssize_t ret;
 
-	memset(&tbl, 0, sizeof(struct ctl_table));
-
-	if (write) {
-		tbl.data = tmp;
-		tbl.maxlen = sizeof(tmp);
-	} else {
-		tbl.data = net->sctp.sctp_hmac_alg ? : none;
-		tbl.maxlen = strlen(tbl.data);
-	}
-
-	ret = proc_dostring(&tbl, write, buffer, lenp, ppos);
-	if (write && ret == 0) {
+	ret = sysctl_write_string_data(tmp, sizeof(tmp), ctx->ctl_table, buffer, lenp, ppos)
+	if (ret == 0) {
 #ifdef CONFIG_CRYPTO_MD5
 		if (!strncmp(tmp, "md5", 3)) {
 			net->sctp.sctp_hmac_alg = "md5";
@@ -455,6 +452,17 @@ static int proc_sctp_do_hmac_alg(struct ctl_table *ctl, int write,
 	}
 
 	return ret;
+}
+
+static ssize_t sysctl_read_cookie_hmac_alg(struct ctl_context *ctx, struct file *file,
+				           char *buffer, size_t *lenp, loff_t *ppos)
+{
+	struct net *net = current->nsproxy->net_ns;
+	char *none = "none";
+	char *data = net->sctp.sctp_hmac_alg ? : none;
+	int maxlen = strlen(data);
+
+	return sysctl_read_string_data(data, maxlen, ctx->ctl_table, buffer, lenp, ppos)
 }
 
 static ssize_t proc_sctp_do_rto_min_write(struct ctl_context *ctx,

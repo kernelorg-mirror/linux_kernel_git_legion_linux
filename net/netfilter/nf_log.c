@@ -403,55 +403,65 @@ static struct ctl_table nf_log_sysctl_ftable[] = {
 	{ }
 };
 
-static int nf_log_proc_dostring(struct ctl_table *table, int write,
-			 void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t sysctl_write_nf_log(struct ctl_context *ctx, struct file *file,
+				   char *buffer, size_t *lenp, loff_t *ppos)
 {
 	const struct nf_logger *logger;
 	char buf[NFLOGGER_NAME_LEN];
-	int r = 0;
-	int tindex = (unsigned long)table->extra1;
-	struct net *net = table->extra2;
+	ssize_t r = 0;
+	int tindex = (unsigned long)ctx->ctl_table->extra1;
+	struct net *net = ctx->ctl_table->extra2;
 
-	if (write) {
-		struct ctl_table tmp = *table;
+	/* sysctl_write_string_data() can append to existing strings, so we need
+	 * to initialize it as an empty string.
+	 */
+	buf[0] = '\0';
 
-		/* proc_dostring() can append to existing strings, so we need to
-		 * initialize it as an empty string.
-		 */
-		buf[0] = '\0';
-		tmp.data = buf;
-		r = proc_dostring(&tmp, write, buffer, lenp, ppos);
-		if (r)
-			return r;
+	r = sysctl_write_string_data(buf, sizeof(buf), ctx->ctl_table,
+			buffer, lenp, ppos);
+	if (r)
+		return r;
 
-		if (!strcmp(buf, "NONE")) {
-			nf_log_unbind_pf(net, tindex);
-			return 0;
-		}
-		mutex_lock(&nf_log_mutex);
-		logger = __find_logger(tindex, buf);
-		if (logger == NULL) {
-			mutex_unlock(&nf_log_mutex);
-			return -ENOENT;
-		}
-		rcu_assign_pointer(net->nf.nf_loggers[tindex], logger);
-		mutex_unlock(&nf_log_mutex);
-	} else {
-		struct ctl_table tmp = *table;
-
-		tmp.data = buf;
-		mutex_lock(&nf_log_mutex);
-		logger = nft_log_dereference(net->nf.nf_loggers[tindex]);
-		if (!logger)
-			strlcpy(buf, "NONE", sizeof(buf));
-		else
-			strlcpy(buf, logger->name, sizeof(buf));
-		mutex_unlock(&nf_log_mutex);
-		r = proc_dostring(&tmp, write, buffer, lenp, ppos);
+	if (!strcmp(buf, "NONE")) {
+		nf_log_unbind_pf(net, tindex);
+		return 0;
 	}
+	mutex_lock(&nf_log_mutex);
+	logger = __find_logger(tindex, buf);
+	if (logger == NULL) {
+		mutex_unlock(&nf_log_mutex);
+		return -ENOENT;
+	}
+	rcu_assign_pointer(net->nf.nf_loggers[tindex], logger);
+	mutex_unlock(&nf_log_mutex);
 
 	return r;
 }
+
+static ssize_t sysctl_read_nf_log(struct ctl_context *ctx, struct file *file,
+				  char *buffer, size_t *lenp, loff_t *ppos)
+{
+	const struct nf_logger *logger;
+	char buf[NFLOGGER_NAME_LEN];
+	int tindex = (unsigned long)ctx->ctl_table->extra1;
+	struct net *net = ctx->ctl_table->extra2;
+
+	mutex_lock(&nf_log_mutex);
+	logger = nft_log_dereference(net->nf.nf_loggers[tindex]);
+	if (!logger)
+		strlcpy(buf, "NONE", sizeof(buf));
+	else
+		strlcpy(buf, logger->name, sizeof(buf));
+	mutex_unlock(&nf_log_mutex);
+
+	return sysctl_read_string_data(buf, strlen(buf), ctx->ctl_table,
+			buffer, lenp, ppos);
+}
+
+static struct ctl_fops sysctl_nf_log_fops = {
+	.read  = sysctl_read_nf_log,
+	.write = sysctl_write_nf_log,
+};
 
 static int netfilter_log_sysctl_init(struct net *net)
 {
@@ -473,8 +483,7 @@ static int netfilter_log_sysctl_init(struct net *net)
 				nf_log_sysctl_fnames[i];
 			nf_log_sysctl_table[i].maxlen = NFLOGGER_NAME_LEN;
 			nf_log_sysctl_table[i].mode = 0644;
-			nf_log_sysctl_table[i].proc_handler =
-				nf_log_proc_dostring;
+			nf_log_sysctl_table[i].ctl_fops = &sysctl_nf_log_fops;
 			nf_log_sysctl_table[i].extra1 =
 				(void *)(unsigned long) i;
 		}

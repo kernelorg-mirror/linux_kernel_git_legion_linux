@@ -247,60 +247,98 @@ static int ipv4_fwd_update_priority(struct ctl_table *table, int write,
 	return ret;
 }
 
-static int proc_tcp_congestion_control(struct ctl_table *ctl, int write,
-				       void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t sysctl_write_tcp_congestion_control(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos)
 {
-	struct net *net = container_of(ctl->data, struct net,
+	struct net *net = container_of(ctx->ctl_table->data, struct net,
 				       ipv4.tcp_congestion_control);
 	char val[TCP_CA_NAME_MAX];
-	struct ctl_table tbl = {
-		.data = val,
-		.maxlen = TCP_CA_NAME_MAX,
-	};
-	int ret;
+	ssize_t ret;
 
-	tcp_get_default_congestion_control(net, val);
-
-	ret = proc_dostring(&tbl, write, buffer, lenp, ppos);
-	if (write && ret == 0)
+	ret = sysctl_write_string_data(val, TCP_CA_NAME_MAX, ctx->ctl_table,
+			buffer, lenp, ppos);
+	if (ret == 0)
 		ret = tcp_set_default_congestion_control(net, val);
 	return ret;
 }
 
-static int proc_tcp_available_congestion_control(struct ctl_table *ctl,
-						 int write, void *buffer,
-						 size_t *lenp, loff_t *ppos)
+static ssize_t sysctl_read_tcp_congestion_control(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos)
 {
-	struct ctl_table tbl = { .maxlen = TCP_CA_BUF_MAX, };
+	struct net *net = container_of(ctx->ctl_table->data, struct net,
+				       ipv4.tcp_congestion_control);
+	char val[TCP_CA_NAME_MAX];
+
+	tcp_get_default_congestion_control(net, val);
+
+	return sysctl_read_string_data(val, TCP_CA_NAME_MAX, ctx->ctl_table,
+			buffer, lenp, ppos);
+}
+
+static struct ctl_fops sysctl_tcp_congestion_control_fops = {
+	.read  = sysctl_read_tcp_congestion_control,
+	.write = sysctl_write_tcp_congestion_control,
+};
+
+static ssize_t sysctl_read_tcp_available_congestion_control(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos)
+{
+	char *data;
 	int ret;
 
-	tbl.data = kmalloc(tbl.maxlen, GFP_USER);
-	if (!tbl.data)
+	data = kmalloc(TCP_CA_BUF_MAX, GFP_USER);
+	if (!data)
 		return -ENOMEM;
-	tcp_get_available_congestion_control(tbl.data, TCP_CA_BUF_MAX);
-	ret = proc_dostring(&tbl, write, buffer, lenp, ppos);
-	kfree(tbl.data);
+	tcp_get_available_congestion_control(data, TCP_CA_BUF_MAX);
+	ret = sysctl_read_string_data(data, TCP_CA_BUF_MAX, ctx->ctl_table,
+			buffer, lenp, ppos);
+	kfree(data);
 	return ret;
 }
 
-static int proc_allowed_congestion_control(struct ctl_table *ctl,
-					   int write, void *buffer,
-					   size_t *lenp, loff_t *ppos)
-{
-	struct ctl_table tbl = { .maxlen = TCP_CA_BUF_MAX };
-	int ret;
+static struct ctl_fops sysctl_tcp_available_congestion_control_fops = {
+	.read  = sysctl_read_tcp_available_congestion_control,
+};
 
-	tbl.data = kmalloc(tbl.maxlen, GFP_USER);
-	if (!tbl.data)
+static ssize_t sysctl_write_tcp_allowed_congestion_control(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos)
+{
+	char *data;
+	ssize_t ret;
+
+	data = kmalloc(TCP_CA_BUF_MAX, GFP_USER);
+	if (!data)
 		return -ENOMEM;
 
-	tcp_get_allowed_congestion_control(tbl.data, tbl.maxlen);
-	ret = proc_dostring(&tbl, write, buffer, lenp, ppos);
-	if (write && ret == 0)
-		ret = tcp_set_allowed_congestion_control(tbl.data);
-	kfree(tbl.data);
+	ret = sysctl_write_string_data(data, TCP_CA_BUF_MAX, ctx->ctl_table,
+			buffer, lenp, ppos);
+	if (ret == 0)
+		ret = tcp_set_allowed_congestion_control(data);
+	kfree(data);
 	return ret;
 }
+
+static ssize_t sysctl_read_tcp_allowed_congestion_control(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos)
+{
+	char *data;
+	ssize_t ret;
+
+	data = kmalloc(TCP_CA_BUF_MAX, GFP_USER);
+	if (!data)
+		return -ENOMEM;
+
+	tcp_get_allowed_congestion_control(data, TCP_CA_BUF_MAX);
+	ret = sysctl_read_string_data(data, TCP_CA_BUF_MAX, ctx->ctl_table,
+			buffer, lenp, ppos);
+	kfree(data);
+	return ret;
+}
+
+static struct ctl_fops sysctl_tcp_allowed_congestion_control_fops = {
+	.read  = sysctl_read_tcp_allowed_congestion_control,
+	.write = sysctl_write_tcp_allowed_congestion_control,
+};
 
 static int sscanf_key(char *buf, __le32 *key)
 {
@@ -320,24 +358,21 @@ static int sscanf_key(char *buf, __le32 *key)
 	return ret;
 }
 
-static int proc_tcp_fastopen_key(struct ctl_table *table, int write,
-				 void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t sysctl_write_tcp_fastopen_key(struct ctl_context *ctx,
+					     struct file *file,
+					     char *buffer, size_t *lenp, loff_t *ppos)
 {
-	struct net *net = container_of(table->data, struct net,
+	struct net *net = container_of(ctx->ctl_table->data, struct net,
 	    ipv4.sysctl_tcp_fastopen);
-	/* maxlen to print the list of keys in hex (*2), with dashes
-	 * separating doublewords and a comma in between keys.
-	 */
-	struct ctl_table tbl = { .maxlen = ((TCP_FASTOPEN_KEY_LENGTH *
-					    2 * TCP_FASTOPEN_KEY_MAX) +
-					    (TCP_FASTOPEN_KEY_MAX * 5)) };
 	u32 user_key[TCP_FASTOPEN_KEY_BUF_LENGTH / sizeof(u32)];
 	__le32 key[TCP_FASTOPEN_KEY_BUF_LENGTH / sizeof(__le32)];
-	char *backup_data;
-	int ret, i = 0, off = 0, n_keys;
+	char *data, *backup_data;
+	int i = 0, off = 0, n_keys;
+	int maxlen = ctx->ctl_table->maxlen;
+	ssize_t ret;
 
-	tbl.data = kmalloc(tbl.maxlen, GFP_KERNEL);
-	if (!tbl.data)
+	data = kmalloc(maxlen, GFP_KERNEL);
+	if (!data)
 		return -ENOMEM;
 
 	n_keys = tcp_fastopen_get_cipher(net, NULL, (u64 *)key);
@@ -350,29 +385,29 @@ static int proc_tcp_fastopen_key(struct ctl_table *table, int write,
 		user_key[i] = le32_to_cpu(key[i]);
 
 	for (i = 0; i < n_keys; i++) {
-		off += snprintf(tbl.data + off, tbl.maxlen - off,
+		off += snprintf(data + off, maxlen - off,
 				"%08x-%08x-%08x-%08x",
 				user_key[i * 4],
 				user_key[i * 4 + 1],
 				user_key[i * 4 + 2],
 				user_key[i * 4 + 3]);
 
-		if (WARN_ON_ONCE(off >= tbl.maxlen - 1))
+		if (WARN_ON_ONCE(off >= maxlen - 1))
 			break;
 
 		if (i + 1 < n_keys)
-			off += snprintf(tbl.data + off, tbl.maxlen - off, ",");
+			off += snprintf(data + off, maxlen - off, ",");
 	}
 
-	ret = proc_dostring(&tbl, write, buffer, lenp, ppos);
+	ret = sysctl_write_string_data(data, maxlen, ctx->ctl_table, buffer, lenp, ppos);
 
-	if (write && ret == 0) {
-		backup_data = strchr(tbl.data, ',');
+	if (ret == 0) {
+		backup_data = strchr(data, ',');
 		if (backup_data) {
 			*backup_data = '\0';
 			backup_data++;
 		}
-		if (sscanf_key(tbl.data, key)) {
+		if (sscanf_key(data, key)) {
 			ret = -EINVAL;
 			goto bad_key;
 		}
@@ -387,9 +422,61 @@ static int proc_tcp_fastopen_key(struct ctl_table *table, int write,
 	}
 
 bad_key:
-	kfree(tbl.data);
+	kfree(data);
 	return ret;
 }
+
+static ssize_t sysctl_read_tcp_fastopen_key(struct ctl_context *ctx,
+					    struct file *file,
+					    char *buffer, size_t *lenp, loff_t *ppos)
+{
+	struct net *net = container_of(ctx->ctl_table->data, struct net,
+	    ipv4.sysctl_tcp_fastopen);
+	u32 user_key[TCP_FASTOPEN_KEY_BUF_LENGTH / sizeof(u32)];
+	__le32 key[TCP_FASTOPEN_KEY_BUF_LENGTH / sizeof(__le32)];
+	char *data;
+	int i = 0, off = 0, n_keys;
+	int maxlen = ctx->ctl_table->maxlen;
+	ssize_t ret;
+
+	data = kmalloc(maxlen, GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	n_keys = tcp_fastopen_get_cipher(net, NULL, (u64 *)key);
+	if (!n_keys) {
+		memset(&key[0], 0, TCP_FASTOPEN_KEY_LENGTH);
+		n_keys = 1;
+	}
+
+	for (i = 0; i < n_keys * 4; i++)
+		user_key[i] = le32_to_cpu(key[i]);
+
+	for (i = 0; i < n_keys; i++) {
+		off += snprintf(data + off, maxlen - off,
+				"%08x-%08x-%08x-%08x",
+				user_key[i * 4],
+				user_key[i * 4 + 1],
+				user_key[i * 4 + 2],
+				user_key[i * 4 + 3]);
+
+		if (WARN_ON_ONCE(off >= maxlen - 1))
+			break;
+
+		if (i + 1 < n_keys)
+			off += snprintf(data + off, maxlen - off, ",");
+	}
+
+	ret = sysctl_read_string_data(data, maxlen, ctx->ctl_table, buffer, lenp, ppos);
+
+	kfree(data);
+	return ret;
+}
+
+static struct ctl_fops sysctl_tcp_fastopen_key_fops = {
+	.read  = sysctl_read_tcp_fastopen_key,
+	.write = sysctl_write_tcp_fastopen_key,
+};
 
 static void proc_configure_early_demux(int enabled, int protocol)
 {
@@ -465,22 +552,25 @@ static struct ctl_fops proc_tfo_blackhole_detect_timeout_fops = {
 	.write = proc_tfo_blackhole_detect_timeout_write,
 };
 
-static int proc_tcp_available_ulp(struct ctl_table *ctl,
-				  int write, void *buffer, size_t *lenp,
-				  loff_t *ppos)
+static ssize_t sysctl_read_tcp_available_ulp(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos)
 {
-	struct ctl_table tbl = { .maxlen = TCP_ULP_BUF_MAX, };
-	int ret;
+	ssize_t ret;
 
-	tbl.data = kmalloc(tbl.maxlen, GFP_USER);
-	if (!tbl.data)
+	char *data = kmalloc(TCP_ULP_BUF_MAX, GFP_USER);
+	if (!data)
 		return -ENOMEM;
-	tcp_get_available_ulp(tbl.data, TCP_ULP_BUF_MAX);
-	ret = proc_dostring(&tbl, write, buffer, lenp, ppos);
-	kfree(tbl.data);
+	tcp_get_available_ulp(data, TCP_ULP_BUF_MAX);
+	ret = sysctl_read_string_data(data, TCP_ULP_BUF_MAX, ctx->ctl_table,
+				      buffer, lenp, ppos);
+	kfree(data);
 
 	return ret;
 }
+
+static struct ctl_fops sysctl_tcp_available_ulp_fops = {
+	.read  = sysctl_read_tcp_available_ulp,
+};
 
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
 static int proc_fib_multipath_hash_policy(struct ctl_table *table, int write,
@@ -600,7 +690,7 @@ static struct ctl_table ipv4_table[] = {
 		.procname	= "tcp_available_ulp",
 		.maxlen		= TCP_ULP_BUF_MAX,
 		.mode		= 0444,
-		.proc_handler   = proc_tcp_available_ulp,
+		.ctl_fops	= &sysctl_tcp_available_ulp_fops,
 	},
 	{
 		.procname	= "icmp_msgs_per_sec",
@@ -936,19 +1026,19 @@ static struct ctl_table ipv4_net_table[] = {
 		.data		= &init_net.ipv4.tcp_congestion_control,
 		.mode		= 0644,
 		.maxlen		= TCP_CA_NAME_MAX,
-		.proc_handler	= proc_tcp_congestion_control,
+		.ctl_fops	= &sysctl_tcp_congestion_control_fops,
 	},
 	{
 		.procname	= "tcp_available_congestion_control",
 		.maxlen		= TCP_CA_BUF_MAX,
 		.mode		= 0444,
-		.proc_handler   = proc_tcp_available_congestion_control,
+		.ctl_fops	= &sysctl_tcp_available_congestion_control_fops,
 	},
 	{
 		.procname	= "tcp_allowed_congestion_control",
 		.maxlen		= TCP_CA_BUF_MAX,
 		.mode		= 0644,
-		.proc_handler   = proc_allowed_congestion_control,
+		.ctl_fops	= &sysctl_tcp_allowed_congestion_control_fops,
 	},
 	{
 		.procname	= "tcp_keepalive_time",
@@ -1081,7 +1171,7 @@ static struct ctl_table ipv4_net_table[] = {
 		.maxlen		= ((TCP_FASTOPEN_KEY_LENGTH *
 				   2 * TCP_FASTOPEN_KEY_MAX) +
 				   (TCP_FASTOPEN_KEY_MAX * 5)),
-		.proc_handler	= proc_tcp_fastopen_key,
+		.ctl_fops	= &sysctl_tcp_fastopen_key_fops,
 	},
 	{
 		.procname	= "tcp_fastopen_blackhole_timeout_sec",

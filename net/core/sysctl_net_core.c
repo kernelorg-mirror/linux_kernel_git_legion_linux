@@ -254,23 +254,34 @@ static struct ctl_fops flow_limit_table_len_fops = {
 #endif /* CONFIG_NET_FLOW_LIMIT */
 
 #ifdef CONFIG_NET_SCHED
-static int set_default_qdisc(struct ctl_table *table, int write,
-			     void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t sysctl_write_default_qdisc(struct ctl_context *ctx, struct file *file,
+					  char *buffer, size_t *lenp, loff_t *ppos)
 {
 	char id[IFNAMSIZ];
-	struct ctl_table tbl = {
-		.data = id,
-		.maxlen = IFNAMSIZ,
-	};
-	int ret;
+	ssize_t ret;
 
-	qdisc_get_default(id, IFNAMSIZ);
-
-	ret = proc_dostring(&tbl, write, buffer, lenp, ppos);
-	if (write && ret == 0)
+	ret = sysctl_write_string_data(id, IFNAMSIZ, ctx->ctl_table,
+			buffer, lenp, ppos);
+	if (ret == 0)
 		ret = qdisc_set_default(id);
 	return ret;
 }
+
+static ssize_t sysctl_read_default_qdisc(struct ctl_context *ctx, struct file *file,
+					 char *buffer, size_t *lenp, loff_t *ppos)
+{
+	char id[IFNAMSIZ];
+
+	qdisc_get_default(id, IFNAMSIZ);
+
+	return sysctl_read_string_data(id, IFNAMSIZ, ctx->ctl_table,
+			buffer, lenp, ppos);
+}
+
+static struct ctl_fops sysctl_default_qdisc_fops = {
+	.read  = sysctl_read_default_qdisc,
+	.write = sysctl_write_default_qdisc,
+};
 #endif
 
 static ssize_t proc_do_dev_weight_write(struct ctl_context *ctx, struct file *file,
@@ -293,17 +304,20 @@ static struct ctl_fops proc_do_dev_weight_fops = {
 	.write = proc_do_dev_weight_write,
 };
 
-static int proc_do_rss_key(struct ctl_table *table, int write,
-			   void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t sysctl_read_netdev_rss_key(struct ctl_context *ctx, struct file *file,
+					  char *buffer, size_t *lenp, loff_t *ppos)
 {
-	struct ctl_table fake_table;
 	char buf[NETDEV_RSS_KEY_LEN * 3];
 
 	snprintf(buf, sizeof(buf), "%*phC", NETDEV_RSS_KEY_LEN, netdev_rss_key);
-	fake_table.data = buf;
-	fake_table.maxlen = sizeof(buf);
-	return proc_dostring(&fake_table, write, buffer, lenp, ppos);
+
+	return sysctl_read_string_data(buf, sizeof(buf), ctx->ctl_table,
+			buffer, lenp, ppos);
 }
+
+static struct ctl_fops sysctl_netdev_rss_key_fops = {
+	.read  = sysctl_read_netdev_rss_key,
+};
 
 #ifdef CONFIG_BPF_JIT
 static ssize_t proc_dointvec_minmax_bpf_enable_write(struct ctl_context *ctx,
@@ -460,7 +474,7 @@ static struct ctl_table net_core_table[] = {
 		.data		= &netdev_rss_key,
 		.maxlen		= sizeof(int),
 		.mode		= 0444,
-		.proc_handler	= proc_do_rss_key,
+		.ctl_fops	= &sysctl_netdev_rss_key_fops,
 	},
 #ifdef CONFIG_BPF_JIT
 	{
@@ -589,7 +603,7 @@ static struct ctl_table net_core_table[] = {
 		.procname	= "default_qdisc",
 		.mode		= 0644,
 		.maxlen		= IFNAMSIZ,
-		.proc_handler	= set_default_qdisc
+		.ctl_fops	= &sysctl_default_qdisc_fops,
 	},
 #endif
 	{

@@ -6446,30 +6446,20 @@ struct ctl_fops addrconf_addr_gen_mode_fops = {
 	.write = addrconf_addr_gen_mode_write,
 };
 
-static int addrconf_sysctl_stable_secret(struct ctl_table *ctl, int write,
-					 void *buffer, size_t *lenp,
-					 loff_t *ppos)
+static ssize_t sysctl_write_stable_secret(struct ctl_context *ctx, struct file *file,
+					  char *buffer, size_t *lenp, loff_t *ppos)
 {
-	int err;
+	ssize_t err;
 	struct in6_addr addr;
 	char str[IPV6_MAX_STRLEN];
-	struct ctl_table lctl = *ctl;
-	struct net *net = ctl->extra2;
-	struct ipv6_stable_secret *secret = ctl->data;
+	struct net *net = ctx->ctl_table->extra2;
+	struct ipv6_stable_secret *secret = ctx->ctl_table->data;
 
-	if (&net->ipv6.devconf_all->stable_secret == ctl->data)
+	if (&net->ipv6.devconf_all->stable_secret == ctx->ctl_table->data)
 		return -EIO;
-
-	lctl.maxlen = IPV6_MAX_STRLEN;
-	lctl.data = str;
 
 	if (!rtnl_trylock())
 		return restart_syscall();
-
-	if (!write && !secret->initialized) {
-		err = -EIO;
-		goto out;
-	}
 
 	err = snprintf(str, sizeof(str), "%pI6", &secret->secret);
 	if (err >= sizeof(str)) {
@@ -6477,8 +6467,9 @@ static int addrconf_sysctl_stable_secret(struct ctl_table *ctl, int write,
 		goto out;
 	}
 
-	err = proc_dostring(&lctl, write, buffer, lenp, ppos);
-	if (err || !write)
+	err = sysctl_write_string_data(str, IPV6_MAX_STRLEN, ctx->ctl_table,
+			buffer, lenp, ppos);
+	if (err)
 		goto out;
 
 	if (in6_pton(str, -1, addr.in6_u.u6_addr8, -1, NULL) != 1) {
@@ -6489,7 +6480,7 @@ static int addrconf_sysctl_stable_secret(struct ctl_table *ctl, int write,
 	secret->initialized = true;
 	secret->secret = addr;
 
-	if (&net->ipv6.devconf_dflt->stable_secret == ctl->data) {
+	if (&net->ipv6.devconf_dflt->stable_secret == ctx->ctl_table->data) {
 		struct net_device *dev;
 
 		for_each_netdev(net, dev) {
@@ -6501,7 +6492,7 @@ static int addrconf_sysctl_stable_secret(struct ctl_table *ctl, int write,
 			}
 		}
 	} else {
-		struct inet6_dev *idev = ctl->extra1;
+		struct inet6_dev *idev = ctx->ctl_table->extra1;
 
 		idev->cnf.addr_gen_mode = IN6_ADDR_GEN_MODE_STABLE_PRIVACY;
 	}
@@ -6511,6 +6502,45 @@ out:
 
 	return err;
 }
+
+static ssize_t sysctl_read_stable_secret(struct ctl_context *ctx, struct file *file,
+					 char *buffer, size_t *lenp, loff_t *ppos)
+{
+	ssize_t err;
+	char str[IPV6_MAX_STRLEN];
+	struct net *net = ctx->ctl_table->extra2;
+	struct ipv6_stable_secret *secret = ctx->ctl_table->data;
+
+	if (&net->ipv6.devconf_all->stable_secret == ctx->ctl_table->data)
+		return -EIO;
+
+	if (!rtnl_trylock())
+		return restart_syscall();
+
+	if (!secret->initialized) {
+		err = -EIO;
+		goto out;
+	}
+
+	err = snprintf(str, sizeof(str), "%pI6", &secret->secret);
+	if (err >= sizeof(str)) {
+		err = -EIO;
+		goto out;
+	}
+
+	err = sysctl_read_string_data(str, IPV6_MAX_STRLEN, ctx->ctl_table,
+			buffer, lenp, ppos);
+
+out:
+	rtnl_unlock();
+
+	return err;
+}
+
+static struct ctl_fops sysctl_stable_secret_fops = {
+	.read  = sysctl_read_stable_secret,
+	.write = sysctl_write_stable_secret,
+};
 
 static ssize_t
 addrconf_sysctl_ignore_routes_with_linkdown_write(struct ctl_context *ctx,
@@ -6946,7 +6976,7 @@ static const struct ctl_table addrconf_sysctl[] = {
 		.data		= &ipv6_devconf.stable_secret,
 		.maxlen		= IPV6_MAX_STRLEN,
 		.mode		= 0600,
-		.proc_handler	= addrconf_sysctl_stable_secret,
+		.ctl_fops	= &sysctl_stable_secret_fops,
 	},
 	{
 		.procname	= "use_oif_addrs_only",
