@@ -1087,10 +1087,9 @@ extern struct ctl_fops sysctl_min_unmapped_ratio_sysctl_fops;
 extern struct ctl_fops sysctl_min_slab_ratio_sysctl_fops;
 extern struct ctl_fops lowmem_reserve_ratio_sysctl_fops;
 extern struct ctl_fops percpu_pagelist_high_fraction_sysctl_fops;
+extern struct ctl_fops sysctl_numa_zonelist_order_fops;
 
 extern int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES];
-int numa_zonelist_order_handler(struct ctl_table *, int,
-		void *, size_t *, loff_t *);
 extern int percpu_pagelist_high_fraction;
 extern char numa_zonelist_order[];
 #define NUMA_ZONELIST_ORDER_LEN	16

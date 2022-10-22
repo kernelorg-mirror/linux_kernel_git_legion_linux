@@ -6180,13 +6180,16 @@ char numa_zonelist_order[] = "Node";
 /*
  * sysctl handler for numa_zonelist_order
  */
-int numa_zonelist_order_handler(struct ctl_table *table, int write,
-		void *buffer, size_t *length, loff_t *ppos)
+static ssize_t sysctl_write_numa_zonelist_order(struct ctl_context *ctx, struct file *file,
+						char *buffer, size_t *lenp, loff_t *ppos)
 {
-	if (write)
-		return __parse_numa_zonelist_order(buffer);
-	return proc_dostring(table, write, buffer, length, ppos);
+	return __parse_numa_zonelist_order(buffer);
 }
+
+struct ctl_fops sysctl_numa_zonelist_order_fops = {
+	.read  = sysctl_read_string,
+	.write = sysctl_write_numa_zonelist_order,
+};
 
 
 static int node_load[MAX_NUMNODES];

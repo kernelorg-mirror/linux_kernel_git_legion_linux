@@ -2658,7 +2658,7 @@ static struct ctl_table vm_table[] = {
 		.data		= &numa_zonelist_order,
 		.maxlen		= NUMA_ZONELIST_ORDER_LEN,
 		.mode		= 0644,
-		.proc_handler	= numa_zonelist_order_handler,
+		.ctl_fops	= &sysctl_numa_zonelist_order_fops,
 	},
 #endif
 #if (defined(CONFIG_X86_32) && !defined(CONFIG_UML))|| \
