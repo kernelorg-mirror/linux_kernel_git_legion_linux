@@ -914,15 +914,20 @@ void validate_coredump_safety(void)
 	}
 }
 
-static int proc_dostring_coredump(struct ctl_table *table, int write,
-		  void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t sysctl_write_core_pattern(struct ctl_context *ctx, struct file *file,
+					 char *buffer, size_t *lenp, loff_t *ppos)
 {
-	int error = proc_dostring(table, write, buffer, lenp, ppos);
+	ssize_t error = sysctl_write_string(ctx, file, buffer, lenp, ppos);
 
 	if (!error)
 		validate_coredump_safety();
 	return error;
 }
+
+static struct ctl_fops sysctl_core_pattern_fops = {
+	.read  = sysctl_read_string,
+	.write = sysctl_write_core_pattern,
+};
 
 static struct ctl_table coredump_sysctls[] = {
 	{
@@ -937,7 +942,7 @@ static struct ctl_table coredump_sysctls[] = {
 		.data		= core_pattern,
 		.maxlen		= CORENAME_MAX_SIZE,
 		.mode		= 0644,
-		.proc_handler	= proc_dostring_coredump,
+		.ctl_fops	= &sysctl_core_pattern_fops,
 	},
 	{
 		.procname	= "core_pipe_limit",
