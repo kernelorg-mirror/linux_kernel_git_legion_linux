@@ -29,15 +29,11 @@ static void *get_uts(struct ctl_table *table)
  *	Special case of dostring for the UTS structure. This has locks
  *	to observe. Should this be in kernel/sys.c ????
  */
-static int proc_do_uts_string(struct ctl_table *table, int write,
-		  void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t sysctl_write_uts_value(struct ctl_context *ctx, struct file *file,
+				      char *buffer, size_t *lenp, loff_t *ppos)
 {
-	struct ctl_table uts_table;
-	int r;
+	ssize_t r;
 	char tmp_data[__NEW_UTS_LEN + 1];
-
-	memcpy(&uts_table, table, sizeof(uts_table));
-	uts_table.data = tmp_data;
 
 	/*
 	 * Buffer the value in tmp_data so that proc_dostring() can be called
@@ -46,28 +42,48 @@ static int proc_do_uts_string(struct ctl_table *table, int write,
 	 * support partial writes.
 	 */
 	down_read(&uts_sem);
-	memcpy(tmp_data, get_uts(table), sizeof(tmp_data));
+	memcpy(tmp_data, get_uts(ctx->ctl_table), sizeof(tmp_data));
 	up_read(&uts_sem);
-	r = proc_dostring(&uts_table, write, buffer, lenp, ppos);
 
-	if (write) {
-		/*
-		 * Write back the new value.
-		 * Note that, since we dropped uts_sem, the result can
-		 * theoretically be incorrect if there are two parallel writes
-		 * at non-zero offsets to the same sysctl.
-		 */
-		down_write(&uts_sem);
-		memcpy(get_uts(table), tmp_data, sizeof(tmp_data));
-		up_write(&uts_sem);
-		proc_sys_poll_notify(table->poll);
-	}
+	r = sysctl_write_string_data(tmp_data, sizeof(tmp_data), ctx->ctl_table,
+			buffer, lenp, ppos);
+
+	/*
+	 * Write back the new value.
+	 * Note that, since we dropped uts_sem, the result can
+	 * theoretically be incorrect if there are two parallel writes
+	 * at non-zero offsets to the same sysctl.
+	 */
+	down_write(&uts_sem);
+	memcpy(get_uts(ctx->ctl_table), tmp_data, sizeof(tmp_data));
+	up_write(&uts_sem);
+
+	proc_sys_poll_notify(ctx->ctl_table->poll);
 
 	return r;
 }
+
+static ssize_t sysctl_read_uts_value(struct ctl_context *ctx, struct file *file,
+				     char *buffer, size_t *lenp, loff_t *ppos)
+{
+	char tmp_data[__NEW_UTS_LEN + 1];
+
+	down_read(&uts_sem);
+	memcpy(tmp_data, get_uts(ctx->ctl_table), sizeof(tmp_data));
+	up_read(&uts_sem);
+
+	return sysctl_read_string_data(tmp_data, sizeof(tmp_data), ctx->ctl_table,
+			buffer, lenp, ppos);
+}
 #else
-#define proc_do_uts_string NULL
+#define sysctl_read_uts_value NULL
+#define sysctl_write_uts_value NULL
 #endif
+
+static struct ctl_fops sysctl_uts_value_fops = {
+	.read  = sysctl_read_uts_value,
+	.write = sysctl_write_uts_value,
+};
 
 static DEFINE_CTL_TABLE_POLL(hostname_poll);
 static DEFINE_CTL_TABLE_POLL(domainname_poll);
@@ -78,28 +94,28 @@ static struct ctl_table uts_kern_table[] = {
 		.data		= init_uts_ns.name.sysname,
 		.maxlen		= sizeof(init_uts_ns.name.sysname),
 		.mode		= 0444,
-		.proc_handler	= proc_do_uts_string,
+		.ctl_fops	= &sysctl_uts_value_fops,
 	},
 	{
 		.procname	= "osrelease",
 		.data		= init_uts_ns.name.release,
 		.maxlen		= sizeof(init_uts_ns.name.release),
 		.mode		= 0444,
-		.proc_handler	= proc_do_uts_string,
+		.ctl_fops	= &sysctl_uts_value_fops,
 	},
 	{
 		.procname	= "version",
 		.data		= init_uts_ns.name.version,
 		.maxlen		= sizeof(init_uts_ns.name.version),
 		.mode		= 0444,
-		.proc_handler	= proc_do_uts_string,
+		.ctl_fops	= &sysctl_uts_value_fops,
 	},
 	{
 		.procname	= "hostname",
 		.data		= init_uts_ns.name.nodename,
 		.maxlen		= sizeof(init_uts_ns.name.nodename),
 		.mode		= 0644,
-		.proc_handler	= proc_do_uts_string,
+		.ctl_fops	= &sysctl_uts_value_fops,
 		.poll		= &hostname_poll,
 	},
 	{
@@ -107,7 +123,7 @@ static struct ctl_table uts_kern_table[] = {
 		.data		= init_uts_ns.name.domainname,
 		.maxlen		= sizeof(init_uts_ns.name.domainname),
 		.mode		= 0644,
-		.proc_handler	= proc_do_uts_string,
+		.ctl_fops	= &sysctl_uts_value_fops,
 		.poll		= &domainname_poll,
 	},
 	{}
