@@ -1473,20 +1473,13 @@ static u8 sysctl_bootid[UUID_SIZE];
  * UUID. The difference is in whether table->data is NULL; if it is,
  * then a new UUID is generated and returned to the user.
  */
-static int proc_do_uuid(struct ctl_table *table, int write, void *buf,
-			size_t *lenp, loff_t *ppos)
+static ssize_t sysctl_read_uuid(struct ctl_context *ctx, struct file *file,
+				char *buffer, size_t *lenp, loff_t *ppos)
 {
 	u8 tmp_uuid[UUID_SIZE], *uuid;
 	char uuid_string[UUID_STRING_LEN + 1];
-	struct ctl_table fake_table = {
-		.data = uuid_string,
-		.maxlen = UUID_STRING_LEN
-	};
 
-	if (write)
-		return -EPERM;
-
-	uuid = table->data;
+	uuid = ctx->ctl_table->data;
 	if (!uuid) {
 		uuid = tmp_uuid;
 		generate_random_uuid(uuid);
@@ -1500,8 +1493,14 @@ static int proc_do_uuid(struct ctl_table *table, int write, void *buf,
 	}
 
 	snprintf(uuid_string, sizeof(uuid_string), "%pU", uuid);
-	return proc_dostring(&fake_table, 0, buf, lenp, ppos);
+
+	return sysctl_read_string_data(uuid_string, UUID_STRING_LEN,
+			ctx->ctl_table, buffer, lenp, ppos);
 }
+
+static struct ctl_fops sysctl_uuid_fops = {
+	.read  = sysctl_read_uuid,
+};
 
 static ssize_t proc_write_rointvec(struct ctl_context *ctx, struct file *file,
 		char *buffer, size_t *lenp, loff_t *ppos)
@@ -1548,12 +1547,12 @@ static struct ctl_table random_table[] = {
 		.procname	= "boot_id",
 		.data		= &sysctl_bootid,
 		.mode		= 0444,
-		.proc_handler	= proc_do_uuid,
+		.ctl_fops	= &sysctl_uuid_fops,
 	},
 	{
 		.procname	= "uuid",
 		.mode		= 0444,
-		.proc_handler	= proc_do_uuid,
+		.ctl_fops	= &sysctl_uuid_fops,
 	},
 	{ }
 };

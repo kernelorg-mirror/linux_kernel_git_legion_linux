@@ -3487,14 +3487,14 @@ static int cdrom_print_info(const char *header, int val, char *info,
 	return 0;
 }
 
-static int cdrom_sysctl_info(struct ctl_table *ctl, int write,
-                           void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t sysctl_read_cdrom_info(struct ctl_context *ctx, struct file *file,
+				      char *buffer, size_t *lenp, loff_t *ppos)
 {
 	int pos;
 	char *info = cdrom_sysctl_settings.info;
 	const int max_size = sizeof(cdrom_sysctl_settings.info);
 	
-	if (!*lenp || (*ppos && !write)) {
+	if (!*lenp || *ppos) {
 		*lenp = 0;
 		return 0;
 	}
@@ -3564,11 +3564,15 @@ static int cdrom_sysctl_info(struct ctl_table *ctl, int write,
 		goto done;
 doit:
 	mutex_unlock(&cdrom_mutex);
-	return proc_dostring(ctl, write, buffer, lenp, ppos);
+	return sysctl_read_string(ctx, file, buffer, lenp, ppos);
 done:
 	pr_info("info buffer too small\n");
 	goto doit;
 }
+
+static struct ctl_fops sysctl_cdrom_info_fops = {
+	.read  = sysctl_read_cdrom_info,
+};
 
 /* Unfortunately, per device settings are not implemented through
    procfs/sysctl yet. When they are, this will naturally disappear. For now
@@ -3636,7 +3640,7 @@ static struct ctl_table cdrom_table[] = {
 		.data		= &cdrom_sysctl_settings.info, 
 		.maxlen		= CDROM_STR_SIZE,
 		.mode		= 0444,
-		.proc_handler	= cdrom_sysctl_info,
+		.ctl_fops	= &sysctl_cdrom_info_fops,
 	},
 	{
 		.procname	= "autoclose",
