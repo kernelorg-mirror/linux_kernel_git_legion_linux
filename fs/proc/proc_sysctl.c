@@ -1188,8 +1188,7 @@ static int sysctl_check_table(const char *path, struct ctl_table *table)
 		if (entry->child)
 			err |= sysctl_err(path, entry, "Not a file");
 
-		if ((entry->proc_handler == proc_dostring) ||
-		    (entry->ctl_fops == &sysctl_uintvec_fops) ||
+		if ((entry->ctl_fops == &sysctl_uintvec_fops) ||
 		    (entry->proc_handler == proc_dou8vec_minmax) ||
 		    (entry->ctl_fops == &sysctl_bool_fops) ||
 		    (entry->ctl_fops == &sysctl_intvec_jiffies_fops) ||

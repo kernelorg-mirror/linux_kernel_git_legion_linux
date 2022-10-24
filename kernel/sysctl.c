@@ -253,33 +253,6 @@ int sysctl_read_string_data(char *data, int maxlen, struct ctl_table *table,
 }
 
 /**
- * proc_dostring - read a string sysctl
- * @table: the sysctl table
- * @write: %TRUE if this is a write to the sysctl file
- * @buffer: the user buffer
- * @lenp: the size of the user buffer
- * @ppos: file position
- *
- * Reads/writes a string from/to the user buffer. If the kernel
- * buffer provided is not large enough to hold the string, the
- * string is truncated. The copied string is %NULL-terminated.
- * If the string is being read by the user process, it is copied
- * and a newline '\n' is added. It is truncated if the buffer is
- * not large enough.
- *
- * Returns 0 on success.
- */
-int proc_dostring(struct ctl_table *table, int write,
-		  void *buffer, size_t *lenp, loff_t *ppos)
-{
-	if (write)
-		return sysctl_write_string_data(table->data, table->maxlen, table,
-				buffer, lenp, ppos);
-	return sysctl_read_string_data(table->data, table->maxlen, table,
-			buffer, lenp, ppos);
-}
-
-/**
  * sysctl_write_string - read a string sysctl
  * @ctx: the operation context which contains sysctl table
  * @file: the opened sysctl file
@@ -1630,12 +1603,6 @@ ssize_t sysctl_write_large_bitmap(struct ctl_context *ctx, struct file *file,
 
 #else /* CONFIG_PROC_SYSCTL */
 
-int proc_dostring(struct ctl_table *table, int write,
-		  void *buffer, size_t *lenp, loff_t *ppos)
-{
-	return -ENOSYS;
-}
-
 ssize_t sysctl_read_string(struct ctl_context *ctx, struct file *file,
 		char *buffer, size_t *lenp, loff_t *ppos)
 {
@@ -2808,7 +2775,6 @@ EXPORT_SYMBOL(sysctl_write_uintvec_data);
 EXPORT_SYMBOL(sysctl_uintvec_fops);
 EXPORT_SYMBOL(sysctl_read_uintvec);
 EXPORT_SYMBOL(sysctl_write_uintvec);
-EXPORT_SYMBOL(proc_dostring);
 EXPORT_SYMBOL(sysctl_read_string_data);
 EXPORT_SYMBOL(sysctl_write_string_data);
 EXPORT_SYMBOL(sysctl_read_string);
