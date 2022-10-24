@@ -124,7 +124,7 @@ static struct ctl_table test_table[] = {
 		.data		= &test_data.string_0001,
 		.maxlen		= sizeof(test_data.string_0001),
 		.mode		= 0644,
-		.proc_handler	= proc_dostring,
+		.ctl_fops	= &sysctl_string_fops,
 	},
 	{
 		.procname	= "bitmap_0001",

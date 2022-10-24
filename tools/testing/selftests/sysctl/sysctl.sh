@@ -816,7 +816,7 @@ list_tests()
 	echo "NUM_TESTS: Number of recommended times to run the test"
 	echo
 	echo "0001 x $(get_test_count 0001) - tests sysctl_read_intvec/w()"
-	echo "0002 x $(get_test_count 0002) - tests proc_dostring()"
+	echo "0002 x $(get_test_count 0002) - tests sysctl_read_string/w()"
 	echo "0003 x $(get_test_count 0003) - tests proc_dointvec()"
 	echo "0004 x $(get_test_count 0004) - tests sysctl_read_uintvec/w()"
 	echo "0005 x $(get_test_count 0005) - tests sysctl_read_uintvec/w() array"

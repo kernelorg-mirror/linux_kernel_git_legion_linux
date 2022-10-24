@@ -120,7 +120,7 @@ expect_failure "special open(), seq_read() splice" test_splice /proc/$$/comm
 
 ### /proc/sys/ has a splice interface; these should all succeed.
 expect_success "proc_handler: sysctl_read_intvec/w() splice" test_splice /proc/sys/fs/nr_open
-expect_success "proc_handler: proc_dostring() splice" test_splice /proc/sys/kernel/modprobe
+expect_success "proc_handler: sysctl_read/write_string() splice" test_splice /proc/sys/kernel/modprobe
 expect_success "proc_handler: special read splice" test_splice /proc/sys/kernel/version
 
 ### /sys/ has no splice interface; these should all fail.
