@@ -180,44 +180,46 @@ __setup("printk.devkmsg=", control_devkmsg);
 
 char devkmsg_log_str[DEVKMSG_STR_MAX_SIZE] = "ratelimit";
 #if defined(CONFIG_PRINTK) && defined(CONFIG_SYSCTL)
-int devkmsg_sysctl_set_loglvl(struct ctl_table *table, int write,
-			      void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t sysctl_write_devkmsg_loglvl(struct ctl_context *ctx, struct file *file,
+					   char *buffer, size_t *lenp, loff_t *ppos)
 {
 	char old_str[DEVKMSG_STR_MAX_SIZE];
 	unsigned int old;
-	int err;
+	ssize_t err;
 
-	if (write) {
-		if (devkmsg_log & DEVKMSG_LOG_MASK_LOCK)
-			return -EINVAL;
+	if (devkmsg_log & DEVKMSG_LOG_MASK_LOCK)
+		return -EINVAL;
 
-		old = devkmsg_log;
-		strncpy(old_str, devkmsg_log_str, DEVKMSG_STR_MAX_SIZE);
-	}
+	old = devkmsg_log;
+	strncpy(old_str, devkmsg_log_str, DEVKMSG_STR_MAX_SIZE);
 
-	err = proc_dostring(table, write, buffer, lenp, ppos);
+	err = sysctl_write_string(ctx, file, buffer, lenp, ppos);
 	if (err)
 		return err;
 
-	if (write) {
-		err = __control_devkmsg(devkmsg_log_str);
+	err = __control_devkmsg(devkmsg_log_str);
 
-		/*
-		 * Do not accept an unknown string OR a known string with
-		 * trailing crap...
-		 */
-		if (err < 0 || (err + 1 != *lenp)) {
+	/*
+	 * Do not accept an unknown string OR a known string with
+	 * trailing crap...
+	 */
+	if (err < 0 || (err + 1 != *lenp)) {
 
-			/* ... and restore old setting. */
-			devkmsg_log = old;
-			strncpy(devkmsg_log_str, old_str, DEVKMSG_STR_MAX_SIZE);
+		/* ... and restore old setting. */
+		devkmsg_log = old;
+		strncpy(devkmsg_log_str, old_str, DEVKMSG_STR_MAX_SIZE);
 
-			return -EINVAL;
-		}
+		return -EINVAL;
 	}
 
 	return 0;
 }
+
+struct ctl_fops sysctl_devkmsg_loglvl_fops = {
+	.read  = sysctl_read_string,
+	.write = sysctl_write_devkmsg_loglvl,
+};
+
 #endif /* CONFIG_PRINTK && CONFIG_SYSCTL */
 
 /* Number of registered extended console drivers. */

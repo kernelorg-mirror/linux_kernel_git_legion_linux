@@ -6,8 +6,7 @@
 
 #if defined(CONFIG_PRINTK) && defined(CONFIG_SYSCTL)
 void __init printk_sysctl_init(void);
-int devkmsg_sysctl_set_loglvl(struct ctl_table *table, int write,
-			      void *buffer, size_t *lenp, loff_t *ppos);
+extern struct ctl_fops sysctl_devkmsg_loglvl_fops;
 #else
 #define printk_sysctl_init() do { } while (0)
 #endif

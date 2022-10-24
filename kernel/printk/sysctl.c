@@ -61,7 +61,7 @@ static struct ctl_table printk_sysctls[] = {
 		.data		= devkmsg_log_str,
 		.maxlen		= DEVKMSG_STR_MAX_SIZE,
 		.mode		= 0644,
-		.proc_handler	= devkmsg_sysctl_set_loglvl,
+		.ctl_fops	= &sysctl_devkmsg_loglvl_fops,
 	},
 	{
 		.procname	= "dmesg_restrict",
