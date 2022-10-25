@@ -1839,25 +1839,22 @@ struct ctl_fops sysctl_u8vec_fops = {
 };
 
 #if defined(CONFIG_SYSCTL)
-int proc_do_static_key(struct ctl_table *table, int write,
-		       void *buffer, size_t *lenp, loff_t *ppos)
-{
-	struct static_key *key = (struct static_key *)table->data;
-	static DEFINE_MUTEX(static_key_mutex);
-	int val, ret;
+static DEFINE_MUTEX(static_key_mutex);
 
-	if (write && !capable(CAP_SYS_ADMIN))
+static ssize_t sysctl_write_static_key(struct ctl_context *ctx, struct file *file,
+				       char *buffer, size_t *lenp, loff_t *ppos)
+{
+	struct static_key *key = (struct static_key *)ctx->ctl_table->data;
+	int val;
+	ssize_t ret;
+
+	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
 	mutex_lock(&static_key_mutex);
 	val = static_key_enabled(key);
 
-	if (!write) {
-		ret = sysctl_read_intvec_data(&val, table, buffer, lenp, ppos,
-				sysctl_conv_intvec, NULL, NULL);
-		goto ret;
-	}
-	ret = sysctl_write_intvec_data(&val, table, buffer, lenp, ppos,
+	ret = sysctl_write_intvec_data(&val, ctx->ctl_table, buffer, lenp, ppos,
 			sysctl_conv_intvec, SYSCTL_ZERO, SYSCTL_ONE);
 	if (!ret) {
 		if (val)
@@ -1865,10 +1862,32 @@ int proc_do_static_key(struct ctl_table *table, int write,
 		else
 			static_key_disable(key);
 	}
-ret:
+
 	mutex_unlock(&static_key_mutex);
 	return ret;
 }
+
+static ssize_t sysctl_read_static_key(struct ctl_context *ctx, struct file *file,
+				      char *buffer, size_t *lenp, loff_t *ppos)
+{
+	struct static_key *key = (struct static_key *)ctx->ctl_table->data;
+	int val;
+	ssize_t ret;
+
+	mutex_lock(&static_key_mutex);
+	val = static_key_enabled(key);
+
+	ret = sysctl_read_intvec_data(&val, ctx->ctl_table, buffer, lenp, ppos,
+			sysctl_conv_intvec, NULL, NULL);
+
+	mutex_unlock(&static_key_mutex);
+	return ret;
+}
+
+struct ctl_fops sysctl_static_key_fops = {
+	.read  = sysctl_read_static_key,
+	.write = sysctl_write_static_key,
+};
 
 static struct ctl_table kern_table[] = {
 #ifdef CONFIG_NUMA_BALANCING

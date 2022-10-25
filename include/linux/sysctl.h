@@ -65,9 +65,6 @@ extern const unsigned long sysctl_long_vals[];
 typedef int proc_handler(struct ctl_table *ctl, int write, void *buffer,
 		size_t *lenp, loff_t *ppos);
 
-int proc_do_static_key(struct ctl_table *table, int write, void *buffer,
-		size_t *lenp, loff_t *ppos);
-
 ssize_t sysctl_read_large_bitmap(struct ctl_context *ctx, struct file *file,
 			    char *buffer, size_t *lenp, loff_t *ppos);
 ssize_t sysctl_write_large_bitmap(struct ctl_context *ctx, struct file *file,
@@ -143,6 +140,7 @@ ssize_t sysctl_write_ulongvec_ms_jiffies(struct ctl_context *, struct file *, ch
 ssize_t sysctl_read_u8vec(struct ctl_context *, struct file *, char *, size_t *, loff_t *);
 ssize_t sysctl_write_u8vec(struct ctl_context *, struct file *, char *, size_t *, loff_t *);
 
+extern struct ctl_fops sysctl_static_key_fops;
 extern struct ctl_fops sysctl_string_fops;
 extern struct ctl_fops sysctl_bool_fops;
 extern struct ctl_fops sysctl_intvec_fops;
