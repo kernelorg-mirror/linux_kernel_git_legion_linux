@@ -30,20 +30,25 @@ static u32 rt6_multipath_hash_fields_all_mask =
 static u32 ioam6_id_max = IOAM6_DEFAULT_ID;
 static u64 ioam6_id_wide_max = IOAM6_DEFAULT_ID_WIDE;
 
-static int proc_rt6_multipath_hash_policy(struct ctl_table *table, int write,
-					  void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t sysctl_write_fib_multipath_hash_policy(struct ctl_context *ctx,
+		struct file *file, char *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct net *net;
-	int ret;
+	ssize_t ret;
 
-	net = container_of(table->data, struct net,
+	net = container_of(ctx->ctl_table->data, struct net,
 			   ipv6.sysctl.multipath_hash_policy);
-	ret = proc_dou8vec_minmax(table, write, buffer, lenp, ppos);
-	if (write && ret == 0)
+	ret = sysctl_write_u8vec(ctx, file, buffer, lenp, ppos);
+	if (ret == 0)
 		call_netevent_notifiers(NETEVENT_IPV6_MPATH_HASH_UPDATE, net);
 
 	return ret;
 }
+
+static struct ctl_fops sysctl_fib_multipath_hash_policy_fops = {
+	.read  = sysctl_read_u8vec,
+	.write = sysctl_write_fib_multipath_hash_policy,
+};
 
 static ssize_t proc_rt6_multipath_hash_fields_write(struct ctl_context *ctx, struct file *file,
 		char *buffer, size_t *lenp, loff_t *ppos)
@@ -73,28 +78,28 @@ static struct ctl_table ipv6_table_template[] = {
 		.data		= &init_net.ipv6.sysctl.bindv6only,
 		.maxlen		= sizeof(u8),
 		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.ctl_fops	= &sysctl_u8vec_fops,
 	},
 	{
 		.procname	= "anycast_src_echo_reply",
 		.data		= &init_net.ipv6.sysctl.anycast_src_echo_reply,
 		.maxlen		= sizeof(u8),
 		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.ctl_fops	= &sysctl_u8vec_fops,
 	},
 	{
 		.procname	= "flowlabel_consistency",
 		.data		= &init_net.ipv6.sysctl.flowlabel_consistency,
 		.maxlen		= sizeof(u8),
 		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.ctl_fops	= &sysctl_u8vec_fops,
 	},
 	{
 		.procname	= "auto_flowlabels",
 		.data		= &init_net.ipv6.sysctl.auto_flowlabels,
 		.maxlen		= sizeof(u8),
 		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.ctl_fops	= &sysctl_u8vec_fops,
 		.extra2		= &auto_flowlabels_max
 	},
 	{
@@ -102,7 +107,7 @@ static struct ctl_table ipv6_table_template[] = {
 		.data		= &init_net.ipv6.sysctl.fwmark_reflect,
 		.maxlen		= sizeof(u8),
 		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.ctl_fops	= &sysctl_u8vec_fops,
 	},
 	{
 		.procname	= "idgen_retries",
@@ -123,14 +128,14 @@ static struct ctl_table ipv6_table_template[] = {
 		.data		= &init_net.ipv6.sysctl.flowlabel_state_ranges,
 		.maxlen		= sizeof(u8),
 		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.ctl_fops	= &sysctl_u8vec_fops,
 	},
 	{
 		.procname	= "ip_nonlocal_bind",
 		.data		= &init_net.ipv6.sysctl.ip_nonlocal_bind,
 		.maxlen		= sizeof(u8),
 		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.ctl_fops	= &sysctl_u8vec_fops,
 	},
 	{
 		.procname	= "flowlabel_reflect",
@@ -174,7 +179,7 @@ static struct ctl_table ipv6_table_template[] = {
 		.data		= &init_net.ipv6.sysctl.multipath_hash_policy,
 		.maxlen		= sizeof(u8),
 		.mode		= 0644,
-		.proc_handler   = proc_rt6_multipath_hash_policy,
+		.ctl_fops	= &sysctl_fib_multipath_hash_policy_fops,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_THREE,
 	},
@@ -199,7 +204,7 @@ static struct ctl_table ipv6_table_template[] = {
 		.data		= &init_net.ipv6.sysctl.fib_notify_on_flag_change,
 		.maxlen		= sizeof(u8),
 		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.ctl_fops	= &sysctl_u8vec_fops,
 		.extra1         = SYSCTL_ZERO,
 		.extra2         = SYSCTL_TWO,
 	},

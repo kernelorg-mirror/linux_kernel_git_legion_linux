@@ -706,7 +706,7 @@ static struct ctl_table netns_core_table[] = {
 		.mode		= 0644,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_ONE,
-		.proc_handler	= proc_dou8vec_minmax,
+		.ctl_fops	= &sysctl_u8vec_fops,
 	},
 	{ }
 };

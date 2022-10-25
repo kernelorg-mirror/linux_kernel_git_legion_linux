@@ -88,7 +88,7 @@ static struct ctl_table mptcp_sysctl_table[] = {
 		/* users with CAP_NET_ADMIN or root (not and) can change this
 		 * value, same as other sysctl or the 'net' tree.
 		 */
-		.proc_handler = proc_dou8vec_minmax,
+		.ctl_fops     = &sysctl_u8vec_fops,
 		.extra1       = SYSCTL_ZERO,
 		.extra2       = SYSCTL_ONE
 	},
@@ -102,7 +102,7 @@ static struct ctl_table mptcp_sysctl_table[] = {
 		.procname = "checksum_enabled",
 		.maxlen = sizeof(u8),
 		.mode = 0644,
-		.proc_handler = proc_dou8vec_minmax,
+		.ctl_fops     = &sysctl_u8vec_fops,
 		.extra1       = SYSCTL_ZERO,
 		.extra2       = SYSCTL_ONE
 	},
@@ -110,7 +110,7 @@ static struct ctl_table mptcp_sysctl_table[] = {
 		.procname = "allow_join_initial_addr_port",
 		.maxlen = sizeof(u8),
 		.mode = 0644,
-		.proc_handler = proc_dou8vec_minmax,
+		.ctl_fops     = &sysctl_u8vec_fops,
 		.extra1       = SYSCTL_ZERO,
 		.extra2       = SYSCTL_ONE
 	},
@@ -124,7 +124,7 @@ static struct ctl_table mptcp_sysctl_table[] = {
 		.procname = "pm_type",
 		.maxlen = sizeof(u8),
 		.mode = 0644,
-		.proc_handler = proc_dou8vec_minmax,
+		.ctl_fops     = &sysctl_u8vec_fops,
 		.extra1       = SYSCTL_ZERO,
 		.extra2       = &mptcp_pm_type_max
 	},
