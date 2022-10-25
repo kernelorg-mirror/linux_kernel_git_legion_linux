@@ -975,6 +975,37 @@ int proc_dou8vec_minmax(struct ctl_table *table, int write,
 }
 EXPORT_SYMBOL_GPL(proc_dou8vec_minmax);
 
+ssize_t sysctl_write_u8vec(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	unsigned int min = 0, max = 255U;
+
+	/* Do not support arrays yet. */
+	if (ctx->ctl_table->maxlen != sizeof(u8))
+		return -EINVAL;
+
+	if (ctx->ctl_table->extra1) {
+		min = *(unsigned int *) ctx->ctl_table->extra1;
+		if (min > 255U)
+			return -EINVAL;
+	}
+	if (ctx->ctl_table->extra2) {
+		max = *(unsigned int *) ctx->ctl_table->extra2;
+		if (max > 255U)
+			return -EINVAL;
+	}
+
+	return sysctl_write_uintvec_data(ctx->ctl_table->data, ctx->ctl_table,
+					 buffer, lenp, ppos,
+					 sysctl_conv_uintvec, &min, &max);
+}
+
+ssize_t sysctl_read_u8vec(struct ctl_context *ctx, struct file *file,
+		char *buffer, size_t *lenp, loff_t *ppos)
+{
+	return sysctl_read_uintvec(ctx, file,  buffer, lenp, ppos);
+}
+
 #ifdef CONFIG_MAGIC_SYSRQ
 static int sysrq_sysctl_handler(struct ctl_table *table, int write,
 				void *buffer, size_t *lenp, loff_t *ppos)
@@ -1854,6 +1885,11 @@ struct ctl_fops sysctl_ulongvec_ms_jiffies_fops = {
 struct ctl_fops sysctl_large_bitmap_fops = {
 	.read = sysctl_read_large_bitmap,
 	.write = sysctl_write_large_bitmap,
+};
+
+struct ctl_fops sysctl_u8vec_fops = {
+	.read = sysctl_read_u8vec,
+	.write = sysctl_write_u8vec,
 };
 
 #if defined(CONFIG_SYSCTL)
@@ -2786,3 +2822,5 @@ EXPORT_SYMBOL(sysctl_ulongvec_ms_jiffies_fops);
 EXPORT_SYMBOL(sysctl_large_bitmap_fops);
 EXPORT_SYMBOL(sysctl_read_large_bitmap);
 EXPORT_SYMBOL(sysctl_write_large_bitmap);
+EXPORT_SYMBOL(sysctl_read_u8vec);
+EXPORT_SYMBOL(sysctl_write_u8vec);
