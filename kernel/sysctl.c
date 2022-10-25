@@ -949,28 +949,38 @@ ssize_t sysctl_read_u8vec(struct ctl_context *ctx, struct file *file,
 }
 
 #ifdef CONFIG_MAGIC_SYSRQ
-static int sysrq_sysctl_handler(struct ctl_table *table, int write,
-				void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t sysctl_write_sysrq(struct ctl_context *ctx, struct file *file,
+				  char *buffer, size_t *lenp, loff_t *ppos)
 {
-	int tmp, ret;
+	int tmp;
+	ssize_t ret;
 
 	tmp = sysrq_mask();
 
-	if (write)
-		ret = sysctl_write_intvec_data(&tmp, table, buffer, lenp, ppos,
+	ret = sysctl_write_intvec_data(&tmp, ctx->ctl_table, buffer, lenp, ppos,
 				sysctl_conv_intvec, NULL, NULL);
-	else
-		ret = sysctl_read_intvec_data(&tmp, table, buffer, lenp, ppos,
-				sysctl_conv_intvec, NULL, NULL);
-
-	if (ret || !write)
+	if (ret)
 		return ret;
 
-	if (write)
-		sysrq_toggle_support(tmp);
+	sysrq_toggle_support(tmp);
 
 	return 0;
 }
+
+static ssize_t sysctl_read_sysrq(struct ctl_context *ctx, struct file *file,
+				 char *buffer, size_t *lenp, loff_t *ppos)
+{
+	int tmp = sysrq_mask();
+
+	return sysctl_write_intvec_data(&tmp, ctx->ctl_table, buffer, lenp, ppos,
+				sysctl_conv_intvec, NULL, NULL);
+}
+
+static struct ctl_fops sysctl_sysrq_fops = {
+	.read  = sysctl_read_sysrq,
+	.write = sysctl_write_sysrq,
+};
+
 #endif
 
 int sysctl_write_ulongvec_data(void *data, struct ctl_table *table,
@@ -2019,7 +2029,7 @@ static struct ctl_table kern_table[] = {
 		.data		= NULL,
 		.maxlen		= sizeof (int),
 		.mode		= 0644,
-		.proc_handler	= sysrq_sysctl_handler,
+		.ctl_fops	= &sysctl_sysrq_fops,
 	},
 #endif
 #ifdef CONFIG_PROC_SYSCTL
