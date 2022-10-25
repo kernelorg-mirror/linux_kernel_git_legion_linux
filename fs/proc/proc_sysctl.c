@@ -1172,7 +1172,7 @@ static int sysctl_check_table_array(const char *path, struct ctl_table *table)
 			err |= sysctl_err(path, table, "array not allowed");
 	}
 
-	if (table->proc_handler == proc_dou8vec_minmax || table->ctl_fops == &sysctl_u8vec_fops) {
+	if (table->ctl_fops == &sysctl_u8vec_fops) {
 		if (table->maxlen != sizeof(u8))
 			err |= sysctl_err(path, table, "array not allowed");
 	}
@@ -1189,7 +1189,6 @@ static int sysctl_check_table(const char *path, struct ctl_table *table)
 			err |= sysctl_err(path, entry, "Not a file");
 
 		if ((entry->ctl_fops == &sysctl_uintvec_fops) ||
-		    (entry->proc_handler == proc_dou8vec_minmax) ||
 		    (entry->ctl_fops == &sysctl_bool_fops) ||
 		    (entry->ctl_fops == &sysctl_intvec_jiffies_fops) ||
 		    (entry->ctl_fops == &sysctl_intvec_userhz_jiffies_fops) ||

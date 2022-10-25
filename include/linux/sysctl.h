@@ -65,8 +65,6 @@ extern const unsigned long sysctl_long_vals[];
 typedef int proc_handler(struct ctl_table *ctl, int write, void *buffer,
 		size_t *lenp, loff_t *ppos);
 
-int proc_dou8vec_minmax(struct ctl_table *table, int write, void *buffer,
-			size_t *lenp, loff_t *ppos);
 int proc_do_static_key(struct ctl_table *table, int write, void *buffer,
 		size_t *lenp, loff_t *ppos);
 
