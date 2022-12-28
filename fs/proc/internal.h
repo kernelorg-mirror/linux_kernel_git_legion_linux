@@ -84,6 +84,16 @@ static inline void pde_make_permanent(struct proc_dir_entry *pde)
 	pde->flags |= PROC_ENTRY_PERMANENT;
 }
 
+static inline bool pde_is_allowlist(const struct proc_dir_entry *pde)
+{
+	return pde->flags & PROC_ENTRY_ALLOWLIST;
+}
+
+static inline void pde_make_allowlist(struct proc_dir_entry *pde)
+{
+	pde->flags |= PROC_ENTRY_ALLOWLIST;
+}
+
 extern struct kmem_cache *proc_dir_entry_cache;
 void pde_free(struct proc_dir_entry *pde);
 
@@ -187,6 +197,7 @@ struct proc_dir_entry *proc_create_reg(const char *name, umode_t mode,
 		struct proc_dir_entry **parent, void *data);
 struct proc_dir_entry *proc_register(struct proc_dir_entry *dir,
 		struct proc_dir_entry *dp);
+extern int proc_match(const char *, struct proc_dir_entry *, unsigned int);
 extern struct dentry *proc_lookup(struct inode *, struct dentry *, unsigned int);
 struct dentry *proc_lookup_de(struct inode *, struct dentry *, struct proc_dir_entry *);
 extern int proc_readdir(struct file *, struct dir_context *);
@@ -318,3 +329,21 @@ static inline void pde_force_lookup(struct proc_dir_entry *pde)
 	/* /proc/net/ entries can be changed under us by setns(CLONE_NEWNET) */
 	pde->proc_dops = &proc_net_dentry_ops;
 }
+
+/*
+ * proc_allowlist.c
+ */
+#ifdef CONFIG_PROC_ALLOW_LIST
+extern bool proc_has_allowlist(struct proc_fs_info *);
+extern bool proc_pde_access_allowed(struct proc_fs_info *, struct proc_dir_entry *);
+#else
+static inline bool proc_has_allowlist(struct proc_fs_info *fs_info)
+{
+	return false;
+}
+
+static inline bool proc_pde_access_allowed(struct proc_fs_info *fs_info, struct proc_dir_entry *pde)
+{
+	return true;
+}
+#endif

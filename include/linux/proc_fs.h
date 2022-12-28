@@ -24,6 +24,7 @@ enum {
 #else
 	PROC_ENTRY_PERMANENT = 1U << 0,
 #endif
+	PROC_ENTRY_ALLOWLIST = 1U << 1,
 };
 
 struct proc_ops {
@@ -58,6 +59,11 @@ enum proc_pidonly {
 	PROC_PIDONLY_ON  = 1,
 };
 
+enum proc_allowlist {
+	PROC_ALLOWLIST_OFF = 0,
+	PROC_ALLOWLIST_ON  = 1,
+};
+
 struct proc_fs_info {
 	struct pid_namespace *pid_ns;
 	struct dentry *proc_self;        /* For /proc/self */
@@ -65,6 +71,8 @@ struct proc_fs_info {
 	kgid_t pid_gid;
 	enum proc_hidepid hide_pid;
 	enum proc_pidonly pidonly;
+	char *allowlist;
+	rwlock_t allowlist_lock;
 };
 
 static inline struct proc_fs_info *proc_sb_info(struct super_block *sb)

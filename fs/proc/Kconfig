@@ -108,3 +108,13 @@ config PROC_PID_ARCH_STATUS
 config PROC_CPU_RESCTRL
 	def_bool n
 	depends on PROC_FS
+
+config PROC_ALLOW_LIST
+	bool "/proc/allowlist support"
+	depends on PROC_FS
+	default n
+	help
+	  Provides a way to restrict access to certain files in procfs. Mounting
+	  procfs with subset=allowlist will add the file /proc/allowlist which
+	  contains a list of files and directories that should be accessed. To
+	  prevent the list from being changed, the file itself must be excluded.

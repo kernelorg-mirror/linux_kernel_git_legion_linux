@@ -32,6 +32,7 @@ struct proc_fs_context {
 	enum proc_hidepid	hidepid;
 	int			gid;
 	enum proc_pidonly	pidonly;
+	enum proc_allowlist	allowlist;
 };
 
 enum proc_param {
@@ -99,6 +100,9 @@ static int proc_parse_subset_param(struct fs_context *fc, char *value)
 		if (*value != '\0') {
 			if (!strcmp(value, "pid")) {
 				ctx->pidonly = PROC_PIDONLY_ON;
+			} else if (IS_ENABLED(CONFIG_PROC_ALLOW_LIST) &&
+				   !strcmp(value, "allowlist")) {
+				ctx->allowlist = PROC_ALLOWLIST_ON;
 			} else {
 				return invalf(fc, "proc: unsupported subset option - %s\n", value);
 			}
@@ -142,6 +146,18 @@ static int proc_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	return 0;
 }
 
+static char *proc_init_allowlist(void)
+{
+	char *content = kstrdup("allowlist\n", GFP_KERNEL_ACCOUNT);
+
+	if (!content) {
+		pr_err("proc_init_allowlist: allocation allowlist failed\n");
+		return NULL;
+	}
+
+	return content;
+}
+
 static void proc_apply_options(struct proc_fs_info *fs_info,
 			       struct fs_context *fc,
 			       struct user_namespace *user_ns)
@@ -152,8 +168,14 @@ static void proc_apply_options(struct proc_fs_info *fs_info,
 		fs_info->pid_gid = make_kgid(user_ns, ctx->gid);
 	if (ctx->mask & (1 << Opt_hidepid))
 		fs_info->hide_pid = ctx->hidepid;
-	if (ctx->mask & (1 << Opt_subset))
+	if (ctx->mask & (1 << Opt_subset)) {
 		fs_info->pidonly = ctx->pidonly;
+		if (ctx->allowlist == PROC_ALLOWLIST_ON) {
+			fs_info->allowlist = proc_init_allowlist();
+		} else {
+			fs_info->allowlist = NULL;
+		}
+	}
 }
 
 static int proc_fill_super(struct super_block *s, struct fs_context *fc)
@@ -166,6 +188,8 @@ static int proc_fill_super(struct super_block *s, struct fs_context *fc)
 	fs_info = kzalloc(sizeof(*fs_info), GFP_KERNEL);
 	if (!fs_info)
 		return -ENOMEM;
+
+	rwlock_init(&fs_info->allowlist_lock);
 
 	fs_info->pid_ns = get_pid_ns(ctx->pid_ns);
 	proc_apply_options(fs_info, fc, current_user_ns());
@@ -271,6 +295,7 @@ static void proc_kill_sb(struct super_block *sb)
 
 	kill_anon_super(sb);
 	put_pid_ns(fs_info->pid_ns);
+	kfree(fs_info->allowlist);
 	kfree(fs_info);
 }
 

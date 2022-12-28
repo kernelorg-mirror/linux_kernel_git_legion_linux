@@ -43,7 +43,7 @@ void pde_free(struct proc_dir_entry *pde)
 	kmem_cache_free(proc_dir_entry_cache, pde);
 }
 
-static int proc_match(const char *name, struct proc_dir_entry *de, unsigned int len)
+int proc_match(const char *name, struct proc_dir_entry *de, unsigned int len)
 {
 	if (len < de->namelen)
 		return -1;
@@ -251,6 +251,9 @@ struct dentry *proc_lookup_de(struct inode *dir, struct dentry *dentry,
 	if (de) {
 		pde_get(de);
 		read_unlock(&proc_subdir_lock);
+		if (!proc_pde_access_allowed(proc_sb_info(dir->i_sb), de)) {
+			return ERR_PTR(-ENOENT);
+		}
 		inode = proc_get_inode(dir->i_sb, de);
 		if (!inode)
 			return ERR_PTR(-ENOMEM);
@@ -266,7 +269,7 @@ struct dentry *proc_lookup(struct inode *dir, struct dentry *dentry,
 {
 	struct proc_fs_info *fs_info = proc_sb_info(dir->i_sb);
 
-	if (fs_info->pidonly == PROC_PIDONLY_ON)
+	if (fs_info->pidonly == PROC_PIDONLY_ON && !proc_has_allowlist(fs_info))
 		return ERR_PTR(-ENOENT);
 
 	return proc_lookup_de(dir, dentry, PDE(dir));
@@ -284,6 +287,9 @@ struct dentry *proc_lookup(struct inode *dir, struct dentry *dentry,
 int proc_readdir_de(struct file *file, struct dir_context *ctx,
 		    struct proc_dir_entry *de)
 {
+	struct inode *inode = file_inode(file);
+	struct proc_fs_info *fs_info = proc_sb_info(inode->i_sb);
+
 	int i;
 
 	if (!dir_emit_dots(file, ctx))
@@ -307,7 +313,8 @@ int proc_readdir_de(struct file *file, struct dir_context *ctx,
 		struct proc_dir_entry *next;
 		pde_get(de);
 		read_unlock(&proc_subdir_lock);
-		if (!dir_emit(ctx, de->name, de->namelen,
+		if (proc_pde_access_allowed(fs_info, de) &&
+		    !dir_emit(ctx, de->name, de->namelen,
 			    de->low_ino, de->mode >> 12)) {
 			pde_put(de);
 			return 0;
@@ -327,7 +334,7 @@ int proc_readdir(struct file *file, struct dir_context *ctx)
 	struct inode *inode = file_inode(file);
 	struct proc_fs_info *fs_info = proc_sb_info(inode->i_sb);
 
-	if (fs_info->pidonly == PROC_PIDONLY_ON)
+	if (fs_info->pidonly == PROC_PIDONLY_ON && !proc_has_allowlist(fs_info))
 		return 1;
 
 	return proc_readdir_de(file, ctx, PDE(inode));
