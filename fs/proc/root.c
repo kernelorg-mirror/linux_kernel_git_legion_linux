@@ -91,7 +91,7 @@ static int proc_parse_subset_param(struct fs_context *fc, char *value)
 	struct proc_fs_context *ctx = fc->fs_private;
 
 	while (value) {
-		char *ptr = strchr(value, ',');
+		char *ptr = strchr(value, '+');
 
 		if (ptr != NULL)
 			*ptr++ = '\0';
