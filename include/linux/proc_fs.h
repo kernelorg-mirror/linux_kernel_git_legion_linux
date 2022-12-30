@@ -53,15 +53,10 @@ enum proc_hidepid {
 	HIDEPID_NOT_PTRACEABLE = 4, /* Limit pids to only ptraceable pids */
 };
 
-/* definitions for proc mount option pidonly */
-enum proc_pidonly {
-	PROC_PIDONLY_OFF = 0,
-	PROC_PIDONLY_ON  = 1,
-};
-
-enum proc_allowlist {
-	PROC_ALLOWLIST_OFF = 0,
-	PROC_ALLOWLIST_ON  = 1,
+enum proc_subset {
+	PROC_SUBSET_SET		= (1 << 0),
+	PROC_SUBSET_PIDONLY	= (1 << 1),
+	PROC_SUBSET_ALLOWLIST	= (1 << 2),
 };
 
 struct proc_fs_info {
@@ -70,7 +65,7 @@ struct proc_fs_info {
 	struct dentry *proc_thread_self; /* For /proc/thread-self */
 	kgid_t pid_gid;
 	enum proc_hidepid hide_pid;
-	enum proc_pidonly pidonly;
+	unsigned int subset;
 	char *allowlist;
 	rwlock_t allowlist_lock;
 };

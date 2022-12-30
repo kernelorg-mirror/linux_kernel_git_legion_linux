@@ -16,38 +16,24 @@
 #define FILE_SEQFILE(f) ((struct seq_file *)((f)->private_data))
 #define FILE_DATA(f) (FILE_SEQFILE(f)->private)
 
-bool proc_has_allowlist(struct proc_fs_info *fs_info)
-{
-	bool ret;
-	unsigned long flags;
-
-	read_lock_irqsave(&fs_info->allowlist_lock, flags);
-	ret = (fs_info->allowlist == NULL);
-	read_unlock_irqrestore(&fs_info->allowlist_lock, flags);
-
-	return ret;
-}
-
 bool proc_pde_access_allowed(struct proc_fs_info *fs_info, struct proc_dir_entry *de)
 {
 	bool ret = false;
 	char *ptr;
 	unsigned long flags;
 
-	read_lock_irqsave(&fs_info->allowlist_lock, flags);
-
-	if (!fs_info->allowlist) {
-		read_unlock_irqrestore(&fs_info->allowlist_lock, flags);
-
+	if (!(fs_info->subset & PROC_SUBSET_ALLOWLIST)) {
 		if (!pde_is_allowlist(de))
 			ret = true;
 
 		return ret;
 	}
 
+	read_lock_irqsave(&fs_info->allowlist_lock, flags);
+
 	ptr = fs_info->allowlist;
 
-	while (*ptr != '\0') {
+	while (ptr && *ptr != '\0') {
 		struct proc_dir_entry *pde;
 		char *sep, *end;
 		size_t len, pathlen;

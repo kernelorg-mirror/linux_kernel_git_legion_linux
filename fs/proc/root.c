@@ -31,8 +31,7 @@ struct proc_fs_context {
 	unsigned int		mask;
 	enum proc_hidepid	hidepid;
 	int			gid;
-	enum proc_pidonly	pidonly;
-	enum proc_allowlist	allowlist;
+	unsigned int		subset;
 };
 
 enum proc_param {
@@ -91,6 +90,8 @@ static int proc_parse_subset_param(struct fs_context *fc, char *value)
 {
 	struct proc_fs_context *ctx = fc->fs_private;
 
+	ctx->subset |= PROC_SUBSET_SET;
+
 	while (value) {
 		char *ptr = strchr(value, '+');
 
@@ -99,10 +100,10 @@ static int proc_parse_subset_param(struct fs_context *fc, char *value)
 
 		if (*value != '\0') {
 			if (!strcmp(value, "pid")) {
-				ctx->pidonly = PROC_PIDONLY_ON;
+				ctx->subset |= PROC_SUBSET_PIDONLY;
 			} else if (IS_ENABLED(CONFIG_PROC_ALLOW_LIST) &&
 				   !strcmp(value, "allowlist")) {
-				ctx->allowlist = PROC_ALLOWLIST_ON;
+				ctx->subset |= PROC_SUBSET_ALLOWLIST;
 			} else {
 				return invalf(fc, "proc: unsupported subset option - %s\n", value);
 			}
@@ -169,8 +170,8 @@ static void proc_apply_options(struct proc_fs_info *fs_info,
 	if (ctx->mask & (1 << Opt_hidepid))
 		fs_info->hide_pid = ctx->hidepid;
 	if (ctx->mask & (1 << Opt_subset)) {
-		fs_info->pidonly = ctx->pidonly;
-		if (ctx->allowlist == PROC_ALLOWLIST_ON) {
+		fs_info->subset = ctx->subset;
+		if (ctx->subset & PROC_SUBSET_ALLOWLIST) {
 			fs_info->allowlist = proc_init_allowlist();
 		} else {
 			fs_info->allowlist = NULL;
@@ -346,20 +347,30 @@ static int proc_root_getattr(struct user_namespace *mnt_userns,
 
 static struct dentry *proc_root_lookup(struct inode * dir, struct dentry * dentry, unsigned int flags)
 {
-	if (!proc_pid_lookup(dentry, flags))
-		return NULL;
+	struct proc_fs_info *fs_info = proc_sb_info(dir->i_sb);
+
+	if (!(fs_info->subset & PROC_SUBSET_SET) || (fs_info->subset & PROC_SUBSET_PIDONLY)) {
+		if (!proc_pid_lookup(dentry, flags))
+			return NULL;
+	}
 
 	return proc_lookup(dir, dentry, flags);
 }
 
 static int proc_root_readdir(struct file *file, struct dir_context *ctx)
 {
+	struct inode *inode = file_inode(file);
+	struct proc_fs_info *fs_info = proc_sb_info(inode->i_sb);
+
 	if (ctx->pos < FIRST_PROCESS_ENTRY) {
 		int error = proc_readdir(file, ctx);
 		if (unlikely(error <= 0))
 			return error;
 		ctx->pos = FIRST_PROCESS_ENTRY;
 	}
+
+	if ((fs_info->subset & PROC_SUBSET_SET) && !(fs_info->subset & PROC_SUBSET_PIDONLY))
+		return 1;
 
 	return proc_pid_readdir(file, ctx);
 }
