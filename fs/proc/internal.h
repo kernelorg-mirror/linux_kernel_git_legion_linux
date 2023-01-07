@@ -334,8 +334,18 @@ static inline void pde_force_lookup(struct proc_dir_entry *pde)
  * proc_allowlist.c
  */
 #ifdef CONFIG_PROC_ALLOW_LIST
+extern int proc_allowlist_append(struct list_head *, const char *, size_t);
+extern void proc_allowlist_free(struct list_head *);
 extern bool proc_pde_access_allowed(struct proc_fs_info *, struct proc_dir_entry *);
 #else
+static inline int proc_allowlist_append(struct list_head *, const char *, size_t)
+{
+	return 0;
+}
+static inline void proc_allowlist_free(struct list_head *)
+{
+	return;
+}
 static inline bool proc_pde_access_allowed(struct proc_fs_info *fs_info, struct proc_dir_entry *pde)
 {
 	return true;

@@ -11,16 +11,56 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/rwlock.h>
+#include <linux/list_sort.h>
 #include "internal.h"
 
 #define FILE_SEQFILE(f) ((struct seq_file *)((f)->private_data))
 #define FILE_DATA(f) (FILE_SEQFILE(f)->private)
 
+int proc_allowlist_append(struct list_head *allowlist, const char *path, size_t len)
+{
+	struct allowlist_entry *new;
+
+	if (!len)
+		return 0;
+
+	new = kmalloc(sizeof(*new), GFP_KERNEL_ACCOUNT);
+	if (!new)
+		goto nomem;
+
+	new->path = kstrndup(path, len, GFP_KERNEL_ACCOUNT);
+	if (!new->path)
+		goto nomem;
+
+	INIT_LIST_HEAD(&new->list);
+	list_add_tail(&new->list, allowlist);
+
+	return 0;
+nomem:
+	if (new) {
+		kfree(new->path);
+		kfree(new);
+	}
+	return -ENOMEM;
+}
+
+void proc_allowlist_free(struct list_head *allowlist)
+{
+	struct list_head *el, *next;
+	struct allowlist_entry *entry;
+
+	list_for_each_safe(el, next, allowlist) {
+		entry = list_entry(el, struct allowlist_entry, list);
+		kfree(entry->path);
+		kfree(entry);
+	}
+}
+
 bool proc_pde_access_allowed(struct proc_fs_info *fs_info, struct proc_dir_entry *de)
 {
 	bool ret = false;
-	char *ptr;
 	unsigned long flags;
+	struct list_head *el, *next;
 
 	if (!(fs_info->subset & PROC_SUBSET_ALLOWLIST)) {
 		if (!pde_is_allowlist(de))
@@ -31,24 +71,13 @@ bool proc_pde_access_allowed(struct proc_fs_info *fs_info, struct proc_dir_entry
 
 	read_lock_irqsave(&fs_info->allowlist_lock, flags);
 
-	ptr = fs_info->allowlist;
+	list_for_each_safe(el, next, &fs_info->allowlist) {
+		struct allowlist_entry *entry = list_entry(el, struct allowlist_entry, list);
 
-	while (ptr && *ptr != '\0') {
-		struct proc_dir_entry *pde;
-		char *sep, *end;
-		size_t len, pathlen;
-
-		if (!(sep = strchr(ptr, '\n')))
-			pathlen = strlen(ptr);
-		else
-			pathlen = (sep - ptr);
-
-		if (!pathlen)
-			goto next;
-
-		pde = de;
-		end = NULL;
-		len = pathlen;
+		struct proc_dir_entry *pde = de;
+		char  *end = NULL;
+		char  *ptr = entry->path;
+		size_t len = strlen(entry->path);
 
 		while (ptr != end && len > 0) {
 			end = ptr + len - 1;
@@ -72,8 +101,7 @@ bool proc_pde_access_allowed(struct proc_fs_info *fs_info, struct proc_dir_entry
 
 		ret = true;
 		break;
-next:
-		ptr += pathlen + 1;
+next:		;
 	}
 
 	read_unlock_irqrestore(&fs_info->allowlist_lock, flags);
@@ -84,12 +112,18 @@ next:
 static int show_allowlist(struct seq_file *m, void *v)
 {
 	struct proc_fs_info *fs_info = proc_sb_info(m->file->f_inode->i_sb);
-	char *p = fs_info->allowlist;
 	unsigned long flags;
+	struct list_head *el, *next;
+	struct allowlist_entry *entry;
 
 	read_lock_irqsave(&fs_info->allowlist_lock, flags);
-	if (p)
-		seq_puts(m, p);
+
+	list_for_each_safe(el, next, &fs_info->allowlist) {
+		entry = list_entry(el, struct allowlist_entry, list);
+		seq_puts(m, entry->path);
+		seq_puts(m, "\n");
+	}
+
 	read_unlock_irqrestore(&fs_info->allowlist_lock, flags);
 
 	return 0;
@@ -155,34 +189,93 @@ static ssize_t write_allowlist(struct file *file, const char __user *buffer, siz
 	return count;
 }
 
+static int allowlist_cmp(void *priv, const struct list_head *a, const struct list_head *b)
+{
+	struct allowlist_entry *ia = list_entry(a, struct allowlist_entry, list);
+	struct allowlist_entry *ib = list_entry(b, struct allowlist_entry, list);
+
+	return strcmp(ia->path, ib->path);
+}
+
+static int recreate_allowlist(struct proc_fs_info *fs_info, const char *buf, size_t buflen)
+{
+	const char *ptr = buf;
+	size_t len = buflen;
+	size_t lineno = 1;
+	int ret = 0;
+	LIST_HEAD(allowlist);
+
+	while (len > 0) {
+		char *sep;
+		size_t pathlen;
+
+		if (!(sep = memchr(ptr, '\n', len)))
+			pathlen = buflen;
+		else
+			pathlen = (sep - ptr);
+
+		if (pathlen > 0) {
+			ret = -ENAMETOOLONG;
+			if (pathlen >= PATH_MAX) {
+				pr_crit("allowlist:%lu: pathname is too long\n", lineno);
+				goto err;
+			}
+
+			ret = -EINVAL;
+			if (*ptr == '/') {
+				pr_crit("allowlist:%lu: the name must be relative to the mount point\n", lineno);
+				goto err;
+			}
+			if (!isalpha(*ptr)) {
+				pr_crit("allowlist:%lu: name must start with a letter\n", lineno);
+				goto err;
+			}
+
+			proc_allowlist_append(&allowlist, ptr, pathlen);
+		}
+
+		ptr += pathlen + 1;
+		len -= pathlen + 1;
+
+		lineno++;
+	}
+
+	proc_allowlist_free(&fs_info->allowlist);
+	INIT_LIST_HEAD(&fs_info->allowlist);
+
+	if (!list_empty(&allowlist)) {
+		list_replace(&allowlist, &fs_info->allowlist);
+		list_sort(NULL, &fs_info->allowlist, allowlist_cmp);
+	}
+
+	return 0;
+err:
+	proc_allowlist_free(&allowlist);
+	return ret;
+}
+
 static int close_allowlist(struct inode *inode, struct file *file)
 {
 	struct seq_file *seq_file = FILE_SEQFILE(file);
 	struct proc_fs_info *fs_info = proc_sb_info(inode->i_sb);
 
 	if (seq_file->buf && (file->f_mode & FMODE_WRITE)) {
+		unsigned long flags;
 		char *buf;
 
 		if (!seq_get_buf(seq_file, &buf))
 			return -EIO;
 		*buf = '\0';
 
-		if (strcmp(seq_file->buf, fs_info->allowlist)) {
-			unsigned long flags;
+		write_lock_irqsave(&fs_info->allowlist_lock, flags);
 
-			buf = kstrndup(seq_file->buf, seq_file->count, GFP_KERNEL_ACCOUNT);
-			if (!buf)
-				return -EIO;
-
-			write_lock_irqsave(&fs_info->allowlist_lock, flags);
-
-			shrink_dcache_sb(inode->i_sb);
-
-			kfree(fs_info->allowlist);
-			fs_info->allowlist = buf;
-
+		if (recreate_allowlist(fs_info, seq_file->buf, seq_file->count) < 0) {
 			write_unlock_irqrestore(&fs_info->allowlist_lock, flags);
+			return -EIO;
 		}
+
+		shrink_dcache_sb(inode->i_sb);
+		write_unlock_irqrestore(&fs_info->allowlist_lock, flags);
 	}
 
 	return single_release(inode, file);

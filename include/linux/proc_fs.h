@@ -59,6 +59,11 @@ enum proc_subset {
 	PROC_SUBSET_ALLOWLIST	= (1 << 2),
 };
 
+struct allowlist_entry {
+	struct list_head list;
+	char *path;
+};
+
 struct proc_fs_info {
 	struct pid_namespace *pid_ns;
 	struct dentry *proc_self;        /* For /proc/self */
@@ -66,8 +71,8 @@ struct proc_fs_info {
 	kgid_t pid_gid;
 	enum proc_hidepid hide_pid;
 	unsigned int subset;
-	char *allowlist;
 	rwlock_t allowlist_lock;
+	struct list_head allowlist;
 };
 
 static inline struct proc_fs_info *proc_sb_info(struct super_block *sb)
