@@ -100,7 +100,7 @@ static int open_allowlist(struct inode *inode, struct file *file)
 	struct proc_fs_info *fs_info = proc_sb_info(inode->i_sb);
 	int ret;
 
-	if (!capable(CAP_SYS_ADMIN))
+	if (!ns_capable(current_user_ns(), CAP_SYS_ADMIN))
 		return -EPERM;
 
 	// we need this because shrink_dcache_sb() can't drop our own dentry.
@@ -199,7 +199,7 @@ static const struct proc_ops proc_allowlist_ops = {
 static int __init proc_allowlist_init(void)
 {
 	struct proc_dir_entry *pde;
-	pde = proc_create("allowlist", S_IRUSR | S_IWUSR, NULL, &proc_allowlist_ops);
+	pde = proc_create("allowlist", S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH, NULL, &proc_allowlist_ops);
 	pde_make_permanent(pde);
 	pde_make_allowlist(pde);
 	return 0;
