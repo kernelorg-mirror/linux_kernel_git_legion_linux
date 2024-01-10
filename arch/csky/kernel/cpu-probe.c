@@ -45,10 +45,9 @@ static void percpu_print(void *arg)
 
 static int c_show(struct seq_file *m, void *v)
 {
-	int cpu;
+	int cpu = (int) v - 1;
 
-	for_each_online_cpu(cpu)
-		smp_call_function_single(cpu, percpu_print, m, true);
+	smp_call_function_single(cpu, percpu_print, m, true);
 
 #ifdef CSKY_ARCH_VERSION
 	seq_printf(m, "arch-version : %s\n", CSKY_ARCH_VERSION);
@@ -60,13 +59,15 @@ static int c_show(struct seq_file *m, void *v)
 
 static void *c_start(struct seq_file *m, loff_t *pos)
 {
-	return *pos < 1 ? (void *)1 : NULL;
+	int i = *pos;
+
+	return i < nr_cpu_ids ? (void *)(i + 1) : NULL;
 }
 
 static void *c_next(struct seq_file *m, void *v, loff_t *pos)
 {
 	++*pos;
-	return NULL;
+	return c_start(m, pos);
 }
 
 static void c_stop(struct seq_file *m, void *v) {}
