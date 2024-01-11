@@ -156,12 +156,11 @@ void __init setup_arch(char **cmdline_p)
 static void *
 c_start (struct seq_file *m, loff_t *pos)
 {
-    	/* Looks like the caller will call repeatedly until we return
+	unsigned long i = *pos;
+	/* Looks like the caller will call repeatedly until we return
 	 * 0, signaling EOF perhaps.  This could be used to sequence
-	 * through CPUs for example.  Since we print all cpu info in our
-	 * show_cpuinfo() disregarding 'pos' (which I assume is 'v' above)
-	 * we only allow for one "position".  */
-	return ((long)*pos < 1) ? (void *)1 : NULL;
+	 * through CPUs for example. */
+	return i < nr_cpu_ids ? (void *)(i + 1) : NULL;
 }
 
 static void *

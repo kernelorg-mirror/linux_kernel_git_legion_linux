@@ -379,7 +379,7 @@ int init_per_cpu(int cpunum)
 int
 show_cpuinfo (struct seq_file *m, void *v)
 {
-	unsigned long cpu;
+	unsigned long cpu = (unsigned long) v - 1;
 	char cpu_name[60], *p;
 
 	/* strip PA path from CPU name to not confuse lscpu */
@@ -388,71 +388,70 @@ show_cpuinfo (struct seq_file *m, void *v)
 	if (p)
 		*(--p) = 0;
 
-	for_each_online_cpu(cpu) {
 #ifdef CONFIG_SMP
-		const struct cpuinfo_parisc *cpuinfo = &per_cpu(cpu_data, cpu);
+	const struct cpuinfo_parisc *cpuinfo = &per_cpu(cpu_data, cpu);
 
-		if (0 == cpuinfo->hpa)
-			continue;
+	if (0 == cpuinfo->hpa)
+		return 0;
 #endif
-		seq_printf(m, "processor\t: %lu\n"
-				"cpu family\t: PA-RISC %s\n",
-				 cpu, boot_cpu_data.family_name);
+	seq_printf(m, "processor\t: %lu\n"
+			"cpu family\t: PA-RISC %s\n",
+			 cpu, boot_cpu_data.family_name);
 
-		seq_printf(m, "cpu\t\t: %s\n",  boot_cpu_data.cpu_name );
+	seq_printf(m, "cpu\t\t: %s\n",  boot_cpu_data.cpu_name );
 
-		/* cpu MHz */
-		seq_printf(m, "cpu MHz\t\t: %d.%06d\n",
-				 boot_cpu_data.cpu_hz / 1000000,
-				 boot_cpu_data.cpu_hz % 1000000  );
+	/* cpu MHz */
+	seq_printf(m, "cpu MHz\t\t: %d.%06d\n",
+			 boot_cpu_data.cpu_hz / 1000000,
+			 boot_cpu_data.cpu_hz % 1000000  );
 
 #ifdef CONFIG_GENERIC_ARCH_TOPOLOGY
-		seq_printf(m, "physical id\t: %d\n",
-				topology_physical_package_id(cpu));
-		seq_printf(m, "siblings\t: %d\n",
-				cpumask_weight(topology_core_cpumask(cpu)));
-		seq_printf(m, "core id\t\t: %d\n", topology_core_id(cpu));
+	seq_printf(m, "physical id\t: %d\n",
+			topology_physical_package_id(cpu));
+	seq_printf(m, "siblings\t: %d\n",
+			cpumask_weight(topology_core_cpumask(cpu)));
+	seq_printf(m, "core id\t\t: %d\n", topology_core_id(cpu));
 #endif
 
-		seq_printf(m, "capabilities\t:");
-		if (boot_cpu_data.pdc.capabilities & PDC_MODEL_OS32)
-			seq_puts(m, " os32");
-		if (boot_cpu_data.pdc.capabilities & PDC_MODEL_OS64)
-			seq_puts(m, " os64");
-		if (boot_cpu_data.pdc.capabilities & PDC_MODEL_IOPDIR_FDC)
-			seq_puts(m, " iopdir_fdc");
-		switch (boot_cpu_data.pdc.capabilities & PDC_MODEL_NVA_MASK) {
-		case PDC_MODEL_NVA_SUPPORTED:
-			seq_puts(m, " nva_supported");
-			break;
-		case PDC_MODEL_NVA_SLOW:
-			seq_puts(m, " nva_slow");
-			break;
-		case PDC_MODEL_NVA_UNSUPPORTED:
-			seq_puts(m, " needs_equivalent_aliasing");
-			break;
-		}
-		seq_printf(m, " (0x%02lx)\n", boot_cpu_data.pdc.capabilities);
-
-		seq_printf(m, "model\t\t: %s - %s\n",
-				 boot_cpu_data.pdc.sys_model_name,
-				 cpu_name);
-
-		seq_printf(m, "hversion\t: 0x%08x\n"
-			        "sversion\t: 0x%08x\n",
-				 boot_cpu_data.hversion,
-				 boot_cpu_data.sversion );
-
-		/* print cachesize info */
-		show_cache_info(m);
-
-		seq_printf(m, "bogomips\t: %lu.%02lu\n",
-			     loops_per_jiffy / (500000 / HZ),
-			     loops_per_jiffy / (5000 / HZ) % 100);
-
-		seq_printf(m, "software id\t: %ld\n\n",
-				boot_cpu_data.pdc.model.sw_id);
+	seq_printf(m, "capabilities\t:");
+	if (boot_cpu_data.pdc.capabilities & PDC_MODEL_OS32)
+		seq_puts(m, " os32");
+	if (boot_cpu_data.pdc.capabilities & PDC_MODEL_OS64)
+		seq_puts(m, " os64");
+	if (boot_cpu_data.pdc.capabilities & PDC_MODEL_IOPDIR_FDC)
+		seq_puts(m, " iopdir_fdc");
+	switch (boot_cpu_data.pdc.capabilities & PDC_MODEL_NVA_MASK) {
+	case PDC_MODEL_NVA_SUPPORTED:
+		seq_puts(m, " nva_supported");
+		break;
+	case PDC_MODEL_NVA_SLOW:
+		seq_puts(m, " nva_slow");
+		break;
+	case PDC_MODEL_NVA_UNSUPPORTED:
+		seq_puts(m, " needs_equivalent_aliasing");
+		break;
 	}
+	seq_printf(m, " (0x%02lx)\n", boot_cpu_data.pdc.capabilities);
+
+	seq_printf(m, "model\t\t: %s - %s\n",
+			 boot_cpu_data.pdc.sys_model_name,
+			 cpu_name);
+
+	seq_printf(m, "hversion\t: 0x%08x\n"
+		        "sversion\t: 0x%08x\n",
+			 boot_cpu_data.hversion,
+			 boot_cpu_data.sversion );
+
+	/* print cachesize info */
+	show_cache_info(m);
+
+	seq_printf(m, "bogomips\t: %lu.%02lu\n",
+		     loops_per_jiffy / (500000 / HZ),
+		     loops_per_jiffy / (5000 / HZ) % 100);
+
+	seq_printf(m, "software id\t: %ld\n\n",
+			boot_cpu_data.pdc.model.sw_id);
+
 	return 0;
 }
 
