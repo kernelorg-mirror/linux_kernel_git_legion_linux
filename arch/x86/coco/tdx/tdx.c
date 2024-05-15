@@ -29,6 +29,10 @@
 #define VE_GET_PORT_NUM(e)	((e) >> 16)
 #define VE_IS_IO_STRING(e)	((e) & BIT(4))
 
+/* See Exit Qualification for EPT Violations in VMX documentation */
+#define VE_IS_EPT_READ(e)	((e) & BIT(0))	// the access was a data read.
+#define VE_IS_EPT_WRITE(e)	((e) & BIT(1))	// the access was a data write.
+
 #define ATTR_DEBUG		BIT(0)
 #define ATTR_SEPT_VE_DISABLE	BIT(28)
 
@@ -443,14 +447,26 @@ static int handle_mmio(struct pt_regs *regs, struct ve_info *ve)
 	if (vaddr / PAGE_SIZE != (vaddr + size - 1) / PAGE_SIZE)
 		return -EFAULT;
 
+	/*
+	 * We check the validity of the address received during decoding with
+	 * the address in #VE exception info to make sure that we decoded
+	 * everything correctly.
+	 */
+	if (ve->gpa != __phys_addr(vaddr))
+		return -EFAULT;
+
 	/* Handle writes first */
 	switch (mmio) {
 	case INSN_MMIO_WRITE:
+		if (!VE_IS_EPT_WRITE(ve->exit_qual))
+			return -EFAULT;
 		memcpy(&val, reg, size);
 		if (!mmio_write(size, ve->gpa, val))
 			return -EIO;
 		return insn.length;
 	case INSN_MMIO_WRITE_IMM:
+		if (!VE_IS_EPT_WRITE(ve->exit_qual))
+			return -EFAULT;
 		val = insn.immediate.value;
 		if (!mmio_write(size, ve->gpa, val))
 			return -EIO;
@@ -458,6 +474,8 @@ static int handle_mmio(struct pt_regs *regs, struct ve_info *ve)
 	case INSN_MMIO_READ:
 	case INSN_MMIO_READ_ZERO_EXTEND:
 	case INSN_MMIO_READ_SIGN_EXTEND:
+		if (!VE_IS_EPT_READ(ve->exit_qual))
+			return -EFAULT;
 		/* Reads are handled below */
 		break;
 	case INSN_MMIO_MOVS:
