@@ -7,6 +7,7 @@
 #include <linux/cpufeature.h>
 #include <linux/export.h>
 #include <linux/io.h>
+#include <linux/mm.h>
 #include <asm/coco.h>
 #include <asm/tdx.h>
 #include <asm/vmx.h>
@@ -401,13 +402,106 @@ static bool mmio_write(int size, unsigned long addr, unsigned long val)
 			       EPT_WRITE, addr, val);
 }
 
+static inline bool is_private_gpa(u64 gpa)
+{
+	return gpa == cc_mkenc(gpa);
+}
+
+static inline bool is_kernel_addr(unsigned long addr)
+{
+#ifdef CONFIG_X86_32
+	return addr > PAGE_OFFSET;
+#else
+	return (long)addr < 0;
+#endif
+}
+
+static int get_phys_addr(unsigned long addr, unsigned long *phys_addr)
+{
+	struct mm_struct *mm;
+	unsigned int level;
+	pgd_t *pgdp;
+	pte_t *ptep;
+	int ret = -EFAULT;
+
+	mm = current->mm;
+	if (!mm || is_kernel_addr(addr))
+		mm = &init_mm;
+
+	if (mmap_read_lock_killable(mm)) {
+		ret = -EINTR;
+		goto out;
+	}
+
+	pgdp = pgd_offset(mm, addr);
+
+	if (!pgd_none(*pgdp)) {
+		ptep = lookup_address_in_pgd(pgdp, addr, &level);
+		if (ptep) {
+			*phys_addr = PFN_PHYS(pte_pfn(*ptep)) | (addr & ~page_level_mask(level));
+			ret = 0;
+		}
+	}
+
+	mmap_read_unlock(mm);
+out:
+	return ret;
+}
+
+static int valid_vaddr(struct ve_info *ve, enum insn_mmio_type mmio, int size,
+			unsigned long vaddr)
+{
+	unsigned long phys_addr;
+
+	switch (mmio) {
+	case INSN_MMIO_WRITE:
+	case INSN_MMIO_WRITE_IMM:
+		if (WARN_ONCE(!(ve->exit_qual & EPT_VIOLATION_ACC_WRITE),
+			      "Not write access to the guest physical address"))
+			return -EFAULT;
+		break;
+	case INSN_MMIO_READ:
+	case INSN_MMIO_READ_ZERO_EXTEND:
+	case INSN_MMIO_READ_SIGN_EXTEND:
+		if (WARN_ONCE(!(ve->exit_qual & EPT_VIOLATION_ACC_READ),
+			      "Not read access to the guest physical address"))
+			return -EFAULT;
+		break;
+	default:
+		WARN_ONCE(1, "Unsupported mmio instruction: %d", mmio);
+		return -EINVAL;
+	}
+
+	/*
+	 * Reject EPT violation #VEs that split pages.
+	 *
+	 * MMIO accesses are supposed to be naturally aligned and therefore
+	 * never cross page boundaries. Seeing split page accesses indicates
+	 * a bug or a load_unaligned_zeropad() that stepped into an MMIO page.
+	 *
+	 * load_unaligned_zeropad() will recover using exception fixups.
+	 */
+	if (vaddr / PAGE_SIZE != (vaddr + size - 1) / PAGE_SIZE)
+		return -EFAULT;
+
+	if (WARN_ONCE(get_phys_addr(vaddr, &phys_addr),
+		      "Unable to get a physical address"))
+		return -EFAULT;
+
+	if (WARN_ONCE(ve->gpa != cc_mkdec(phys_addr),
+		      "Unexpected EPT-violation on private memory."))
+		return -EFAULT;
+
+	return 0;
+}
+
 static int handle_mmio(struct pt_regs *regs, struct ve_info *ve)
 {
 	unsigned long *reg, val, vaddr;
 	char buffer[MAX_INSN_SIZE];
 	enum insn_mmio_type mmio;
 	struct insn insn = {};
-	int size, extend_size;
+	int size, extend_size, ret;
 	u8 extend_val = 0;
 
 	/* Only in-kernel MMIO is supported */
@@ -430,18 +524,11 @@ static int handle_mmio(struct pt_regs *regs, struct ve_info *ve)
 			return -EINVAL;
 	}
 
-	/*
-	 * Reject EPT violation #VEs that split pages.
-	 *
-	 * MMIO accesses are supposed to be naturally aligned and therefore
-	 * never cross page boundaries. Seeing split page accesses indicates
-	 * a bug or a load_unaligned_zeropad() that stepped into an MMIO page.
-	 *
-	 * load_unaligned_zeropad() will recover using exception fixups.
-	 */
 	vaddr = (unsigned long)insn_get_addr_ref(&insn, regs);
-	if (vaddr / PAGE_SIZE != (vaddr + size - 1) / PAGE_SIZE)
-		return -EFAULT;
+
+	ret = valid_vaddr(ve, mmio, size, vaddr);
+	if (ret)
+		return ret;
 
 	/* Handle writes first */
 	switch (mmio) {
@@ -469,7 +556,7 @@ static int handle_mmio(struct pt_regs *regs, struct ve_info *ve)
 		 */
 		return -EINVAL;
 	default:
-		WARN_ONCE(1, "Unknown insn_decode_mmio() decode value?");
+		WARN_ON_ONCE(1);
 		return -EINVAL;
 	}
 
@@ -645,11 +732,6 @@ static int virt_exception_user(struct pt_regs *regs, struct ve_info *ve)
 		pr_warn("Unexpected #VE: %lld\n", ve->exit_reason);
 		return -EIO;
 	}
-}
-
-static inline bool is_private_gpa(u64 gpa)
-{
-	return gpa == cc_mkenc(gpa);
 }
 
 /*
