@@ -14,6 +14,7 @@
 #include <asm/insn.h>
 #include <asm/insn-eval.h>
 #include <asm/pgtable.h>
+#include <linux/uaccess.h>
 
 /* MMIO direction */
 #define EPT_READ	0
@@ -410,18 +411,23 @@ static int handle_mmio(struct pt_regs *regs, struct ve_info *ve)
 	unsigned long *reg, val, vaddr;
 	char buffer[MAX_INSN_SIZE];
 	enum insn_mmio_type mmio;
+	enum insn_mode mode = INSN_MODE_64;
 	struct insn insn = {};
 	int size, extend_size;
 	u8 extend_val = 0;
 
-	/* Only in-kernel MMIO is supported */
-	if (WARN_ON_ONCE(user_mode(regs)))
-		return -EFAULT;
+	if (user_mode(regs)) {
+		if (copy_from_user_nofault(buffer, (void *)regs->ip, MAX_INSN_SIZE))
+			return -EFAULT;
 
-	if (copy_from_kernel_nofault(buffer, (void *)regs->ip, MAX_INSN_SIZE))
-		return -EFAULT;
+		if (in_ia32_syscall())
+			mode = INSN_MODE_32;
+	} else {
+		if (copy_from_kernel_nofault(buffer, (void *)regs->ip, MAX_INSN_SIZE))
+			return -EFAULT;
+	}
 
-	if (insn_decode(&insn, buffer, MAX_INSN_SIZE, INSN_MODE_64))
+	if (insn_decode(&insn, buffer, MAX_INSN_SIZE, mode))
 		return -EINVAL;
 
 	mmio = insn_decode_mmio(&insn, &size);
@@ -648,6 +654,11 @@ void tdx_get_ve_info(struct ve_info *ve)
 	ve->instr_info  = upper_32_bits(args.r10);
 }
 
+static inline bool is_private_gpa(u64 gpa)
+{
+	return gpa == cc_mkenc(gpa);
+}
+
 /*
  * Handle the user initiated #VE.
  *
@@ -659,15 +670,14 @@ static int virt_exception_user(struct pt_regs *regs, struct ve_info *ve)
 	switch (ve->exit_reason) {
 	case EXIT_REASON_CPUID:
 		return handle_cpuid(regs, ve);
+	case EXIT_REASON_EPT_VIOLATION:
+		if (is_private_gpa(ve->gpa))
+			panic("Unexpected EPT-violation on private memory.");
+		return handle_mmio(regs, ve);
 	default:
 		pr_warn("Unexpected #VE: %lld\n", ve->exit_reason);
 		return -EIO;
 	}
-}
-
-static inline bool is_private_gpa(u64 gpa)
-{
-	return gpa == cc_mkenc(gpa);
 }
 
 /*
