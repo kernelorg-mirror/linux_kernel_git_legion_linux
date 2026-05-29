@@ -26,16 +26,19 @@
 #include <linux/rcupdate.h>
 #include <linux/wait.h>
 #include <linux/rbtree.h>
+#include <linux/stddef.h>
 #include <linux/uidgid.h>
 #include <uapi/linux/sysctl.h>
 
 /* For the /proc/sys support */
 struct completion;
 struct ctl_table;
+struct ctl_field;
 struct nsproxy;
 struct ctl_table_root;
 struct ctl_table_header;
 struct ctl_dir;
+struct user_namespace;
 
 /* Keep the same order as in fs/proc/proc_sysctl.c */
 #define SYSCTL_ZERO			((void *)&sysctl_vals[0])
@@ -76,6 +79,12 @@ extern const unsigned long sysctl_long_vals[];
 
 typedef int proc_handler(const struct ctl_table *ctl, int write, void *buffer,
 		size_t *lenp, loff_t *ppos);
+
+struct ctl_context {
+	union {
+		struct user_namespace *user_ns;
+	} ns;
+};
 
 int proc_dostring(const struct ctl_table *, int, void *, size_t *, loff_t *);
 int proc_dobool(const struct ctl_table *table, int write, void *buffer,
@@ -175,6 +184,13 @@ struct ctl_table {
 	void *extra2;
 } __randomize_layout;
 
+struct ctl_field {
+	struct ctl_table table;
+	void *(*data)(const struct ctl_context *ctx);
+	void *(*extra1)(const struct ctl_context *ctx);
+	void *(*extra2)(const struct ctl_context *ctx);
+};
+
 struct ctl_node {
 	struct rb_node node;
 	struct ctl_table_header *header;
@@ -208,8 +224,10 @@ struct ctl_table_header {
 	};
 	struct completion *unregistering;
 	const struct ctl_table *ctl_table_arg;
+	const struct ctl_field *ctl_fields;
 	struct ctl_table_root *root;
 	struct ctl_table_set *set;
+	struct ctl_context ctx;
 	struct ctl_dir *parent;
 	struct ctl_node *node;
 	struct hlist_head inodes; /* head for proc_inode->sysctl_inodes */
@@ -253,6 +271,14 @@ extern void retire_sysctl_set(struct ctl_table_set *set);
 struct ctl_table_header *__register_sysctl_table(
 	struct ctl_table_set *set,
 	const char *path, const struct ctl_table *table, size_t table_size);
+struct ctl_table_header *
+__register_sysctl_table_ctx(struct ctl_table_set *set, const char *path,
+			    const struct ctl_table *table, size_t table_size,
+			    const struct ctl_context *ctx);
+struct ctl_table_header *
+__register_sysctl_fields(struct ctl_table_set *set, const char *path,
+			 const struct ctl_field *fields, size_t field_count,
+			 const struct ctl_context *ctx);
 struct ctl_table_header *register_sysctl_sz(const char *path, const struct ctl_table *table,
 					    size_t table_size);
 void unregister_sysctl_table(struct ctl_table_header * table);
@@ -284,6 +310,22 @@ static inline struct ctl_table_header *register_sysctl_mount_point(const char *p
 static inline struct ctl_table_header *register_sysctl_sz(const char *path,
 							  const struct ctl_table *table,
 							  size_t table_size)
+{
+	return NULL;
+}
+
+static inline struct ctl_table_header *
+__register_sysctl_table_ctx(struct ctl_table_set *set, const char *path,
+			    const struct ctl_table *table, size_t table_size,
+			    const struct ctl_context *ctx)
+{
+	return NULL;
+}
+
+static inline struct ctl_table_header *
+__register_sysctl_fields(struct ctl_table_set *set, const char *path,
+			 const struct ctl_field *fields, size_t field_count,
+			 const struct ctl_context *ctx)
 {
 	return NULL;
 }

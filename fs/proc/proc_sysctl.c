@@ -20,9 +20,16 @@
 #include <linux/lockdep.h>
 #include "internal.h"
 
-#define list_for_each_table_entry(entry, header)	\
-	entry = header->ctl_table;			\
-	for (size_t i = 0 ; i < header->ctl_table_size; ++i, entry++)
+static const struct ctl_table *sysctl_table_entry(struct ctl_table_header *head,
+						  size_t index);
+static size_t sysctl_table_index(struct ctl_table_header *head,
+				 const struct ctl_table *entry);
+
+#define list_for_each_table_entry(entry, header)			\
+	for (size_t i = 0;						\
+	     i < (header)->ctl_table_size &&				\
+	     (entry = sysctl_table_entry(header, i), true);		\
+	     ++i)
 
 static const struct dentry_operations proc_sys_dentry_operations;
 static const struct file_operations proc_sys_file_operations;
@@ -93,11 +100,33 @@ static int sysctl_follow_link(struct ctl_table_header **phead,
 static int insert_links(struct ctl_table_header *head);
 static void put_links(struct ctl_table_header *header);
 
+static const struct ctl_table *sysctl_table_entry(struct ctl_table_header *head,
+						  size_t index)
+{
+	if (head->ctl_fields)
+		return &head->ctl_fields[index].table;
+
+	return &head->ctl_table[index];
+}
+
+static size_t sysctl_table_index(struct ctl_table_header *head,
+				 const struct ctl_table *entry)
+{
+	if (head->ctl_fields) {
+		const struct ctl_field *field =
+			container_of(entry, const struct ctl_field, table);
+
+		return field - head->ctl_fields;
+	}
+
+	return entry - head->ctl_table;
+}
+
 static void sysctl_print_dir(struct ctl_dir *dir)
 {
 	if (dir->header.parent)
 		sysctl_print_dir(dir->header.parent);
-	pr_cont("%s/", dir->header.ctl_table[0].procname);
+	pr_cont("%s/", sysctl_table_entry(&dir->header, 0)->procname);
 }
 
 static int namecmp(const char *name1, int len1, const char *name2, int len2)
@@ -127,7 +156,7 @@ static const struct ctl_table *find_entry(struct ctl_table_header **phead,
 
 		ctl_node = rb_entry(node, struct ctl_node, node);
 		head = ctl_node->header;
-		entry = &head->ctl_table[ctl_node - head->node];
+		entry = sysctl_table_entry(head, ctl_node - head->node);
 		procname = entry->procname;
 
 		cmp = namecmp(name, namelen, procname, strlen(procname));
@@ -145,7 +174,7 @@ static const struct ctl_table *find_entry(struct ctl_table_header **phead,
 
 static int insert_entry(struct ctl_table_header *head, const struct ctl_table *entry)
 {
-	struct rb_node *node = &head->node[entry - head->ctl_table].node;
+	struct rb_node *node = &head->node[sysctl_table_index(head, entry)].node;
 	struct rb_node **p = &head->parent->root.rb_node;
 	struct rb_node *parent = NULL;
 	const char *name = entry->procname;
@@ -161,7 +190,8 @@ static int insert_entry(struct ctl_table_header *head, const struct ctl_table *e
 		parent = *p;
 		parent_node = rb_entry(parent, struct ctl_node, node);
 		parent_head = parent_node->header;
-		parent_entry = &parent_head->ctl_table[parent_node - parent_head->node];
+		parent_entry = sysctl_table_entry(parent_head,
+						  parent_node - parent_head->node);
 		parent_name = parent_entry->procname;
 
 		cmp = namecmp(name, namelen, parent_name, strlen(parent_name));
@@ -184,24 +214,29 @@ static int insert_entry(struct ctl_table_header *head, const struct ctl_table *e
 
 static void erase_entry(struct ctl_table_header *head, const struct ctl_table *entry)
 {
-	struct rb_node *node = &head->node[entry - head->ctl_table].node;
+	struct rb_node *node = &head->node[sysctl_table_index(head, entry)].node;
 
 	rb_erase(node, &head->parent->root);
 }
 
 static void init_header(struct ctl_table_header *head,
 	struct ctl_table_root *root, struct ctl_table_set *set,
-	struct ctl_node *node, const struct ctl_table *table, size_t table_size)
+	struct ctl_node *node, const struct ctl_table *table, size_t table_size,
+	const struct ctl_field *fields,
+	const struct ctl_context *ctx)
 {
 	head->ctl_table = table;
 	head->ctl_table_size = table_size;
 	head->ctl_table_arg = table;
+	head->ctl_fields = fields;
 	head->used = 0;
 	head->count = 1;
 	head->nreg = 1;
 	head->unregistering = NULL;
 	head->root = root;
 	head->set = set;
+	if (ctx)
+		head->ctx = *ctx;
 	head->parent = NULL;
 	head->node = node;
 	INIT_HLIST_HEAD(&head->inodes);
@@ -215,6 +250,29 @@ static void init_header(struct ctl_table_header *head,
 	}
 	if (table == sysctl_mount_point)
 		sysctl_set_perm_empty_ctl_header(head);
+}
+
+static const struct ctl_table *
+sysctl_effective_table(struct ctl_table_header *head,
+		       const struct ctl_table *table,
+		       struct ctl_table *tmp)
+{
+	const struct ctl_context *ctx = &head->ctx;
+	const struct ctl_field *field;
+
+	if (!head->ctl_fields)
+		return table;
+
+	*tmp = *table;
+	field = container_of(table, const struct ctl_field, table);
+	if (field->data)
+		tmp->data = field->data(ctx);
+	if (field->extra1)
+		tmp->extra1 = field->extra1(ctx);
+	if (field->extra2)
+		tmp->extra2 = field->extra2(ctx);
+
+	return tmp;
 }
 
 static void erase_header(struct ctl_table_header *head)
@@ -391,7 +449,7 @@ static void first_entry(struct ctl_dir *dir,
 	spin_unlock(&sysctl_lock);
 	if (ctl_node) {
 		head = ctl_node->header;
-		entry = &head->ctl_table[ctl_node - head->node];
+		entry = sysctl_table_entry(head, ctl_node - head->node);
 	}
 	*phead = head;
 	*pentry = entry;
@@ -401,7 +459,7 @@ static void next_entry(struct ctl_table_header **phead, const struct ctl_table *
 {
 	struct ctl_table_header *head = *phead;
 	const struct ctl_table *entry = *pentry;
-	struct ctl_node *ctl_node = &head->node[entry - head->ctl_table];
+	struct ctl_node *ctl_node = &head->node[sysctl_table_index(head, entry)];
 
 	spin_lock(&sysctl_lock);
 	unuse_table(head);
@@ -411,7 +469,7 @@ static void next_entry(struct ctl_table_header **phead, const struct ctl_table *
 	head = NULL;
 	if (ctl_node) {
 		head = ctl_node->header;
-		entry = &head->ctl_table[ctl_node - head->node];
+		entry = sysctl_table_entry(head, ctl_node - head->node);
 	}
 	*phead = head;
 	*pentry = entry;
@@ -436,8 +494,10 @@ static int test_perm(int mode, int op)
 static int sysctl_perm(struct ctl_table_header *head, const struct ctl_table *table, int op)
 {
 	struct ctl_table_root *root = head->root;
+	struct ctl_table tmp;
 	int mode;
 
+	table = sysctl_effective_table(head, table, &tmp);
 	if (root->permissions)
 		mode = root->permissions(head, table);
 	else
@@ -556,6 +616,7 @@ static ssize_t proc_sys_call_handler(struct kiocb *iocb, struct iov_iter *iter,
 	struct inode *inode = file_inode(iocb->ki_filp);
 	struct ctl_table_header *head = grab_header(inode);
 	const struct ctl_table *table = PROC_I(inode)->sysctl_entry;
+	struct ctl_table tmp;
 	size_t count = iov_iter_count(iter);
 	char *kbuf;
 	ssize_t error;
@@ -570,6 +631,8 @@ static ssize_t proc_sys_call_handler(struct kiocb *iocb, struct iov_iter *iter,
 	error = -EPERM;
 	if (sysctl_perm(head, table, write ? MAY_WRITE : MAY_READ))
 		goto out;
+
+	table = sysctl_effective_table(head, table, &tmp);
 
 	/* if that can happen at all, it should be -EINVAL, not -EISDIR */
 	error = -EINVAL;
@@ -975,7 +1038,8 @@ static struct ctl_dir *new_dir(struct ctl_table_set *set,
 	memcpy(new_name, name, namelen);
 	table[0].procname = new_name;
 	table[0].mode = S_IFDIR|S_IRUGO|S_IXUGO;
-	init_header(&new->header, set->dir.header.root, set, node, table, 1);
+	init_header(&new->header, set->dir.header.root, set, node, table, 1,
+		    NULL, NULL);
 
 	return new;
 }
@@ -1143,9 +1207,13 @@ static int sysctl_check_table_array(const char *path, const struct ctl_table *ta
 
 static int sysctl_check_table(const char *path, struct ctl_table_header *header)
 {
-	const struct ctl_table *entry;
+	const struct ctl_table *raw_entry;
 	int err = 0;
-	list_for_each_table_entry(entry, header) {
+	list_for_each_table_entry(raw_entry, header) {
+		const struct ctl_table *entry;
+		struct ctl_table tmp;
+
+		entry = sysctl_effective_table(header, raw_entry, &tmp);
 		if (!entry->procname)
 			err |= sysctl_err(path, entry, "procname is null");
 		if ((entry->proc_handler == proc_dostring) ||
@@ -1215,7 +1283,7 @@ static struct ctl_table_header *new_links(struct ctl_dir *dir, struct ctl_table_
 		link++;
 	}
 	init_header(links, dir->header.root, dir->header.set, node, link_table,
-		    head->ctl_table_size);
+		    head->ctl_table_size, NULL, NULL);
 	links->nreg = head->ctl_table_size;
 
 	return links;
@@ -1367,9 +1435,12 @@ static struct ctl_dir *sysctl_mkdir_p(struct ctl_dir *dir, const char *path)
  * This routine returns %NULL on a failure to register, and a pointer
  * to the table header on success.
  */
-struct ctl_table_header *__register_sysctl_table(
-	struct ctl_table_set *set,
-	const char *path, const struct ctl_table *table, size_t table_size)
+static struct ctl_table_header *
+__register_sysctl_table_internal(struct ctl_table_set *set, const char *path,
+				 const struct ctl_table *table,
+				 const struct ctl_field *fields,
+				 size_t table_size,
+				 const struct ctl_context *ctx)
 {
 	struct ctl_table_root *root = set->dir.header.root;
 	struct ctl_table_header *header;
@@ -1382,7 +1453,7 @@ struct ctl_table_header *__register_sysctl_table(
 		return NULL;
 
 	node = (struct ctl_node *)(header + 1);
-	init_header(header, root, set, node, table, table_size);
+	init_header(header, root, set, node, table, table_size, fields, ctx);
 	if (sysctl_check_table(path, header))
 		goto fail;
 
@@ -1410,6 +1481,31 @@ fail_put_dir_locked:
 fail:
 	kfree(header);
 	return NULL;
+}
+
+struct ctl_table_header *
+__register_sysctl_table_ctx(struct ctl_table_set *set, const char *path,
+			    const struct ctl_table *table, size_t table_size,
+			    const struct ctl_context *ctx)
+{
+	return __register_sysctl_table_internal(set, path, table, NULL,
+						table_size, ctx);
+}
+
+struct ctl_table_header *
+__register_sysctl_fields(struct ctl_table_set *set, const char *path,
+			 const struct ctl_field *fields, size_t field_count,
+			 const struct ctl_context *ctx)
+{
+	return __register_sysctl_table_internal(set, path, NULL, fields,
+						field_count, ctx);
+}
+
+struct ctl_table_header *
+__register_sysctl_table(struct ctl_table_set *set, const char *path,
+			const struct ctl_table *table, size_t table_size)
+{
+	return __register_sysctl_table_ctx(set, path, table, table_size, NULL);
 }
 
 /**
@@ -1550,7 +1646,7 @@ void setup_sysctl_set(struct ctl_table_set *set,
 {
 	memset(set, 0, sizeof(*set));
 	set->is_seen = is_seen;
-	init_header(&set->dir.header, root, set, NULL, root_table, 1);
+	init_header(&set->dir.header, root, set, NULL, root_table, 1, NULL, NULL);
 }
 
 void retire_sysctl_set(struct ctl_table_set *set)
