@@ -38,6 +38,7 @@ struct nsproxy;
 struct ctl_table_root;
 struct ctl_table_header;
 struct ctl_dir;
+struct ipc_namespace;
 struct user_namespace;
 
 /* Keep the same order as in fs/proc/proc_sysctl.c */
@@ -83,6 +84,7 @@ typedef int proc_handler(const struct ctl_table *ctl, int write, void *buffer,
 struct ctl_context {
 	union {
 		struct user_namespace *user_ns;
+		struct ipc_namespace *ipc_ns;
 	} ns;
 };
 
