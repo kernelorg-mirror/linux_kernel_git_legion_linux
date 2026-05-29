@@ -13,7 +13,6 @@
 #include <linux/capability.h>
 #include <linux/ipc_namespace.h>
 #include <linux/msg.h>
-#include <linux/slab.h>
 #include <linux/cred.h>
 #include "util.h"
 
@@ -73,109 +72,153 @@ int ipc_mni = IPCMNI;
 int ipc_mni_shift = IPCMNI_SHIFT;
 int ipc_min_cycle = RADIX_TREE_MAP_SIZE;
 
-static const struct ctl_table ipc_sysctls[] = {
+#define IPC_SYSCTL_DATA(name, member)				\
+static void *name ## _data(const struct ctl_context *ctx)	\
+{								\
+	return &ctx->ns.ipc_ns->member;				\
+}
+
+IPC_SYSCTL_DATA(shm_ctlmax, shm_ctlmax);
+IPC_SYSCTL_DATA(shm_ctlall, shm_ctlall);
+IPC_SYSCTL_DATA(shm_ctlmni, shm_ctlmni);
+IPC_SYSCTL_DATA(shm_rmid_forced, shm_rmid_forced);
+IPC_SYSCTL_DATA(msg_ctlmax, msg_ctlmax);
+IPC_SYSCTL_DATA(msg_ctlmni, msg_ctlmni);
+IPC_SYSCTL_DATA(msg_ctlmnb, msg_ctlmnb);
+IPC_SYSCTL_DATA(sem_ctls, sem_ctls);
+
+#ifdef CONFIG_CHECKPOINT_RESTORE
+IPC_SYSCTL_DATA(sem_next_id, ids[IPC_SEM_IDS].next_id);
+IPC_SYSCTL_DATA(msg_next_id, ids[IPC_MSG_IDS].next_id);
+IPC_SYSCTL_DATA(shm_next_id, ids[IPC_SHM_IDS].next_id);
+#endif
+
+static const struct ctl_field ipc_sysctls[] = {
 	{
-		.procname	= "shmmax",
-		.data		= &init_ipc_ns.shm_ctlmax,
-		.maxlen		= sizeof(init_ipc_ns.shm_ctlmax),
-		.mode		= 0644,
-		.proc_handler	= proc_doulongvec_minmax,
+		.table = {
+			.procname	= "shmmax",
+			.maxlen		= sizeof(init_ipc_ns.shm_ctlmax),
+			.mode		= 0644,
+			.proc_handler	= proc_doulongvec_minmax,
+		},
+		.data = shm_ctlmax_data,
 	},
 	{
-		.procname	= "shmall",
-		.data		= &init_ipc_ns.shm_ctlall,
-		.maxlen		= sizeof(init_ipc_ns.shm_ctlall),
-		.mode		= 0644,
-		.proc_handler	= proc_doulongvec_minmax,
+		.table = {
+			.procname	= "shmall",
+			.maxlen		= sizeof(init_ipc_ns.shm_ctlall),
+			.mode		= 0644,
+			.proc_handler	= proc_doulongvec_minmax,
+		},
+		.data = shm_ctlall_data,
 	},
 	{
-		.procname	= "shmmni",
-		.data		= &init_ipc_ns.shm_ctlmni,
-		.maxlen		= sizeof(init_ipc_ns.shm_ctlmni),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= &ipc_mni,
+		.table = {
+			.procname	= "shmmni",
+			.maxlen		= sizeof(init_ipc_ns.shm_ctlmni),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec_minmax,
+			.extra1		= SYSCTL_ZERO,
+			.extra2		= &ipc_mni,
+		},
+		.data = shm_ctlmni_data,
 	},
 	{
-		.procname	= "shm_rmid_forced",
-		.data		= &init_ipc_ns.shm_rmid_forced,
-		.maxlen		= sizeof(init_ipc_ns.shm_rmid_forced),
-		.mode		= 0644,
-		.proc_handler	= proc_ipc_dointvec_minmax_orphans,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_ONE,
+		.table = {
+			.procname	= "shm_rmid_forced",
+			.maxlen		= sizeof(init_ipc_ns.shm_rmid_forced),
+			.mode		= 0644,
+			.proc_handler	= proc_ipc_dointvec_minmax_orphans,
+			.extra1		= SYSCTL_ZERO,
+			.extra2		= SYSCTL_ONE,
+		},
+		.data = shm_rmid_forced_data,
 	},
 	{
-		.procname	= "msgmax",
-		.data		= &init_ipc_ns.msg_ctlmax,
-		.maxlen		= sizeof(init_ipc_ns.msg_ctlmax),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_INT_MAX,
+		.table = {
+			.procname	= "msgmax",
+			.maxlen		= sizeof(init_ipc_ns.msg_ctlmax),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec_minmax,
+			.extra1		= SYSCTL_ZERO,
+			.extra2		= SYSCTL_INT_MAX,
+		},
+		.data = msg_ctlmax_data,
 	},
 	{
-		.procname	= "msgmni",
-		.data		= &init_ipc_ns.msg_ctlmni,
-		.maxlen		= sizeof(init_ipc_ns.msg_ctlmni),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= &ipc_mni,
+		.table = {
+			.procname	= "msgmni",
+			.maxlen		= sizeof(init_ipc_ns.msg_ctlmni),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec_minmax,
+			.extra1		= SYSCTL_ZERO,
+			.extra2		= &ipc_mni,
+		},
+		.data = msg_ctlmni_data,
 	},
 	{
-		.procname	= "auto_msgmni",
-		.data		= NULL,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_ipc_auto_msgmni,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_ONE,
+		.table = {
+			.procname	= "auto_msgmni",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_ipc_auto_msgmni,
+			.extra1		= SYSCTL_ZERO,
+			.extra2		= SYSCTL_ONE,
+		},
 	},
 	{
-		.procname	=  "msgmnb",
-		.data		= &init_ipc_ns.msg_ctlmnb,
-		.maxlen		= sizeof(init_ipc_ns.msg_ctlmnb),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_INT_MAX,
+		.table = {
+			.procname	=  "msgmnb",
+			.maxlen		= sizeof(init_ipc_ns.msg_ctlmnb),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec_minmax,
+			.extra1		= SYSCTL_ZERO,
+			.extra2		= SYSCTL_INT_MAX,
+		},
+		.data = msg_ctlmnb_data,
 	},
 	{
-		.procname	= "sem",
-		.data		= &init_ipc_ns.sem_ctls,
-		.maxlen		= 4*sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_ipc_sem_dointvec,
+		.table = {
+			.procname	= "sem",
+			.maxlen		= sizeof(init_ipc_ns.sem_ctls),
+			.mode		= 0644,
+			.proc_handler	= proc_ipc_sem_dointvec,
+		},
+		.data = sem_ctls_data,
 	},
 #ifdef CONFIG_CHECKPOINT_RESTORE
 	{
-		.procname	= "sem_next_id",
-		.data		= &init_ipc_ns.ids[IPC_SEM_IDS].next_id,
-		.maxlen		= sizeof(init_ipc_ns.ids[IPC_SEM_IDS].next_id),
-		.mode		= 0444,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_INT_MAX,
+		.table = {
+			.procname	= "sem_next_id",
+			.maxlen		= sizeof(init_ipc_ns.ids[IPC_SEM_IDS].next_id),
+			.mode		= 0444,
+			.proc_handler	= proc_dointvec_minmax,
+			.extra1		= SYSCTL_ZERO,
+			.extra2		= SYSCTL_INT_MAX,
+		},
+		.data = sem_next_id_data,
 	},
 	{
-		.procname	= "msg_next_id",
-		.data		= &init_ipc_ns.ids[IPC_MSG_IDS].next_id,
-		.maxlen		= sizeof(init_ipc_ns.ids[IPC_MSG_IDS].next_id),
-		.mode		= 0444,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_INT_MAX,
+		.table = {
+			.procname	= "msg_next_id",
+			.maxlen		= sizeof(init_ipc_ns.ids[IPC_MSG_IDS].next_id),
+			.mode		= 0444,
+			.proc_handler	= proc_dointvec_minmax,
+			.extra1		= SYSCTL_ZERO,
+			.extra2		= SYSCTL_INT_MAX,
+		},
+		.data = msg_next_id_data,
 	},
 	{
-		.procname	= "shm_next_id",
-		.data		= &init_ipc_ns.ids[IPC_SHM_IDS].next_id,
-		.maxlen		= sizeof(init_ipc_ns.ids[IPC_SHM_IDS].next_id),
-		.mode		= 0444,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_INT_MAX,
+		.table = {
+			.procname	= "shm_next_id",
+			.maxlen		= sizeof(init_ipc_ns.ids[IPC_SHM_IDS].next_id),
+			.mode		= 0444,
+			.proc_handler	= proc_dointvec_minmax,
+			.extra1		= SYSCTL_ZERO,
+			.extra2		= SYSCTL_INT_MAX,
+		},
+		.data = shm_next_id_data,
 	},
 #endif
 };
@@ -244,57 +287,17 @@ static struct ctl_table_root set_root = {
 
 bool setup_ipc_sysctls(struct ipc_namespace *ns)
 {
-	struct ctl_table *tbl;
+	struct ctl_context ctx = {
+		.ns.ipc_ns = ns,
+	};
 
 	setup_sysctl_set(&ns->ipc_set, &set_root, set_is_seen);
 
-	tbl = kmemdup(ipc_sysctls, sizeof(ipc_sysctls), GFP_KERNEL);
-	if (tbl) {
-		int i;
-
-		for (i = 0; i < ARRAY_SIZE(ipc_sysctls); i++) {
-			if (tbl[i].data == &init_ipc_ns.shm_ctlmax)
-				tbl[i].data = &ns->shm_ctlmax;
-
-			else if (tbl[i].data == &init_ipc_ns.shm_ctlall)
-				tbl[i].data = &ns->shm_ctlall;
-
-			else if (tbl[i].data == &init_ipc_ns.shm_ctlmni)
-				tbl[i].data = &ns->shm_ctlmni;
-
-			else if (tbl[i].data == &init_ipc_ns.shm_rmid_forced)
-				tbl[i].data = &ns->shm_rmid_forced;
-
-			else if (tbl[i].data == &init_ipc_ns.msg_ctlmax)
-				tbl[i].data = &ns->msg_ctlmax;
-
-			else if (tbl[i].data == &init_ipc_ns.msg_ctlmni)
-				tbl[i].data = &ns->msg_ctlmni;
-
-			else if (tbl[i].data == &init_ipc_ns.msg_ctlmnb)
-				tbl[i].data = &ns->msg_ctlmnb;
-
-			else if (tbl[i].data == &init_ipc_ns.sem_ctls)
-				tbl[i].data = &ns->sem_ctls;
-#ifdef CONFIG_CHECKPOINT_RESTORE
-			else if (tbl[i].data == &init_ipc_ns.ids[IPC_SEM_IDS].next_id)
-				tbl[i].data = &ns->ids[IPC_SEM_IDS].next_id;
-
-			else if (tbl[i].data == &init_ipc_ns.ids[IPC_MSG_IDS].next_id)
-				tbl[i].data = &ns->ids[IPC_MSG_IDS].next_id;
-
-			else if (tbl[i].data == &init_ipc_ns.ids[IPC_SHM_IDS].next_id)
-				tbl[i].data = &ns->ids[IPC_SHM_IDS].next_id;
-#endif
-			else
-				tbl[i].data = NULL;
-		}
-
-		ns->ipc_sysctls = __register_sysctl_table(&ns->ipc_set, "kernel", tbl,
-							  ARRAY_SIZE(ipc_sysctls));
-	}
+	ns->ipc_sysctls = __register_sysctl_fields(&ns->ipc_set, "kernel",
+						   ipc_sysctls,
+						   ARRAY_SIZE(ipc_sysctls),
+						   &ctx);
 	if (!ns->ipc_sysctls) {
-		kfree(tbl);
 		retire_sysctl_set(&ns->ipc_set);
 		return false;
 	}
@@ -304,12 +307,8 @@ bool setup_ipc_sysctls(struct ipc_namespace *ns)
 
 void retire_ipc_sysctls(struct ipc_namespace *ns)
 {
-	const struct ctl_table *tbl;
-
-	tbl = ns->ipc_sysctls->ctl_table_arg;
 	unregister_sysctl_table(ns->ipc_sysctls);
 	retire_sysctl_set(&ns->ipc_set);
-	kfree(tbl);
 }
 
 static int __init ipc_sysctl_init(void)
