@@ -63,31 +63,57 @@ static struct ctl_table_root set_root = {
 static long ue_zero = 0;
 static long ue_int_max = INT_MAX;
 
-#define UCOUNT_ENTRY(name)					\
-	{							\
-		.procname	= name,				\
-		.maxlen		= sizeof(long),			\
-		.mode		= 0644,				\
-		.proc_handler	= proc_doulongvec_minmax,	\
-		.extra1		= &ue_zero,			\
-		.extra2		= &ue_int_max,			\
-	}
-static const struct ctl_table user_table[] = {
-	UCOUNT_ENTRY("max_user_namespaces"),
-	UCOUNT_ENTRY("max_pid_namespaces"),
-	UCOUNT_ENTRY("max_uts_namespaces"),
-	UCOUNT_ENTRY("max_ipc_namespaces"),
-	UCOUNT_ENTRY("max_net_namespaces"),
-	UCOUNT_ENTRY("max_mnt_namespaces"),
-	UCOUNT_ENTRY("max_cgroup_namespaces"),
-	UCOUNT_ENTRY("max_time_namespaces"),
+#define UCOUNT_DATA(name, type)					\
+static void *name ## _data(const struct ctl_context *ctx)	\
+{								\
+	return &ctx->ns.user_ns->ucount_max[type];		\
+}
+
+UCOUNT_DATA(user_namespaces, UCOUNT_USER_NAMESPACES);
+UCOUNT_DATA(pid_namespaces, UCOUNT_PID_NAMESPACES);
+UCOUNT_DATA(uts_namespaces, UCOUNT_UTS_NAMESPACES);
+UCOUNT_DATA(ipc_namespaces, UCOUNT_IPC_NAMESPACES);
+UCOUNT_DATA(net_namespaces, UCOUNT_NET_NAMESPACES);
+UCOUNT_DATA(mnt_namespaces, UCOUNT_MNT_NAMESPACES);
+UCOUNT_DATA(cgroup_namespaces, UCOUNT_CGROUP_NAMESPACES);
+UCOUNT_DATA(time_namespaces, UCOUNT_TIME_NAMESPACES);
 #ifdef CONFIG_INOTIFY_USER
-	UCOUNT_ENTRY("max_inotify_instances"),
-	UCOUNT_ENTRY("max_inotify_watches"),
+UCOUNT_DATA(inotify_instances, UCOUNT_INOTIFY_INSTANCES);
+UCOUNT_DATA(inotify_watches, UCOUNT_INOTIFY_WATCHES);
 #endif
 #ifdef CONFIG_FANOTIFY
-	UCOUNT_ENTRY("max_fanotify_groups"),
-	UCOUNT_ENTRY("max_fanotify_marks"),
+UCOUNT_DATA(fanotify_groups, UCOUNT_FANOTIFY_GROUPS);
+UCOUNT_DATA(fanotify_marks, UCOUNT_FANOTIFY_MARKS);
+#endif
+
+#define UCOUNT_ENTRY(name, data_fn)				\
+	{							\
+		.table = {					\
+			.procname	= name,			\
+			.maxlen		= sizeof(long),		\
+			.mode		= 0644,			\
+			.proc_handler	= proc_doulongvec_minmax, \
+			.extra1		= &ue_zero,		\
+			.extra2		= &ue_int_max,		\
+		},						\
+		.data = data_fn,				\
+	}
+static const struct ctl_field user_table[] = {
+	UCOUNT_ENTRY("max_user_namespaces", user_namespaces_data),
+	UCOUNT_ENTRY("max_pid_namespaces", pid_namespaces_data),
+	UCOUNT_ENTRY("max_uts_namespaces", uts_namespaces_data),
+	UCOUNT_ENTRY("max_ipc_namespaces", ipc_namespaces_data),
+	UCOUNT_ENTRY("max_net_namespaces", net_namespaces_data),
+	UCOUNT_ENTRY("max_mnt_namespaces", mnt_namespaces_data),
+	UCOUNT_ENTRY("max_cgroup_namespaces", cgroup_namespaces_data),
+	UCOUNT_ENTRY("max_time_namespaces", time_namespaces_data),
+#ifdef CONFIG_INOTIFY_USER
+	UCOUNT_ENTRY("max_inotify_instances", inotify_instances_data),
+	UCOUNT_ENTRY("max_inotify_watches", inotify_watches_data),
+#endif
+#ifdef CONFIG_FANOTIFY
+	UCOUNT_ENTRY("max_fanotify_groups", fanotify_groups_data),
+	UCOUNT_ENTRY("max_fanotify_marks", fanotify_marks_data),
 #endif
 };
 #endif /* CONFIG_SYSCTL */
@@ -95,21 +121,17 @@ static const struct ctl_table user_table[] = {
 bool setup_userns_sysctls(struct user_namespace *ns)
 {
 #ifdef CONFIG_SYSCTL
-	struct ctl_table *tbl;
+	struct ctl_context ctx = {
+		.ns.user_ns = ns,
+	};
 
 	BUILD_BUG_ON(ARRAY_SIZE(user_table) != UCOUNT_COUNTS);
 	setup_sysctl_set(&ns->set, &set_root, set_is_seen);
-	tbl = kmemdup(user_table, sizeof(user_table), GFP_KERNEL);
-	if (tbl) {
-		int i;
-		for (i = 0; i < UCOUNT_COUNTS; i++) {
-			tbl[i].data = &ns->ucount_max[i];
-		}
-		ns->sysctls = __register_sysctl_table(&ns->set, "user", tbl,
-						      ARRAY_SIZE(user_table));
-	}
+	ns->sysctls = __register_sysctl_fields(&ns->set, "user",
+					       user_table,
+					       ARRAY_SIZE(user_table),
+					       &ctx);
 	if (!ns->sysctls) {
-		kfree(tbl);
 		retire_sysctl_set(&ns->set);
 		return false;
 	}
@@ -120,12 +142,8 @@ bool setup_userns_sysctls(struct user_namespace *ns)
 void retire_userns_sysctls(struct user_namespace *ns)
 {
 #ifdef CONFIG_SYSCTL
-	const struct ctl_table *tbl;
-
-	tbl = ns->sysctls->ctl_table_arg;
 	unregister_sysctl_table(ns->sysctls);
 	retire_sysctl_set(&ns->set);
-	kfree(tbl);
 #endif
 }
 
