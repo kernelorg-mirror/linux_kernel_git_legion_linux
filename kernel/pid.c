@@ -787,23 +787,15 @@ static int proc_do_cad_pid(const struct ctl_table *table, int write, void *buffe
 	return 0;
 }
 
-static const struct ctl_table pid_table[] = {
-	{
-		.procname	= "pid_max",
-		.data		= &init_pid_ns.pid_max,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &pid_max_min,
-		.extra2		= &pid_max_max,
-	},
+static int *pid_max_data(const struct sysctl_context *ctx)
+{
+	return &ctx->ns.pid_ns->pid_max;
+}
+
+static const struct sysctl_field pid_table[] = {
+	SYSCTL_FIELD_STATIC_INT_MINMAX("pid_max", 0644, pid_max_data, &pid_max_min, &pid_max_max),
 #ifdef CONFIG_PROC_SYSCTL
-	{
-		.procname	= "cad_pid",
-		.maxlen		= sizeof(int),
-		.mode		= 0600,
-		.proc_handler	= proc_do_cad_pid,
-	},
+	SYSCTL_FIELD_CUSTOM("cad_pid", 0600, sizeof(int), NULL, proc_do_cad_pid),
 #endif
 };
 #endif
@@ -811,21 +803,18 @@ static const struct ctl_table pid_table[] = {
 int register_pidns_sysctls(struct pid_namespace *pidns)
 {
 #ifdef CONFIG_SYSCTL
-	struct ctl_table *tbl;
+	struct sysctl_context ctx = {
+		.ns.pid_ns = pidns,
+	};
 
 	setup_sysctl_set(&pidns->set, &pid_table_root, set_is_seen);
 
-	tbl = kmemdup(pid_table, sizeof(pid_table), GFP_KERNEL);
-	if (!tbl)
-		return -ENOMEM;
-	tbl->data = &pidns->pid_max;
 	pidns->pid_max = min(pid_max_max, max_t(int, pidns->pid_max,
 			     PIDS_PER_CPU_DEFAULT * num_possible_cpus()));
 
-	pidns->sysctls = __register_sysctl_table(&pidns->set, "kernel", tbl,
-						 ARRAY_SIZE(pid_table));
+	pidns->sysctls = register_sysctl_fields(&pidns->set, "kernel",
+						pid_table, &ctx);
 	if (!pidns->sysctls) {
-		kfree(tbl);
 		retire_sysctl_set(&pidns->set);
 		return -ENOMEM;
 	}
@@ -836,12 +825,8 @@ int register_pidns_sysctls(struct pid_namespace *pidns)
 void unregister_pidns_sysctls(struct pid_namespace *pidns)
 {
 #ifdef CONFIG_SYSCTL
-	const struct ctl_table *tbl;
-
-	tbl = pidns->sysctls->ctl_table_arg;
 	unregister_sysctl_table(pidns->sysctls);
 	retire_sysctl_set(&pidns->set);
-	kfree(tbl);
 #endif
 }
 
