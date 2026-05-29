@@ -39,6 +39,7 @@ struct ctl_table_root;
 struct ctl_table_header;
 struct ctl_dir;
 struct ipc_namespace;
+struct pid_namespace;
 struct user_namespace;
 
 /* Keep the same order as in fs/proc/proc_sysctl.c */
@@ -92,6 +93,7 @@ struct ctl_context {
 	union {
 		struct user_namespace *user_ns;
 		struct ipc_namespace *ipc_ns;
+		struct pid_namespace *pid_ns;
 	} ns;
 };
 
