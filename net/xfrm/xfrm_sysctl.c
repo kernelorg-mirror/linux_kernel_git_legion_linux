@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/sysctl.h>
-#include <linux/slab.h>
 #include <net/net_namespace.h>
 #include <net/xfrm.h>
 
@@ -13,71 +12,77 @@ static void __net_init __xfrm_sysctl_init(struct net *net)
 }
 
 #ifdef CONFIG_SYSCTL
-static struct ctl_table xfrm_table[] = {
+#define XFRM_DATA(name, field)						\
+static void * xfrm_ ## name ## _data(const struct ctl_context *ctx)	\
+{									\
+	return &ctx->ns.net_ns->xfrm.field;				\
+}
+
+XFRM_DATA(aevent_etime, sysctl_aevent_etime);
+XFRM_DATA(aevent_rseqth, sysctl_aevent_rseqth);
+XFRM_DATA(larval_drop, sysctl_larval_drop);
+XFRM_DATA(acq_expires, sysctl_acq_expires);
+
+static const struct ctl_field xfrm_table[] = {
 	{
-		.procname	= "xfrm_aevent_etime",
-		.maxlen		= sizeof(u32),
-		.mode		= 0644,
-		.proc_handler	= proc_douintvec
+		.table = {
+			.procname	= "xfrm_aevent_etime",
+			.maxlen		= sizeof(u32),
+			.mode		= 0644,
+			.proc_handler	= proc_douintvec,
+		},
+		.data = xfrm_aevent_etime_data,
 	},
 	{
-		.procname	= "xfrm_aevent_rseqth",
-		.maxlen		= sizeof(u32),
-		.mode		= 0644,
-		.proc_handler	= proc_douintvec
+		.table = {
+			.procname	= "xfrm_aevent_rseqth",
+			.maxlen		= sizeof(u32),
+			.mode		= 0644,
+			.proc_handler	= proc_douintvec,
+		},
+		.data = xfrm_aevent_rseqth_data,
 	},
 	{
-		.procname	= "xfrm_larval_drop",
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.table = {
+			.procname	= "xfrm_larval_drop",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec,
+		},
+		.data = xfrm_larval_drop_data,
 	},
 	{
-		.procname	= "xfrm_acq_expires",
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.table = {
+			.procname	= "xfrm_acq_expires",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec,
+		},
+		.data = xfrm_acq_expires_data,
 	},
 };
 
 int __net_init xfrm_sysctl_init(struct net *net)
 {
-	struct ctl_table *table;
 	size_t table_size = ARRAY_SIZE(xfrm_table);
 
 	__xfrm_sysctl_init(net);
-
-	table = kmemdup(xfrm_table, sizeof(xfrm_table), GFP_KERNEL);
-	if (!table)
-		goto out_kmemdup;
-	table[0].data = &net->xfrm.sysctl_aevent_etime;
-	table[1].data = &net->xfrm.sysctl_aevent_rseqth;
-	table[2].data = &net->xfrm.sysctl_larval_drop;
-	table[3].data = &net->xfrm.sysctl_acq_expires;
 
 	/* Don't export sysctls to unprivileged users */
 	if (net->user_ns != &init_user_ns)
 		table_size = 0;
 
-	net->xfrm.sysctl_hdr = register_net_sysctl_sz(net, "net/core", table,
-						      table_size);
+	net->xfrm.sysctl_hdr = register_net_sysctl_fields(net, "net/core",
+							  xfrm_table,
+							  table_size);
 	if (!net->xfrm.sysctl_hdr)
-		goto out_register;
+		return -ENOMEM;
 	return 0;
-
-out_register:
-	kfree(table);
-out_kmemdup:
-	return -ENOMEM;
 }
 
 void __net_exit xfrm_sysctl_fini(struct net *net)
 {
-	const struct ctl_table *table;
-
-	table = net->xfrm.sysctl_hdr->ctl_table_arg;
 	unregister_net_sysctl_table(net->xfrm.sysctl_hdr);
-	kfree(table);
 }
 #else
 int __net_init xfrm_sysctl_init(struct net *net)

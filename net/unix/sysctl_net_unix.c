@@ -5,7 +5,6 @@
  * Authors:	Mike Shaver.
  */
 
-#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/sysctl.h>
 #include <net/af_unix.h>
@@ -13,50 +12,35 @@
 
 #include "af_unix.h"
 
-static struct ctl_table unix_table[] = {
+static void *unix_max_dgram_qlen_data(const struct ctl_context *ctx)
+{
+	return &ctx->ns.net_ns->unx.sysctl_max_dgram_qlen;
+}
+
+static const struct ctl_field unix_table[] = {
 	{
-		.procname	= "max_dgram_qlen",
-		.data		= &init_net.unx.sysctl_max_dgram_qlen,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.table = {
+			.procname	= "max_dgram_qlen",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec,
+		},
+		.data = unix_max_dgram_qlen_data,
 	},
 };
 
 int __net_init unix_sysctl_register(struct net *net)
 {
-	struct ctl_table *table;
-
-	if (net_eq(net, &init_net)) {
-		table = unix_table;
-	} else {
-		table = kmemdup(unix_table, sizeof(unix_table), GFP_KERNEL);
-		if (!table)
-			goto err_alloc;
-
-		table[0].data = &net->unx.sysctl_max_dgram_qlen;
-	}
-
-	net->unx.ctl = register_net_sysctl_sz(net, "net/unix", table,
-					      ARRAY_SIZE(unix_table));
+	net->unx.ctl = register_net_sysctl_fields(net, "net/unix",
+						  unix_table,
+						  ARRAY_SIZE(unix_table));
 	if (net->unx.ctl == NULL)
-		goto err_reg;
+		return -ENOMEM;
 
 	return 0;
-
-err_reg:
-	if (!net_eq(net, &init_net))
-		kfree(table);
-err_alloc:
-	return -ENOMEM;
 }
 
 void unix_sysctl_unregister(struct net *net)
 {
-	const struct ctl_table *table;
-
-	table = net->unx.ctl->ctl_table_arg;
 	unregister_net_sysctl_table(net->unx.ctl);
-	if (!net_eq(net, &init_net))
-		kfree(table);
 }
