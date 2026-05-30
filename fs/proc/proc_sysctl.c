@@ -263,14 +263,8 @@ sysctl_effective_table(struct ctl_table_header *head,
 	if (!head->ctl_fields)
 		return table;
 
-	*tmp = *table;
 	field = container_of(table, const struct ctl_field, table);
-	if (field->data)
-		tmp->data = field->data(ctx);
-	if (field->extra1)
-		tmp->extra1 = field->extra1(ctx);
-	if (field->extra2)
-		tmp->extra2 = field->extra2(ctx);
+	sysctl_field_to_table(field, ctx, tmp);
 
 	return tmp;
 }

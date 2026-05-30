@@ -17,6 +17,7 @@
 #include <linux/sysctl.h>
 #include <linux/nsproxy.h>
 
+#include <net/net_namespace.h>
 #include <net/sock.h>
 
 #ifdef CONFIG_INET
@@ -120,44 +121,66 @@ out1:
  *    data segment, and rather into the heap where a per-net object was
  *    allocated.
  */
+static bool net_sysctl_points_to_global_data(struct net *net,
+					     const char *path,
+					     const struct ctl_table *ent)
+{
+	unsigned long addr;
+	const char *where;
+
+	pr_debug("  procname=%s mode=%o proc_handler=%ps data=%p\n",
+		 ent->procname, ent->mode, ent->proc_handler, ent->data);
+
+	/* If it's not writable inside the netns, then it can't hurt. */
+	if ((ent->mode & 0222) == 0) {
+		pr_debug("    Not writable by anyone\n");
+		return false;
+	}
+
+	/* Where does data point? */
+	addr = (unsigned long)ent->data;
+	if (is_module_address(addr))
+		where = "module";
+	else if (is_kernel_core_data(addr))
+		where = "kernel";
+	else
+		return false;
+
+	/* If it is writable and points to kernel/module global
+	 * data, then it's probably a netns leak.
+	 */
+	WARN(1, "sysctl %s/%s: data points to %s global data: %ps\n",
+	     path, ent->procname, where, ent->data);
+
+	return true;
+}
+
 static void ensure_safe_net_sysctl(struct net *net, const char *path,
 				   struct ctl_table *table, size_t table_size)
 {
-	struct ctl_table *ent;
-
 	pr_debug("Registering net sysctl (net %p): %s\n", net, path);
-	ent = table;
-	for (size_t i = 0; i < table_size; ent++, i++) {
-		unsigned long addr;
-		const char *where;
-
-		pr_debug("  procname=%s mode=%o proc_handler=%ps data=%p\n",
-			 ent->procname, ent->mode, ent->proc_handler, ent->data);
-
-		/* If it's not writable inside the netns, then it can't hurt. */
-		if ((ent->mode & 0222) == 0) {
-			pr_debug("    Not writable by anyone\n");
-			continue;
-		}
-
-		/* Where does data point? */
-		addr = (unsigned long)ent->data;
-		if (is_module_address(addr))
-			where = "module";
-		else if (is_kernel_core_data(addr))
-			where = "kernel";
-		else
-			continue;
-
-		/* If it is writable and points to kernel/module global
-		 * data, then it's probably a netns leak.
-		 */
-		WARN(1, "sysctl %s/%s: data points to %s global data: %ps\n",
-		     path, ent->procname, where, ent->data);
-
-		/* Make it "safe" by dropping writable perms */
-		ent->mode &= ~0222;
+	for (size_t i = 0; i < table_size; i++) {
+		if (net_sysctl_points_to_global_data(net, path, &table[i]))
+			/* Make it "safe" by dropping writable perms */
+			table[i].mode &= ~0222;
 	}
+}
+
+static bool ensure_safe_net_sysctl_fields(struct net *net, const char *path,
+					  const struct ctl_field *fields,
+					  size_t field_count,
+					  const struct ctl_context *ctx)
+{
+	pr_debug("Registering net sysctl (net %p): %s\n", net, path);
+	for (size_t i = 0; i < field_count; i++) {
+		struct ctl_table table;
+
+		sysctl_field_to_table(&fields[i], ctx, &table);
+		if (net_sysctl_points_to_global_data(net, path, &table))
+			return false;
+	}
+
+	return true;
 }
 
 struct ctl_table_header *register_net_sysctl_sz(struct net *net,
@@ -171,6 +194,25 @@ struct ctl_table_header *register_net_sysctl_sz(struct net *net,
 	return __register_sysctl_table(&net->sysctls, path, table, table_size);
 }
 EXPORT_SYMBOL_GPL(register_net_sysctl_sz);
+
+struct ctl_table_header *register_net_sysctl_fields(struct net *net,
+						    const char *path,
+						    const struct ctl_field *fields,
+						    size_t field_count)
+{
+	struct ctl_context ctx = {
+		.ns.net_ns = net,
+	};
+
+	if (!net_eq(net, &init_net) &&
+	    !ensure_safe_net_sysctl_fields(net, path, fields, field_count,
+					   &ctx))
+		return NULL;
+
+	return __register_sysctl_fields(&net->sysctls, path, fields,
+					field_count, &ctx);
+}
+EXPORT_SYMBOL_GPL(register_net_sysctl_fields);
 
 void unregister_net_sysctl_table(struct ctl_table_header *header)
 {

@@ -39,6 +39,7 @@ struct ctl_table_root;
 struct ctl_table_header;
 struct ctl_dir;
 struct ipc_namespace;
+struct net;
 struct pid_namespace;
 struct user_namespace;
 
@@ -86,6 +87,7 @@ struct ctl_context {
 	union {
 		struct user_namespace *user_ns;
 		struct ipc_namespace *ipc_ns;
+		struct net *net_ns;
 		struct pid_namespace *pid_ns;
 	} ns;
 };
@@ -194,6 +196,19 @@ struct ctl_field {
 	void *(*extra1)(const struct ctl_context *ctx);
 	void *(*extra2)(const struct ctl_context *ctx);
 };
+
+static inline void sysctl_field_to_table(const struct ctl_field *field,
+					 const struct ctl_context *ctx,
+					 struct ctl_table *table)
+{
+	*table = field->table;
+	if (field->data)
+		table->data = field->data(ctx);
+	if (field->extra1)
+		table->extra1 = field->extra1(ctx);
+	if (field->extra2)
+		table->extra2 = field->extra2(ctx);
+}
 
 struct ctl_node {
 	struct rb_node node;
