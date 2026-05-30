@@ -40,7 +40,6 @@
 #include <linux/random.h>
 #include <linux/jhash.h>
 #include <linux/skbuff.h>
-#include <linux/slab.h>
 #include <linux/export.h>
 #include <linux/tcp.h>
 #include <linux/udp.h>
@@ -424,24 +423,50 @@ static const struct inet6_protocol frag_protocol = {
 
 #ifdef CONFIG_SYSCTL
 
-static struct ctl_table ip6_frags_ns_ctl_table[] = {
+static void *ip6_frag_high_thresh_data(const struct ctl_context *ctx)
+{
+	return &ctx->ns.net_ns->ipv6.fqdir->high_thresh;
+}
+
+static void *ip6_frag_low_thresh_data(const struct ctl_context *ctx)
+{
+	return &ctx->ns.net_ns->ipv6.fqdir->low_thresh;
+}
+
+static void *ip6_frag_timeout_data(const struct ctl_context *ctx)
+{
+	return &ctx->ns.net_ns->ipv6.fqdir->timeout;
+}
+
+static const struct ctl_field ip6_frags_ns_ctl_table[] = {
 	{
-		.procname	= "ip6frag_high_thresh",
-		.maxlen		= sizeof(unsigned long),
-		.mode		= 0644,
-		.proc_handler	= proc_doulongvec_minmax,
+		.table = {
+			.procname	= "ip6frag_high_thresh",
+			.maxlen		= sizeof(unsigned long),
+			.mode		= 0644,
+			.proc_handler	= proc_doulongvec_minmax,
+		},
+		.data   = ip6_frag_high_thresh_data,
+		.extra1 = ip6_frag_low_thresh_data,
 	},
 	{
-		.procname	= "ip6frag_low_thresh",
-		.maxlen		= sizeof(unsigned long),
-		.mode		= 0644,
-		.proc_handler	= proc_doulongvec_minmax,
+		.table = {
+			.procname	= "ip6frag_low_thresh",
+			.maxlen		= sizeof(unsigned long),
+			.mode		= 0644,
+			.proc_handler	= proc_doulongvec_minmax,
+		},
+		.data   = ip6_frag_low_thresh_data,
+		.extra2 = ip6_frag_high_thresh_data,
 	},
 	{
-		.procname	= "ip6frag_time",
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+		.table = {
+			.procname	= "ip6frag_time",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec_jiffies,
+		},
+		.data = ip6_frag_timeout_data,
 	},
 };
 
@@ -459,45 +484,21 @@ static struct ctl_table ip6_frags_ctl_table[] = {
 
 static int __net_init ip6_frags_ns_sysctl_register(struct net *net)
 {
-	struct ctl_table *table;
 	struct ctl_table_header *hdr;
 
-	table = ip6_frags_ns_ctl_table;
-	if (!net_eq(net, &init_net)) {
-		table = kmemdup(table, sizeof(ip6_frags_ns_ctl_table), GFP_KERNEL);
-		if (!table)
-			goto err_alloc;
-
-	}
-	table[0].data	= &net->ipv6.fqdir->high_thresh;
-	table[0].extra1	= &net->ipv6.fqdir->low_thresh;
-	table[1].data	= &net->ipv6.fqdir->low_thresh;
-	table[1].extra2	= &net->ipv6.fqdir->high_thresh;
-	table[2].data	= &net->ipv6.fqdir->timeout;
-
-	hdr = register_net_sysctl_sz(net, "net/ipv6", table,
-				     ARRAY_SIZE(ip6_frags_ns_ctl_table));
+	hdr = register_net_sysctl_fields(net, "net/ipv6",
+					 ip6_frags_ns_ctl_table,
+					 ARRAY_SIZE(ip6_frags_ns_ctl_table));
 	if (!hdr)
-		goto err_reg;
+		return -ENOMEM;
 
 	net->ipv6.sysctl.frags_hdr = hdr;
 	return 0;
-
-err_reg:
-	if (!net_eq(net, &init_net))
-		kfree(table);
-err_alloc:
-	return -ENOMEM;
 }
 
 static void __net_exit ip6_frags_ns_sysctl_unregister(struct net *net)
 {
-	const struct ctl_table *table;
-
-	table = net->ipv6.sysctl.frags_hdr->ctl_table_arg;
 	unregister_net_sysctl_table(net->ipv6.sysctl.frags_hdr);
-	if (!net_eq(net, &init_net))
-		kfree(table);
 }
 
 static struct ctl_table_header *ip6_ctl_header;

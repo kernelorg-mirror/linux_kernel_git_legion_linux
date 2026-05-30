@@ -35,7 +35,6 @@
 #include <linux/netdevice.h>
 #include <linux/jhash.h>
 #include <linux/random.h>
-#include <linux/slab.h>
 #include <net/route.h>
 #include <net/dst.h>
 #include <net/sock.h>
@@ -548,31 +547,56 @@ EXPORT_SYMBOL(ip_check_defrag);
 #ifdef CONFIG_SYSCTL
 static int dist_min;
 
-static struct ctl_table ip4_frags_ns_ctl_table[] = {
+#define IP4_FRAG_DATA(name, field)					\
+static void *ip4_frag_## name ## _data(const struct ctl_context *ctx)	\
+{									\
+	return &ctx->ns.net_ns->ipv4.fqdir->field;			\
+}
+
+IP4_FRAG_DATA(high_thresh, high_thresh);
+IP4_FRAG_DATA(low_thresh, low_thresh);
+IP4_FRAG_DATA(timeout, timeout);
+IP4_FRAG_DATA(max_dist, max_dist);
+
+static const struct ctl_field ip4_frags_ns_ctl_table[] = {
 	{
-		.procname	= "ipfrag_high_thresh",
-		.maxlen		= sizeof(unsigned long),
-		.mode		= 0644,
-		.proc_handler	= proc_doulongvec_minmax,
+		.table = {
+			.procname	= "ipfrag_high_thresh",
+			.maxlen		= sizeof(unsigned long),
+			.mode		= 0644,
+			.proc_handler	= proc_doulongvec_minmax,
+		},
+		.data   = ip4_frag_high_thresh_data,
+		.extra1 = ip4_frag_low_thresh_data,
 	},
 	{
-		.procname	= "ipfrag_low_thresh",
-		.maxlen		= sizeof(unsigned long),
-		.mode		= 0644,
-		.proc_handler	= proc_doulongvec_minmax,
+		.table = {
+			.procname	= "ipfrag_low_thresh",
+			.maxlen		= sizeof(unsigned long),
+			.mode		= 0644,
+			.proc_handler	= proc_doulongvec_minmax,
+		},
+		.data   = ip4_frag_low_thresh_data,
+		.extra2 = ip4_frag_high_thresh_data,
 	},
 	{
-		.procname	= "ipfrag_time",
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+		.table = {
+			.procname	= "ipfrag_time",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec_jiffies,
+		},
+		.data = ip4_frag_timeout_data,
 	},
 	{
-		.procname	= "ipfrag_max_dist",
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &dist_min,
+		.table = {
+			.procname	= "ipfrag_max_dist",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec_minmax,
+			.extra1		= &dist_min,
+		},
+		.data = ip4_frag_max_dist_data,
 	},
 };
 
@@ -590,45 +614,21 @@ static struct ctl_table ip4_frags_ctl_table[] = {
 
 static int __net_init ip4_frags_ns_ctl_register(struct net *net)
 {
-	struct ctl_table *table;
 	struct ctl_table_header *hdr;
 
-	table = ip4_frags_ns_ctl_table;
-	if (!net_eq(net, &init_net)) {
-		table = kmemdup(table, sizeof(ip4_frags_ns_ctl_table), GFP_KERNEL);
-		if (!table)
-			goto err_alloc;
-
-	}
-	table[0].data	= &net->ipv4.fqdir->high_thresh;
-	table[0].extra1	= &net->ipv4.fqdir->low_thresh;
-	table[1].data	= &net->ipv4.fqdir->low_thresh;
-	table[1].extra2	= &net->ipv4.fqdir->high_thresh;
-	table[2].data	= &net->ipv4.fqdir->timeout;
-	table[3].data	= &net->ipv4.fqdir->max_dist;
-
-	hdr = register_net_sysctl_sz(net, "net/ipv4", table,
-				     ARRAY_SIZE(ip4_frags_ns_ctl_table));
+	hdr = register_net_sysctl_fields(net, "net/ipv4",
+					 ip4_frags_ns_ctl_table,
+					 ARRAY_SIZE(ip4_frags_ns_ctl_table));
 	if (!hdr)
-		goto err_reg;
+		return -ENOMEM;
 
 	net->ipv4.frags_hdr = hdr;
 	return 0;
-
-err_reg:
-	if (!net_eq(net, &init_net))
-		kfree(table);
-err_alloc:
-	return -ENOMEM;
 }
 
 static void __net_exit ip4_frags_ns_ctl_unregister(struct net *net)
 {
-	const struct ctl_table *table;
-
-	table = net->ipv4.frags_hdr->ctl_table_arg;
 	unregister_net_sysctl_table(net->ipv4.frags_hdr);
-	kfree(table);
 }
 
 static void __init ip4_frags_ctl_register(void)
