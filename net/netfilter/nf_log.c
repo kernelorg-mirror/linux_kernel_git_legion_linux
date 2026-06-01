@@ -420,8 +420,6 @@ static const struct seq_operations nflog_seq_ops = {
 #endif /* PROC_FS */
 
 #ifdef CONFIG_SYSCTL
-static char nf_log_sysctl_fnames[NFPROTO_NUMPROTO-NFPROTO_UNSPEC][3];
-static struct ctl_table nf_log_sysctl_table[NFPROTO_NUMPROTO];
 static struct ctl_table_header *nf_log_sysctl_fhdr;
 
 static struct ctl_table nf_log_sysctl_ftable[] = {
@@ -441,16 +439,20 @@ static int nf_log_proc_dostring(const struct ctl_table *table, int write,
 	char buf[NFLOGGER_NAME_LEN];
 	int r = 0;
 	int tindex = (unsigned long)table->extra1;
-	struct net *net = table->extra2;
+	struct net *net = table->data;
 
 	if (write) {
-		struct ctl_table tmp = *table;
+		const struct ctl_table tmp = {
+			.procname	= table->procname,
+			.data		= buf,
+			.maxlen		= table->maxlen,
+			.mode		= table->mode,
+		};
 
 		/* proc_dostring() can append to existing strings, so we need to
 		 * initialize it as an empty string.
 		 */
 		buf[0] = '\0';
-		tmp.data = buf;
 		r = proc_dostring(&tmp, write, buffer, lenp, ppos);
 		if (r)
 			return r;
@@ -468,9 +470,13 @@ static int nf_log_proc_dostring(const struct ctl_table *table, int write,
 		rcu_assign_pointer(net->nf.nf_loggers[tindex], logger);
 		mutex_unlock(&nf_log_mutex);
 	} else {
-		struct ctl_table tmp = *table;
+		const struct ctl_table tmp = {
+			.procname	= table->procname,
+			.data		= buf,
+			.maxlen		= table->maxlen,
+			.mode		= table->mode,
+		};
 
-		tmp.data = buf;
 		mutex_lock(&nf_log_mutex);
 		logger = nft_log_dereference(net->nf.nf_loggers[tindex]);
 		if (!logger)
@@ -484,68 +490,72 @@ static int nf_log_proc_dostring(const struct ctl_table *table, int write,
 	return r;
 }
 
+#define NF_LOG_DATA(name, expr)						\
+static void *nf_log_ ## name ## _data(const struct ctl_context *ctx)	\
+{									\
+	struct net *net = ctx->ns.net_ns;				\
+	return (expr);							\
+}
+
+NF_LOG_DATA(net, net)
+
+#define NF_LOG_FIELD(index)						\
+	{								\
+		.table = {						\
+			.procname	= __stringify(index),		\
+			.maxlen		= NFLOGGER_NAME_LEN,		\
+			.mode		= 0644,				\
+			.proc_handler	= nf_log_proc_dostring,		\
+			.extra1		= (void *)(unsigned long)(index),	\
+		},							\
+		.data = nf_log_net_data,				\
+	}
+
+static const struct ctl_field nf_log_sysctl_table[] = {
+	NF_LOG_FIELD(0),
+	NF_LOG_FIELD(1),
+	NF_LOG_FIELD(2),
+	NF_LOG_FIELD(3),
+	NF_LOG_FIELD(4),
+	NF_LOG_FIELD(5),
+	NF_LOG_FIELD(6),
+	NF_LOG_FIELD(7),
+	NF_LOG_FIELD(8),
+	NF_LOG_FIELD(9),
+	NF_LOG_FIELD(10),
+};
+
+static_assert(ARRAY_SIZE(nf_log_sysctl_table) == NFPROTO_NUMPROTO);
+
 static int netfilter_log_sysctl_init(struct net *net)
 {
-	int i;
-	struct ctl_table *table;
-
-	table = nf_log_sysctl_table;
-	if (!net_eq(net, &init_net)) {
-		table = kmemdup(nf_log_sysctl_table,
-				 sizeof(nf_log_sysctl_table),
-				 GFP_KERNEL);
-		if (!table)
-			goto err_alloc;
-	} else {
-		for (i = NFPROTO_UNSPEC; i < NFPROTO_NUMPROTO; i++) {
-			snprintf(nf_log_sysctl_fnames[i],
-				 3, "%d", i);
-			nf_log_sysctl_table[i].procname	=
-				nf_log_sysctl_fnames[i];
-			nf_log_sysctl_table[i].maxlen = NFLOGGER_NAME_LEN;
-			nf_log_sysctl_table[i].mode = 0644;
-			nf_log_sysctl_table[i].proc_handler =
-				nf_log_proc_dostring;
-			nf_log_sysctl_table[i].extra1 =
-				(void *)(unsigned long) i;
-		}
+	if (net_eq(net, &init_net)) {
 		nf_log_sysctl_fhdr = register_net_sysctl(net, "net/netfilter",
 							 nf_log_sysctl_ftable);
 		if (!nf_log_sysctl_fhdr)
 			goto err_freg;
 	}
 
-	for (i = NFPROTO_UNSPEC; i < NFPROTO_NUMPROTO; i++)
-		table[i].extra2 = net;
-
-	net->nf.nf_log_dir_header = register_net_sysctl_sz(net,
-							   "net/netfilter/nf_log",
-							   table,
-							   ARRAY_SIZE(nf_log_sysctl_table));
+	net->nf.nf_log_dir_header =
+		register_net_sysctl_fields(net, "net/netfilter/nf_log",
+					   nf_log_sysctl_table,
+					   ARRAY_SIZE(nf_log_sysctl_table));
 	if (!net->nf.nf_log_dir_header)
 		goto err_reg;
 
 	return 0;
 
 err_reg:
-	if (!net_eq(net, &init_net))
-		kfree(table);
-	else
+	if (net_eq(net, &init_net))
 		unregister_net_sysctl_table(nf_log_sysctl_fhdr);
 err_freg:
-err_alloc:
 	return -ENOMEM;
 }
 
 static void netfilter_log_sysctl_exit(struct net *net)
 {
-	const struct ctl_table *table;
-
-	table = net->nf.nf_log_dir_header->ctl_table_arg;
 	unregister_net_sysctl_table(net->nf.nf_log_dir_header);
-	if (!net_eq(net, &init_net))
-		kfree(table);
-	else
+	if (net_eq(net, &init_net))
 		unregister_net_sysctl_table(nf_log_sysctl_fhdr);
 }
 #else
