@@ -3471,7 +3471,7 @@ static int ip_min_valid_pmtu __read_mostly	= IPV4_MIN_MTU;
 static int ipv4_sysctl_rtcache_flush(const struct ctl_table *__ctl, int write,
 		void *buffer, size_t *lenp, loff_t *ppos)
 {
-	struct net *net = (struct net *)__ctl->extra1;
+	struct net *net = __ctl->data;
 
 	if (write) {
 		rt_cache_flush(net);
@@ -3573,85 +3573,84 @@ static struct ctl_table ipv4_route_table[] = {
 
 static const char ipv4_route_flush_procname[] = "flush";
 
-static struct ctl_table ipv4_route_netns_table[] = {
+#define IPV4_ROUTE_DATA(name, expr)						\
+static void *ipv4_route_ ## name ## _data(const struct ctl_context *ctx)	\
+{										\
+	struct net *net = ctx->ns.net_ns;					\
+	return (expr);								\
+}
+
+IPV4_ROUTE_DATA(net, net)
+IPV4_ROUTE_DATA(min_pmtu, &net->ipv4.ip_rt_min_pmtu)
+IPV4_ROUTE_DATA(mtu_expires, &net->ipv4.ip_rt_mtu_expires)
+IPV4_ROUTE_DATA(min_advmss, &net->ipv4.ip_rt_min_advmss)
+
+static const struct ctl_field ipv4_route_netns_table[] = {
 	{
-		.procname	= ipv4_route_flush_procname,
-		.maxlen		= sizeof(int),
-		.mode		= 0200,
-		.proc_handler	= ipv4_sysctl_rtcache_flush,
+		.table = {
+			.procname	= ipv4_route_flush_procname,
+			.maxlen		= sizeof(int),
+			.mode		= 0200,
+			.proc_handler	= ipv4_sysctl_rtcache_flush,
+		},
+		.data = ipv4_route_net_data,
 	},
 	{
-		.procname       = "min_pmtu",
-		.data           = &init_net.ipv4.ip_rt_min_pmtu,
-		.maxlen         = sizeof(int),
-		.mode           = 0644,
-		.proc_handler   = proc_dointvec_minmax,
-		.extra1         = &ip_min_valid_pmtu,
+		.table = {
+			.procname	= "min_pmtu",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec_minmax,
+			.extra1		= &ip_min_valid_pmtu,
+		},
+		.data = ipv4_route_min_pmtu_data,
 	},
 	{
-		.procname       = "mtu_expires",
-		.data           = &init_net.ipv4.ip_rt_mtu_expires,
-		.maxlen         = sizeof(int),
-		.mode           = 0644,
-		.proc_handler   = proc_dointvec_jiffies,
+		.table = {
+			.procname	= "mtu_expires",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec_jiffies,
+		},
+		.data = ipv4_route_mtu_expires_data,
 	},
 	{
-		.procname   = "min_adv_mss",
-		.data       = &init_net.ipv4.ip_rt_min_advmss,
-		.maxlen     = sizeof(int),
-		.mode       = 0644,
-		.proc_handler   = proc_dointvec,
+		.table = {
+			.procname	= "min_adv_mss",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec,
+		},
+		.data = ipv4_route_min_advmss_data,
 	},
 };
 
 static __net_init int sysctl_route_net_init(struct net *net)
 {
-	struct ctl_table *tbl;
-	size_t table_size = ARRAY_SIZE(ipv4_route_netns_table);
+	size_t field_count = ARRAY_SIZE(ipv4_route_netns_table);
 
-	tbl = ipv4_route_netns_table;
 	if (!net_eq(net, &init_net)) {
-		int i;
-
-		tbl = kmemdup(tbl, sizeof(ipv4_route_netns_table), GFP_KERNEL);
-		if (!tbl)
-			goto err_dup;
-
 		/* Don't export non-whitelisted sysctls to unprivileged users */
 		if (net->user_ns != &init_user_ns) {
-			if (tbl[0].procname != ipv4_route_flush_procname)
-				table_size = 0;
+			if (ipv4_route_netns_table[0].table.procname !=
+			    ipv4_route_flush_procname)
+				field_count = 0;
 		}
-
-		/* Update the variables to point into the current struct net
-		 * except for the first element flush
-		 */
-		for (i = 1; i < table_size; i++)
-			tbl[i].data += (void *)net - (void *)&init_net;
 	}
-	tbl[0].extra1 = net;
 
-	net->ipv4.route_hdr = register_net_sysctl_sz(net, "net/ipv4/route",
-						     tbl, table_size);
+	net->ipv4.route_hdr =
+		register_net_sysctl_fields(net, "net/ipv4/route",
+					   ipv4_route_netns_table,
+					   field_count);
 	if (!net->ipv4.route_hdr)
-		goto err_reg;
-	return 0;
+		return -ENOMEM;
 
-err_reg:
-	if (tbl != ipv4_route_netns_table)
-		kfree(tbl);
-err_dup:
-	return -ENOMEM;
+	return 0;
 }
 
 static __net_exit void sysctl_route_net_exit(struct net *net)
 {
-	const struct ctl_table *tbl;
-
-	tbl = net->ipv4.route_hdr->ctl_table_arg;
 	unregister_net_sysctl_table(net->ipv4.route_hdr);
-	BUG_ON(tbl == ipv4_route_netns_table);
-	kfree(tbl);
 }
 
 static __net_initdata struct pernet_operations sysctl_route_ops = {
