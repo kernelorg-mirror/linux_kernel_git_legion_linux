@@ -1207,10 +1207,10 @@ static inline int snmp6_unregister_dev(struct inet6_dev *idev) { return 0; }
 #endif
 
 #ifdef CONFIG_SYSCTL
-struct ctl_table *ipv6_icmp_sysctl_init(struct net *net);
-size_t ipv6_icmp_sysctl_table_size(void);
-struct ctl_table *ipv6_route_sysctl_init(struct net *net);
-size_t ipv6_route_sysctl_table_size(struct net *net);
+const struct ctl_field *ipv6_icmp_sysctl_fields(void);
+size_t ipv6_icmp_sysctl_field_count(void);
+const struct ctl_field *ipv6_route_sysctl_fields(void);
+size_t ipv6_route_sysctl_field_count(struct net *net);
 int ipv6_sysctl_register(void);
 void ipv6_sysctl_unregister(void);
 #endif

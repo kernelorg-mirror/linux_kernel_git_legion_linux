@@ -6529,137 +6529,162 @@ static int rt6_stats_seq_show(struct seq_file *seq, void *v)
 static int ipv6_sysctl_rtcache_flush(const struct ctl_table *ctl, int write,
 			      void *buffer, size_t *lenp, loff_t *ppos)
 {
-	struct net *net;
+	struct net *net = ctl->data;
+	const struct ctl_table tmp = {
+		.procname	= ctl->procname,
+		.data		= &net->ipv6.sysctl.flush_delay,
+		.maxlen		= ctl->maxlen,
+		.mode		= ctl->mode,
+	};
 	int delay;
 	int ret;
+
 	if (!write)
 		return -EINVAL;
 
-	ret = proc_dointvec(ctl, write, buffer, lenp, ppos);
+	ret = proc_dointvec(&tmp, write, buffer, lenp, ppos);
 	if (ret)
 		return ret;
 
-	net = (struct net *)ctl->extra1;
 	delay = READ_ONCE(net->ipv6.sysctl.flush_delay);
 	fib6_run_gc(delay <= 0 ? 0 : (unsigned long)delay, net, delay > 0);
 	return 0;
 }
 
-static struct ctl_table ipv6_route_table_template[] = {
+#define IPV6_ROUTE_DATA(name, expr)						\
+static void *ipv6_route_ ## name ## _data(const struct ctl_context *ctx)	\
+{										\
+	struct net *net = ctx->ns.net_ns;					\
+	return (expr);								\
+}
+
+IPV6_ROUTE_DATA(max_size, &net->ipv6.sysctl.ip6_rt_max_size)
+IPV6_ROUTE_DATA(gc_thresh, &net->ipv6.ip6_dst_ops.gc_thresh)
+IPV6_ROUTE_DATA(net, net)
+IPV6_ROUTE_DATA(gc_min_interval, &net->ipv6.sysctl.ip6_rt_gc_min_interval)
+IPV6_ROUTE_DATA(gc_timeout, &net->ipv6.sysctl.ip6_rt_gc_timeout)
+IPV6_ROUTE_DATA(gc_interval, &net->ipv6.sysctl.ip6_rt_gc_interval)
+IPV6_ROUTE_DATA(gc_elasticity, &net->ipv6.sysctl.ip6_rt_gc_elasticity)
+IPV6_ROUTE_DATA(mtu_expires, &net->ipv6.sysctl.ip6_rt_mtu_expires)
+IPV6_ROUTE_DATA(min_advmss, &net->ipv6.sysctl.ip6_rt_min_advmss)
+IPV6_ROUTE_DATA(skip_notify_on_dev_down, &net->ipv6.sysctl.skip_notify_on_dev_down)
+
+static const struct ctl_field ipv6_route_fields[] = {
 	{
-		.procname	=	"max_size",
-		.data		=	&init_net.ipv6.sysctl.ip6_rt_max_size,
-		.maxlen		=	sizeof(int),
-		.mode		=	0644,
-		.proc_handler	=	proc_dointvec,
+		.table = {
+			.procname	= "max_size",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec,
+		},
+		.data = ipv6_route_max_size_data,
 	},
 	{
-		.procname	=	"gc_thresh",
-		.data		=	&ip6_dst_ops_template.gc_thresh,
-		.maxlen		=	sizeof(int),
-		.mode		=	0644,
-		.proc_handler	=	proc_dointvec,
+		.table = {
+			.procname	= "gc_thresh",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec,
+		},
+		.data = ipv6_route_gc_thresh_data,
 	},
 	{
-		.procname	=	"flush",
-		.data		=	&init_net.ipv6.sysctl.flush_delay,
-		.maxlen		=	sizeof(int),
-		.mode		=	0200,
-		.proc_handler	=	ipv6_sysctl_rtcache_flush
+		.table = {
+			.procname	= "flush",
+			.maxlen		= sizeof(int),
+			.mode		= 0200,
+			.proc_handler	= ipv6_sysctl_rtcache_flush,
+		},
+		.data = ipv6_route_net_data,
 	},
 	{
-		.procname	=	"gc_min_interval",
-		.data		=	&init_net.ipv6.sysctl.ip6_rt_gc_min_interval,
-		.maxlen		=	sizeof(int),
-		.mode		=	0644,
-		.proc_handler	=	proc_dointvec_jiffies,
+		.table = {
+			.procname	= "gc_min_interval",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec_jiffies,
+		},
+		.data = ipv6_route_gc_min_interval_data,
 	},
 	{
-		.procname	=	"gc_timeout",
-		.data		=	&init_net.ipv6.sysctl.ip6_rt_gc_timeout,
-		.maxlen		=	sizeof(int),
-		.mode		=	0644,
-		.proc_handler	=	proc_dointvec_jiffies,
+		.table = {
+			.procname	= "gc_timeout",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec_jiffies,
+		},
+		.data = ipv6_route_gc_timeout_data,
 	},
 	{
-		.procname	=	"gc_interval",
-		.data		=	&init_net.ipv6.sysctl.ip6_rt_gc_interval,
-		.maxlen		=	sizeof(int),
-		.mode		=	0644,
-		.proc_handler	=	proc_dointvec_jiffies,
+		.table = {
+			.procname	= "gc_interval",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec_jiffies,
+		},
+		.data = ipv6_route_gc_interval_data,
 	},
 	{
-		.procname	=	"gc_elasticity",
-		.data		=	&init_net.ipv6.sysctl.ip6_rt_gc_elasticity,
-		.maxlen		=	sizeof(int),
-		.mode		=	0644,
-		.proc_handler	=	proc_dointvec,
+		.table = {
+			.procname	= "gc_elasticity",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec,
+		},
+		.data = ipv6_route_gc_elasticity_data,
 	},
 	{
-		.procname	=	"mtu_expires",
-		.data		=	&init_net.ipv6.sysctl.ip6_rt_mtu_expires,
-		.maxlen		=	sizeof(int),
-		.mode		=	0644,
-		.proc_handler	=	proc_dointvec_jiffies,
+		.table = {
+			.procname	= "mtu_expires",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec_jiffies,
+		},
+		.data = ipv6_route_mtu_expires_data,
 	},
 	{
-		.procname	=	"min_adv_mss",
-		.data		=	&init_net.ipv6.sysctl.ip6_rt_min_advmss,
-		.maxlen		=	sizeof(int),
-		.mode		=	0644,
-		.proc_handler	=	proc_dointvec,
+		.table = {
+			.procname	= "min_adv_mss",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec,
+		},
+		.data = ipv6_route_min_advmss_data,
 	},
 	{
-		.procname	=	"gc_min_interval_ms",
-		.data		=	&init_net.ipv6.sysctl.ip6_rt_gc_min_interval,
-		.maxlen		=	sizeof(int),
-		.mode		=	0644,
-		.proc_handler	=	proc_dointvec_ms_jiffies,
+		.table = {
+			.procname	= "gc_min_interval_ms",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec_ms_jiffies,
+		},
+		.data = ipv6_route_gc_min_interval_data,
 	},
 	{
-		.procname	=	"skip_notify_on_dev_down",
-		.data		=	&init_net.ipv6.sysctl.skip_notify_on_dev_down,
-		.maxlen		=	sizeof(u8),
-		.mode		=	0644,
-		.proc_handler	=	proc_dou8vec_minmax,
-		.extra1		=	SYSCTL_ZERO,
-		.extra2		=	SYSCTL_ONE,
+		.table = {
+			.procname	= "skip_notify_on_dev_down",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+			.extra1		= SYSCTL_ZERO,
+			.extra2		= SYSCTL_ONE,
+		},
+		.data = ipv6_route_skip_notify_on_dev_down_data,
 	},
 };
 
-struct ctl_table * __net_init ipv6_route_sysctl_init(struct net *net)
+const struct ctl_field *ipv6_route_sysctl_fields(void)
 {
-	struct ctl_table *table;
-
-	table = kmemdup(ipv6_route_table_template,
-			sizeof(ipv6_route_table_template),
-			GFP_KERNEL);
-
-	if (table) {
-		table[0].data = &net->ipv6.sysctl.ip6_rt_max_size;
-		table[1].data = &net->ipv6.ip6_dst_ops.gc_thresh;
-		table[2].data = &net->ipv6.sysctl.flush_delay;
-		table[2].extra1 = net;
-		table[3].data = &net->ipv6.sysctl.ip6_rt_gc_min_interval;
-		table[4].data = &net->ipv6.sysctl.ip6_rt_gc_timeout;
-		table[5].data = &net->ipv6.sysctl.ip6_rt_gc_interval;
-		table[6].data = &net->ipv6.sysctl.ip6_rt_gc_elasticity;
-		table[7].data = &net->ipv6.sysctl.ip6_rt_mtu_expires;
-		table[8].data = &net->ipv6.sysctl.ip6_rt_min_advmss;
-		table[9].data = &net->ipv6.sysctl.ip6_rt_gc_min_interval;
-		table[10].data = &net->ipv6.sysctl.skip_notify_on_dev_down;
-	}
-
-	return table;
+	return ipv6_route_fields;
 }
 
-size_t ipv6_route_sysctl_table_size(struct net *net)
+size_t ipv6_route_sysctl_field_count(struct net *net)
 {
 	/* Don't export sysctls to unprivileged users */
 	if (net->user_ns != &init_user_ns)
 		return 1;
 
-	return ARRAY_SIZE(ipv6_route_table_template);
+	return ARRAY_SIZE(ipv6_route_fields);
 }
 #endif
 

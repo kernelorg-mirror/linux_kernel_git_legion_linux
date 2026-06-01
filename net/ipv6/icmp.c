@@ -1374,84 +1374,98 @@ EXPORT_SYMBOL(icmpv6_err_convert);
 static u32 icmpv6_errors_extension_mask_all =
 	GENMASK_U8(ICMP_ERR_EXT_COUNT - 1, 0);
 
-static struct ctl_table ipv6_icmp_table_template[] = {
+#define ICMPV6_DATA(name, expr)						\
+static void *icmpv6_ ## name ## _data(const struct ctl_context *ctx)	\
+{									\
+	struct net *net = ctx->ns.net_ns;				\
+	return (expr);							\
+}
+
+ICMPV6_DATA(time, &net->ipv6.sysctl.icmpv6_time)
+ICMPV6_DATA(echo_ignore_all, &net->ipv6.sysctl.icmpv6_echo_ignore_all)
+ICMPV6_DATA(echo_ignore_multicast, &net->ipv6.sysctl.icmpv6_echo_ignore_multicast)
+ICMPV6_DATA(echo_ignore_anycast, &net->ipv6.sysctl.icmpv6_echo_ignore_anycast)
+ICMPV6_DATA(ratemask_ptr, &net->ipv6.sysctl.icmpv6_ratemask_ptr)
+ICMPV6_DATA(error_anycast_as_unicast, &net->ipv6.sysctl.icmpv6_error_anycast_as_unicast)
+ICMPV6_DATA(errors_extension_mask, &net->ipv6.sysctl.icmpv6_errors_extension_mask)
+
+static const struct ctl_field ipv6_icmp_fields[] = {
 	{
-		.procname	= "ratelimit",
-		.data		= &init_net.ipv6.sysctl.icmpv6_time,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_ms_jiffies,
+		.table = {
+			.procname	= "ratelimit",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec_ms_jiffies,
+		},
+		.data = icmpv6_time_data,
 	},
 	{
-		.procname	= "echo_ignore_all",
-		.data		= &init_net.ipv6.sysctl.icmpv6_echo_ignore_all,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler = proc_dou8vec_minmax,
+		.table = {
+			.procname	= "echo_ignore_all",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+		},
+		.data = icmpv6_echo_ignore_all_data,
 	},
 	{
-		.procname	= "echo_ignore_multicast",
-		.data		= &init_net.ipv6.sysctl.icmpv6_echo_ignore_multicast,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler = proc_dou8vec_minmax,
+		.table = {
+			.procname	= "echo_ignore_multicast",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+		},
+		.data = icmpv6_echo_ignore_multicast_data,
 	},
 	{
-		.procname	= "echo_ignore_anycast",
-		.data		= &init_net.ipv6.sysctl.icmpv6_echo_ignore_anycast,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler = proc_dou8vec_minmax,
+		.table = {
+			.procname	= "echo_ignore_anycast",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+		},
+		.data = icmpv6_echo_ignore_anycast_data,
 	},
 	{
-		.procname	= "ratemask",
-		.data		= &init_net.ipv6.sysctl.icmpv6_ratemask_ptr,
-		.maxlen		= ICMPV6_MSG_MAX + 1,
-		.mode		= 0644,
-		.proc_handler = proc_do_large_bitmap,
+		.table = {
+			.procname	= "ratemask",
+			.maxlen		= ICMPV6_MSG_MAX + 1,
+			.mode		= 0644,
+			.proc_handler	= proc_do_large_bitmap,
+		},
+		.data = icmpv6_ratemask_ptr_data,
 	},
 	{
-		.procname	= "error_anycast_as_unicast",
-		.data		= &init_net.ipv6.sysctl.icmpv6_error_anycast_as_unicast,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_ONE,
+		.table = {
+			.procname	= "error_anycast_as_unicast",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+			.extra1		= SYSCTL_ZERO,
+			.extra2		= SYSCTL_ONE,
+		},
+		.data = icmpv6_error_anycast_as_unicast_data,
 	},
 	{
-		.procname	= "errors_extension_mask",
-		.data		= &init_net.ipv6.sysctl.icmpv6_errors_extension_mask,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= &icmpv6_errors_extension_mask_all,
+		.table = {
+			.procname	= "errors_extension_mask",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+			.extra1		= SYSCTL_ZERO,
+			.extra2		= &icmpv6_errors_extension_mask_all,
+		},
+		.data = icmpv6_errors_extension_mask_data,
 	},
 };
 
-struct ctl_table * __net_init ipv6_icmp_sysctl_init(struct net *net)
+const struct ctl_field *ipv6_icmp_sysctl_fields(void)
 {
-	struct ctl_table *table;
-
-	table = kmemdup(ipv6_icmp_table_template,
-			sizeof(ipv6_icmp_table_template),
-			GFP_KERNEL);
-
-	if (table) {
-		table[0].data = &net->ipv6.sysctl.icmpv6_time;
-		table[1].data = &net->ipv6.sysctl.icmpv6_echo_ignore_all;
-		table[2].data = &net->ipv6.sysctl.icmpv6_echo_ignore_multicast;
-		table[3].data = &net->ipv6.sysctl.icmpv6_echo_ignore_anycast;
-		table[4].data = &net->ipv6.sysctl.icmpv6_ratemask_ptr;
-		table[5].data = &net->ipv6.sysctl.icmpv6_error_anycast_as_unicast;
-		table[6].data = &net->ipv6.sysctl.icmpv6_errors_extension_mask;
-	}
-	return table;
+	return ipv6_icmp_fields;
 }
 
-size_t ipv6_icmp_sysctl_table_size(void)
+size_t ipv6_icmp_sysctl_field_count(void)
 {
-	return ARRAY_SIZE(ipv6_icmp_table_template);
+	return ARRAY_SIZE(ipv6_icmp_fields);
 }
 #endif
