@@ -70,7 +70,7 @@ static int smc_net_replace_smc_hs_ctrl(struct net *net, const char *name)
 static int proc_smc_hs_ctrl(const struct ctl_table *ctl, int write,
 			    void *buffer, size_t *lenp, loff_t *ppos)
 {
-	struct net *net = container_of(ctl->data, struct net, smc.hs_ctrl);
+	struct net *net = ctl->data;
 	char val[SMC_HS_CTRL_NAME_MAX];
 	const struct ctl_table tbl = {
 		.data = val,
@@ -97,112 +97,150 @@ static int proc_smc_hs_ctrl(const struct ctl_table *ctl, int write,
 }
 #endif /* CONFIG_SMC_HS_CTRL_BPF */
 
-static struct ctl_table smc_table[] = {
+#define SMC_DATA(name, expr)						\
+static void *smc_ ## name ## _data(const struct ctl_context *ctx)	\
+{									\
+	struct net *net = ctx->ns.net_ns;				\
+	return (expr);							\
+}
+
+SMC_DATA(autocorking_size, &net->smc.sysctl_autocorking_size)
+SMC_DATA(smcr_buf_type, &net->smc.sysctl_smcr_buf_type)
+SMC_DATA(smcr_testlink_time, &net->smc.sysctl_smcr_testlink_time)
+SMC_DATA(wmem, &net->smc.sysctl_wmem)
+SMC_DATA(rmem, &net->smc.sysctl_rmem)
+SMC_DATA(max_links_per_lgr, &net->smc.sysctl_max_links_per_lgr)
+SMC_DATA(max_conns_per_lgr, &net->smc.sysctl_max_conns_per_lgr)
+SMC_DATA(limit_smc_hs, &net->smc.limit_smc_hs)
+SMC_DATA(smcr_max_send_wr, &net->smc.sysctl_smcr_max_send_wr)
+SMC_DATA(smcr_max_recv_wr, &net->smc.sysctl_smcr_max_recv_wr)
+#if IS_ENABLED(CONFIG_SMC_HS_CTRL_BPF)
+SMC_DATA(hs_ctrl, net)
+#endif
+
+static const struct ctl_field smc_table[] = {
 	{
-		.procname       = "autocorking_size",
-		.data           = &init_net.smc.sysctl_autocorking_size,
-		.maxlen         = sizeof(unsigned int),
-		.mode           = 0644,
-		.proc_handler	= proc_douintvec,
+		.table = {
+			.procname	= "autocorking_size",
+			.maxlen		= sizeof(unsigned int),
+			.mode		= 0644,
+			.proc_handler	= proc_douintvec,
+		},
+		.data = smc_autocorking_size_data,
 	},
 	{
-		.procname	= "smcr_buf_type",
-		.data		= &init_net.smc.sysctl_smcr_buf_type,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_douintvec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_TWO,
+		.table = {
+			.procname	= "smcr_buf_type",
+			.maxlen		= sizeof(unsigned int),
+			.mode		= 0644,
+			.proc_handler	= proc_douintvec_minmax,
+			.extra1		= SYSCTL_ZERO,
+			.extra2		= SYSCTL_TWO,
+		},
+		.data = smc_smcr_buf_type_data,
 	},
 	{
-		.procname	= "smcr_testlink_time",
-		.data		= &init_net.smc.sysctl_smcr_testlink_time,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+		.table = {
+			.procname	= "smcr_testlink_time",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec_jiffies,
+		},
+		.data = smc_smcr_testlink_time_data,
 	},
 	{
-		.procname	= "wmem",
-		.data		= &init_net.smc.sysctl_wmem,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &min_sndbuf,
-		.extra2		= &max_sndbuf,
+		.table = {
+			.procname	= "wmem",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec_minmax,
+			.extra1		= &min_sndbuf,
+			.extra2		= &max_sndbuf,
+		},
+		.data = smc_wmem_data,
 	},
 	{
-		.procname	= "rmem",
-		.data		= &init_net.smc.sysctl_rmem,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &min_rcvbuf,
-		.extra2		= &max_rcvbuf,
+		.table = {
+			.procname	= "rmem",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec_minmax,
+			.extra1		= &min_rcvbuf,
+			.extra2		= &max_rcvbuf,
+		},
+		.data = smc_rmem_data,
 	},
 	{
-		.procname	= "smcr_max_links_per_lgr",
-		.data		= &init_net.smc.sysctl_max_links_per_lgr,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &links_per_lgr_min,
-		.extra2		= &links_per_lgr_max,
+		.table = {
+			.procname	= "smcr_max_links_per_lgr",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec_minmax,
+			.extra1		= &links_per_lgr_min,
+			.extra2		= &links_per_lgr_max,
+		},
+		.data = smc_max_links_per_lgr_data,
 	},
 	{
-		.procname	= "smcr_max_conns_per_lgr",
-		.data		= &init_net.smc.sysctl_max_conns_per_lgr,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &conns_per_lgr_min,
-		.extra2		= &conns_per_lgr_max,
+		.table = {
+			.procname	= "smcr_max_conns_per_lgr",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec_minmax,
+			.extra1		= &conns_per_lgr_min,
+			.extra2		= &conns_per_lgr_max,
+		},
+		.data = smc_max_conns_per_lgr_data,
 	},
 	{
-		.procname	= "limit_smc_hs",
-		.data		= &init_net.smc.limit_smc_hs,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_ONE,
+		.table = {
+			.procname	= "limit_smc_hs",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec_minmax,
+			.extra1		= SYSCTL_ZERO,
+			.extra2		= SYSCTL_ONE,
+		},
+		.data = smc_limit_smc_hs_data,
 	},
 	{
-		.procname	= "smcr_max_send_wr",
-		.data		= &init_net.smc.sysctl_smcr_max_send_wr,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &smcr_max_wr_min,
-		.extra2		= &smcr_max_wr_max,
+		.table = {
+			.procname	= "smcr_max_send_wr",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec_minmax,
+			.extra1		= &smcr_max_wr_min,
+			.extra2		= &smcr_max_wr_max,
+		},
+		.data = smc_smcr_max_send_wr_data,
 	},
 	{
-		.procname	= "smcr_max_recv_wr",
-		.data		= &init_net.smc.sysctl_smcr_max_recv_wr,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &smcr_max_wr_min,
-		.extra2		= &smcr_max_wr_max,
+		.table = {
+			.procname	= "smcr_max_recv_wr",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec_minmax,
+			.extra1		= &smcr_max_wr_min,
+			.extra2		= &smcr_max_wr_max,
+		},
+		.data = smc_smcr_max_recv_wr_data,
 	},
 #if IS_ENABLED(CONFIG_SMC_HS_CTRL_BPF)
 	{
-		.procname	= "hs_ctrl",
-		.data		= &init_net.smc.hs_ctrl,
-		.mode		= 0644,
-		.maxlen		= SMC_HS_CTRL_NAME_MAX,
-		.proc_handler	= proc_smc_hs_ctrl,
+		.table = {
+			.procname	= "hs_ctrl",
+			.mode		= 0644,
+			.maxlen		= SMC_HS_CTRL_NAME_MAX,
+			.proc_handler	= proc_smc_hs_ctrl,
+		},
+		.data = smc_hs_ctrl_data,
 	},
 #endif /* CONFIG_SMC_HS_CTRL_BPF */
 };
 
 int __net_init smc_sysctl_net_init(struct net *net)
 {
-	size_t table_size = ARRAY_SIZE(smc_table);
-	struct ctl_table *table;
-
-	table = smc_table;
 	if (!net_eq(net, &init_net)) {
-		int i;
 #if IS_ENABLED(CONFIG_SMC_HS_CTRL_BPF)
 		struct smc_hs_ctrl *ctrl;
 
@@ -213,19 +251,13 @@ int __net_init smc_sysctl_net_init(struct net *net)
 			rcu_assign_pointer(net->smc.hs_ctrl, ctrl);
 		rcu_read_unlock();
 #endif /* CONFIG_SMC_HS_CTRL_BPF */
-
-		table = kmemdup(table, sizeof(smc_table), GFP_KERNEL);
-		if (!table)
-			goto err_alloc;
-
-		for (i = 0; i < table_size; i++)
-			table[i].data += (void *)net - (void *)&init_net;
 	}
 
-	net->smc.smc_hdr = register_net_sysctl_sz(net, "net/smc", table,
-						  table_size);
+	net->smc.smc_hdr = register_net_sysctl_fields(net, "net/smc",
+						      smc_table,
+						      ARRAY_SIZE(smc_table));
 	if (!net->smc.smc_hdr)
-		goto err_reg;
+		goto err_cleanup_hs_ctrl;
 
 	net->smc.sysctl_autocorking_size = SMC_AUTOCORKING_DEFAULT_SIZE;
 	net->smc.sysctl_smcr_buf_type = SMCR_PHYS_CONT_BUFS;
@@ -241,10 +273,7 @@ int __net_init smc_sysctl_net_init(struct net *net)
 
 	return 0;
 
-err_reg:
-	if (!net_eq(net, &init_net))
-		kfree(table);
-err_alloc:
+err_cleanup_hs_ctrl:
 #if IS_ENABLED(CONFIG_SMC_HS_CTRL_BPF)
 	smc_net_replace_smc_hs_ctrl(net, NULL);
 #endif /* CONFIG_SMC_HS_CTRL_BPF */
@@ -253,14 +282,8 @@ err_alloc:
 
 void __net_exit smc_sysctl_net_exit(struct net *net)
 {
-	const struct ctl_table *table;
-
-	table = net->smc.smc_hdr->ctl_table_arg;
 	unregister_net_sysctl_table(net->smc.smc_hdr);
 #if IS_ENABLED(CONFIG_SMC_HS_CTRL_BPF)
 	smc_net_replace_smc_hs_ctrl(net, NULL);
 #endif /* CONFIG_SMC_HS_CTRL_BPF */
-
-	if (!net_eq(net, &init_net))
-		kfree(table);
 }
