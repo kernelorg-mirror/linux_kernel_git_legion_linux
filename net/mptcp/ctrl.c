@@ -169,12 +169,16 @@ static int proc_blackhole_detect_timeout(const struct ctl_table *table,
 					 int write, void *buffer, size_t *lenp,
 					 loff_t *ppos)
 {
-	struct mptcp_pernet *pernet = container_of(table->data,
-						   struct mptcp_pernet,
-						   blackhole_timeout);
+	struct mptcp_pernet *pernet = table->data;
+	const struct ctl_table tbl = {
+		.data = &pernet->blackhole_timeout,
+		.maxlen = table->maxlen,
+		.extra1 = table->extra1,
+		.extra2 = table->extra2,
+	};
 	int ret;
 
-	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+	ret = proc_dointvec_minmax(&tbl, write, buffer, lenp, ppos);
 	if (write && ret == 0)
 		atomic_set(&pernet->active_disable_times, 0);
 
@@ -200,10 +204,8 @@ static int mptcp_set_path_manager(char *path_manager, const char *name)
 static int proc_path_manager(const struct ctl_table *ctl, int write,
 			     void *buffer, size_t *lenp, loff_t *ppos)
 {
-	struct mptcp_pernet *pernet = container_of(ctl->data,
-						   struct mptcp_pernet,
-						   path_manager);
-	char (*path_manager)[MPTCP_PM_NAME_MAX] = ctl->data;
+	struct mptcp_pernet *pernet = ctl->data;
+	char (*path_manager)[MPTCP_PM_NAME_MAX] = &pernet->path_manager;
 	char pm_name[MPTCP_PM_NAME_MAX];
 	const struct ctl_table tbl = {
 		.data = pm_name,
@@ -233,14 +235,18 @@ static int proc_path_manager(const struct ctl_table *ctl, int write,
 static int proc_pm_type(const struct ctl_table *ctl, int write,
 			void *buffer, size_t *lenp, loff_t *ppos)
 {
-	struct mptcp_pernet *pernet = container_of(ctl->data,
-						   struct mptcp_pernet,
-						   pm_type);
+	struct mptcp_pernet *pernet = ctl->data;
+	const struct ctl_table tbl = {
+		.data = &pernet->pm_type,
+		.maxlen = ctl->maxlen,
+		.extra1 = ctl->extra1,
+		.extra2 = ctl->extra2,
+	};
 	int ret;
 
-	ret = proc_dou8vec_minmax(ctl, write, buffer, lenp, ppos);
+	ret = proc_dou8vec_minmax(&tbl, write, buffer, lenp, ppos);
 	if (write && ret == 0) {
-		u8 pm_type = READ_ONCE(*(u8 *)ctl->data);
+		u8 pm_type = READ_ONCE(pernet->pm_type);
 		char *pm_name = "";
 
 		if (pm_type == MPTCP_PM_TYPE_KERNEL)
@@ -271,153 +277,181 @@ static int proc_available_path_managers(const struct ctl_table *ctl,
 	return ret;
 }
 
-static struct ctl_table mptcp_sysctl_table[] = {
+#define MPTCP_DATA(name, expr)						\
+static void *mptcp_ ## name ## _data(const struct ctl_context *ctx)	\
+{									\
+	struct mptcp_pernet *pernet = mptcp_get_pernet(ctx->ns.net_ns);	\
+	return (expr);							\
+}
+
+MPTCP_DATA(mptcp_enabled, &pernet->mptcp_enabled)
+MPTCP_DATA(add_addr_timeout, &pernet->add_addr_timeout)
+MPTCP_DATA(checksum_enabled, &pernet->checksum_enabled)
+MPTCP_DATA(allow_join_initial_addr_port, &pernet->allow_join_initial_addr_port)
+MPTCP_DATA(stale_loss_cnt, &pernet->stale_loss_cnt)
+MPTCP_DATA(scheduler, &pernet->scheduler)
+MPTCP_DATA(close_timeout, &pernet->close_timeout)
+MPTCP_DATA(syn_retrans_before_tcp_fallback, &pernet->syn_retrans_before_tcp_fallback)
+
+static void *mptcp_pernet_data(const struct ctl_context *ctx)
+{
+	return mptcp_get_pernet(ctx->ns.net_ns);
+}
+
+static const struct ctl_field mptcp_sysctl_table[] = {
 	{
-		.procname = "enabled",
-		.maxlen = sizeof(u8),
-		.mode = 0644,
-		/* users with CAP_NET_ADMIN or root (not and) can change this
-		 * value, same as other sysctl or the 'net' tree.
-		 */
-		.proc_handler = proc_dou8vec_minmax,
-		.extra1       = SYSCTL_ZERO,
-		.extra2       = SYSCTL_ONE
+		.table = {
+			.procname = "enabled",
+			.maxlen = sizeof(u8),
+			.mode = 0644,
+			/* users with CAP_NET_ADMIN or root (not and) can change this
+			 * value, same as other sysctl or the 'net' tree.
+			 */
+			.proc_handler = proc_dou8vec_minmax,
+			.extra1       = SYSCTL_ZERO,
+			.extra2       = SYSCTL_ONE
+		},
+		.data = mptcp_mptcp_enabled_data,
 	},
 	{
-		.procname = "add_addr_timeout",
-		.maxlen = sizeof(unsigned int),
-		.mode = 0644,
-		.proc_handler = proc_dointvec_jiffies,
+		.table = {
+			.procname = "add_addr_timeout",
+			.maxlen = sizeof(unsigned int),
+			.mode = 0644,
+			.proc_handler = proc_dointvec_jiffies,
+		},
+		.data = mptcp_add_addr_timeout_data,
 	},
 	{
-		.procname = "checksum_enabled",
-		.maxlen = sizeof(u8),
-		.mode = 0644,
-		.proc_handler = proc_dou8vec_minmax,
-		.extra1       = SYSCTL_ZERO,
-		.extra2       = SYSCTL_ONE
+		.table = {
+			.procname = "checksum_enabled",
+			.maxlen = sizeof(u8),
+			.mode = 0644,
+			.proc_handler = proc_dou8vec_minmax,
+			.extra1       = SYSCTL_ZERO,
+			.extra2       = SYSCTL_ONE
+		},
+		.data = mptcp_checksum_enabled_data,
 	},
 	{
-		.procname = "allow_join_initial_addr_port",
-		.maxlen = sizeof(u8),
-		.mode = 0644,
-		.proc_handler = proc_dou8vec_minmax,
-		.extra1       = SYSCTL_ZERO,
-		.extra2       = SYSCTL_ONE
+		.table = {
+			.procname = "allow_join_initial_addr_port",
+			.maxlen = sizeof(u8),
+			.mode = 0644,
+			.proc_handler = proc_dou8vec_minmax,
+			.extra1       = SYSCTL_ZERO,
+			.extra2       = SYSCTL_ONE
+		},
+		.data = mptcp_allow_join_initial_addr_port_data,
 	},
 	{
-		.procname = "stale_loss_cnt",
-		.maxlen = sizeof(unsigned int),
-		.mode = 0644,
-		.proc_handler = proc_douintvec_minmax,
+		.table = {
+			.procname = "stale_loss_cnt",
+			.maxlen = sizeof(unsigned int),
+			.mode = 0644,
+			.proc_handler = proc_douintvec_minmax,
+		},
+		.data = mptcp_stale_loss_cnt_data,
 	},
 	{
-		.procname = "pm_type",
-		.maxlen = sizeof(u8),
-		.mode = 0644,
-		.proc_handler = proc_pm_type,
-		.extra1       = SYSCTL_ZERO,
-		.extra2       = &mptcp_pm_type_max
+		.table = {
+			.procname = "pm_type",
+			.maxlen = sizeof(u8),
+			.mode = 0644,
+			.proc_handler = proc_pm_type,
+			.extra1       = SYSCTL_ZERO,
+			.extra2       = &mptcp_pm_type_max
+		},
+		.data = mptcp_pernet_data,
 	},
 	{
-		.procname = "scheduler",
-		.maxlen	= MPTCP_SCHED_NAME_MAX,
-		.mode = 0644,
-		.proc_handler = proc_scheduler,
+		.table = {
+			.procname = "scheduler",
+			.maxlen	= MPTCP_SCHED_NAME_MAX,
+			.mode = 0644,
+			.proc_handler = proc_scheduler,
+		},
+		.data = mptcp_scheduler_data,
 	},
 	{
-		.procname = "available_schedulers",
-		.maxlen	= MPTCP_SCHED_BUF_MAX,
-		.mode = 0444,
-		.proc_handler = proc_available_schedulers,
+		.table = {
+			.procname = "available_schedulers",
+			.maxlen	= MPTCP_SCHED_BUF_MAX,
+			.mode = 0444,
+			.proc_handler = proc_available_schedulers,
+		},
 	},
 	{
-		.procname = "close_timeout",
-		.maxlen = sizeof(unsigned int),
-		.mode = 0644,
-		.proc_handler = proc_dointvec_jiffies,
+		.table = {
+			.procname = "close_timeout",
+			.maxlen = sizeof(unsigned int),
+			.mode = 0644,
+			.proc_handler = proc_dointvec_jiffies,
+		},
+		.data = mptcp_close_timeout_data,
 	},
 	{
-		.procname = "blackhole_timeout",
-		.maxlen = sizeof(unsigned int),
-		.mode = 0644,
-		.proc_handler = proc_blackhole_detect_timeout,
-		.extra1 = SYSCTL_ZERO,
+		.table = {
+			.procname = "blackhole_timeout",
+			.maxlen = sizeof(unsigned int),
+			.mode = 0644,
+			.proc_handler = proc_blackhole_detect_timeout,
+			.extra1 = SYSCTL_ZERO,
+		},
+		.data = mptcp_pernet_data,
 	},
 	{
-		.procname = "syn_retrans_before_tcp_fallback",
-		.maxlen = sizeof(u8),
-		.mode = 0644,
-		.proc_handler = proc_dou8vec_minmax,
+		.table = {
+			.procname = "syn_retrans_before_tcp_fallback",
+			.maxlen = sizeof(u8),
+			.mode = 0644,
+			.proc_handler = proc_dou8vec_minmax,
+		},
+		.data = mptcp_syn_retrans_before_tcp_fallback_data,
 	},
 	{
-		.procname = "path_manager",
-		.maxlen	= MPTCP_PM_NAME_MAX,
-		.mode = 0644,
-		.proc_handler = proc_path_manager,
+		.table = {
+			.procname = "path_manager",
+			.maxlen	= MPTCP_PM_NAME_MAX,
+			.mode = 0644,
+			.proc_handler = proc_path_manager,
+		},
+		.data = mptcp_pernet_data,
 	},
 	{
-		.procname = "available_path_managers",
-		.maxlen	= MPTCP_PM_BUF_MAX,
-		.mode = 0444,
-		.proc_handler = proc_available_path_managers,
+		.table = {
+			.procname = "available_path_managers",
+			.maxlen	= MPTCP_PM_BUF_MAX,
+			.mode = 0444,
+			.proc_handler = proc_available_path_managers,
+		},
 	},
 };
 
-static int mptcp_pernet_new_table(struct net *net, struct mptcp_pernet *pernet)
+static int mptcp_pernet_new_table(struct net *net)
 {
 	struct ctl_table_header *hdr;
-	struct ctl_table *table;
+	struct mptcp_pernet *pernet = mptcp_get_pernet(net);
 
-	table = mptcp_sysctl_table;
-	if (!net_eq(net, &init_net)) {
-		table = kmemdup(table, sizeof(mptcp_sysctl_table), GFP_KERNEL);
-		if (!table)
-			goto err_alloc;
-	}
-
-	table[0].data = &pernet->mptcp_enabled;
-	table[1].data = &pernet->add_addr_timeout;
-	table[2].data = &pernet->checksum_enabled;
-	table[3].data = &pernet->allow_join_initial_addr_port;
-	table[4].data = &pernet->stale_loss_cnt;
-	table[5].data = &pernet->pm_type;
-	table[6].data = &pernet->scheduler;
-	/* table[7] is for available_schedulers which is read-only info */
-	table[8].data = &pernet->close_timeout;
-	table[9].data = &pernet->blackhole_timeout;
-	table[10].data = &pernet->syn_retrans_before_tcp_fallback;
-	table[11].data = &pernet->path_manager;
-	/* table[12] is for available_path_managers which is read-only info */
-
-	hdr = register_net_sysctl_sz(net, MPTCP_SYSCTL_PATH, table,
-				     ARRAY_SIZE(mptcp_sysctl_table));
+	hdr = register_net_sysctl_fields(net, MPTCP_SYSCTL_PATH,
+					 mptcp_sysctl_table,
+					 ARRAY_SIZE(mptcp_sysctl_table));
 	if (!hdr)
-		goto err_reg;
+		return -ENOMEM;
 
 	pernet->ctl_table_hdr = hdr;
 
 	return 0;
-
-err_reg:
-	if (!net_eq(net, &init_net))
-		kfree(table);
-err_alloc:
-	return -ENOMEM;
 }
 
 static void mptcp_pernet_del_table(struct mptcp_pernet *pernet)
 {
-	const struct ctl_table *table = pernet->ctl_table_hdr->ctl_table_arg;
-
 	unregister_net_sysctl_table(pernet->ctl_table_hdr);
-
-	kfree(table);
 }
 
 #else
 
-static int mptcp_pernet_new_table(struct net *net, struct mptcp_pernet *pernet)
+static int mptcp_pernet_new_table(struct net *net)
 {
 	return 0;
 }
@@ -550,7 +584,7 @@ static int __net_init mptcp_net_init(struct net *net)
 
 	mptcp_pernet_set_defaults(pernet);
 
-	return mptcp_pernet_new_table(net, pernet);
+	return mptcp_pernet_new_table(net);
 }
 
 /* Note: the callback will only be called per extra netns */
