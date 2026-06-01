@@ -14,7 +14,6 @@ struct rds_tcp_net {
 	struct socket		*rds_tcp_accepted_sock;
 	struct work_struct	rds_tcp_accept_w;
 	struct ctl_table_header	*rds_tcp_sysctl;
-	const struct ctl_table	*ctl_table;
 	int			sndbuf_size;
 	int			rcvbuf_size;
 };

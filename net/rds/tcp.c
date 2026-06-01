@@ -69,24 +69,31 @@ static int rds_tcp_rcvbuf_handler(const struct ctl_table *ctl, int write,
 static int rds_tcp_min_sndbuf = SOCK_MIN_SNDBUF;
 static int rds_tcp_min_rcvbuf = SOCK_MIN_RCVBUF;
 
-static struct ctl_table rds_tcp_sysctl_table[] = {
-#define	RDS_TCP_SNDBUF	0
+static void *rds_tcp_net_data(const struct ctl_context *ctx)
+{
+	return net_generic(ctx->ns.net_ns, rds_tcp_netid);
+}
+
+static const struct ctl_field rds_tcp_sysctl_table[] = {
 	{
-		.procname       = "rds_tcp_sndbuf",
-		/* data is per-net pointer */
-		.maxlen         = sizeof(int),
-		.mode           = 0644,
-		.proc_handler   = rds_tcp_sndbuf_handler,
-		.extra1		= &rds_tcp_min_sndbuf,
+		.table = {
+			.procname       = "rds_tcp_sndbuf",
+			.maxlen         = sizeof(int),
+			.mode           = 0644,
+			.proc_handler   = rds_tcp_sndbuf_handler,
+			.extra1         = &rds_tcp_min_sndbuf,
+		},
+		.data = rds_tcp_net_data,
 	},
-#define	RDS_TCP_RCVBUF	1
 	{
-		.procname       = "rds_tcp_rcvbuf",
-		/* data is per-net pointer */
-		.maxlen         = sizeof(int),
-		.mode           = 0644,
-		.proc_handler   = rds_tcp_rcvbuf_handler,
-		.extra1		= &rds_tcp_min_rcvbuf,
+		.table = {
+			.procname       = "rds_tcp_rcvbuf",
+			.maxlen         = sizeof(int),
+			.mode           = 0644,
+			.proc_handler   = rds_tcp_rcvbuf_handler,
+			.extra1         = &rds_tcp_min_rcvbuf,
+		},
+		.data = rds_tcp_net_data,
 	},
 };
 
@@ -542,7 +549,6 @@ void rds_tcp_accept_work(struct rds_tcp_net *rtn)
 static __net_init int rds_tcp_init_net(struct net *net)
 {
 	struct rds_tcp_net *rtn = net_generic(net, rds_tcp_netid);
-	struct ctl_table *tbl;
 	int err = 0;
 
 	memset(rtn, 0, sizeof(*rtn));
@@ -552,21 +558,9 @@ static __net_init int rds_tcp_init_net(struct net *net)
 	/* {snd, rcv}buf_size default to 0, which implies we let the
 	 * stack pick the value, and permit auto-tuning of buffer size.
 	 */
-	if (net == &init_net) {
-		tbl = rds_tcp_sysctl_table;
-	} else {
-		tbl = kmemdup(rds_tcp_sysctl_table,
-			      sizeof(rds_tcp_sysctl_table), GFP_KERNEL);
-		if (!tbl) {
-			pr_warn("could not set allocate sysctl table\n");
-			return -ENOMEM;
-		}
-		rtn->ctl_table = tbl;
-	}
-	tbl[RDS_TCP_SNDBUF].data = &rtn->sndbuf_size;
-	tbl[RDS_TCP_RCVBUF].data = &rtn->rcvbuf_size;
-	rtn->rds_tcp_sysctl = register_net_sysctl_sz(net, "net/rds/tcp", tbl,
-						     ARRAY_SIZE(rds_tcp_sysctl_table));
+	rtn->rds_tcp_sysctl = register_net_sysctl_fields(net, "net/rds/tcp",
+							 rds_tcp_sysctl_table,
+							 ARRAY_SIZE(rds_tcp_sysctl_table));
 	if (!rtn->rds_tcp_sysctl) {
 		pr_warn("could not register sysctl\n");
 		err = -ENOMEM;
@@ -598,8 +592,6 @@ static __net_init int rds_tcp_init_net(struct net *net)
 	return 0;
 
 fail:
-	if (net != &init_net)
-		kfree(tbl);
 	return err;
 }
 
@@ -640,9 +632,6 @@ static void __net_exit rds_tcp_exit_net(struct net *net)
 
 	if (rtn->rds_tcp_sysctl)
 		unregister_net_sysctl_table(rtn->rds_tcp_sysctl);
-
-	if (net != &init_net)
-		kfree(rtn->ctl_table);
 }
 
 static struct pernet_operations rds_tcp_net_ops = {
@@ -685,16 +674,18 @@ static void rds_tcp_sysctl_reset(struct net *net)
 	spin_unlock_irq(&rds_tcp_conn_lock);
 }
 
-static int rds_tcp_skbuf_handler(struct rds_tcp_net *rtn,
+static int rds_tcp_skbuf_handler(struct rds_tcp_net *rtn, int *skbuf,
 				 const struct ctl_table *ctl, int write,
 				 void *buffer, size_t *lenp, loff_t *fpos)
 {
+	struct ctl_table tbl = *ctl;
 	int err;
 
-	err = proc_dointvec_minmax(ctl, write, buffer, lenp, fpos);
+	tbl.data = skbuf;
+	err = proc_dointvec_minmax(&tbl, write, buffer, lenp, fpos);
 	if (err < 0) {
 		pr_warn("Invalid input. Must be >= %d\n",
-			*(int *)(ctl->extra1));
+			*(int *)(tbl.extra1));
 		return err;
 	}
 
@@ -710,19 +701,19 @@ static int rds_tcp_skbuf_handler(struct rds_tcp_net *rtn,
 static int rds_tcp_sndbuf_handler(const struct ctl_table *ctl, int write,
 				  void *buffer, size_t *lenp, loff_t *fpos)
 {
-	struct rds_tcp_net *rtn = container_of(ctl->data, struct rds_tcp_net,
-					       sndbuf_size);
+	struct rds_tcp_net *rtn = ctl->data;
 
-	return rds_tcp_skbuf_handler(rtn, ctl, write, buffer, lenp, fpos);
+	return rds_tcp_skbuf_handler(rtn, &rtn->sndbuf_size, ctl, write,
+				     buffer, lenp, fpos);
 }
 
 static int rds_tcp_rcvbuf_handler(const struct ctl_table *ctl, int write,
 				  void *buffer, size_t *lenp, loff_t *fpos)
 {
-	struct rds_tcp_net *rtn = container_of(ctl->data, struct rds_tcp_net,
-					       rcvbuf_size);
+	struct rds_tcp_net *rtn = ctl->data;
 
-	return rds_tcp_skbuf_handler(rtn, ctl, write, buffer, lenp, fpos);
+	return rds_tcp_skbuf_handler(rtn, &rtn->rcvbuf_size, ctl, write,
+				     buffer, lenp, fpos);
 }
 
 static void rds_tcp_exit(void)
