@@ -516,6 +516,7 @@ int register_pernet_device(struct pernet_operations *);
 void unregister_pernet_device(struct pernet_operations *);
 
 struct ctl_field;
+struct ctl_context;
 struct ctl_table;
 
 #define register_net_sysctl(net, path, table)	\
@@ -528,6 +529,11 @@ struct ctl_table_header *register_net_sysctl_fields(struct net *net,
 						    const char *path,
 						    const struct ctl_field *fields,
 						    size_t field_count);
+struct ctl_table_header *register_net_sysctl_fields_ctx(struct net *net,
+							const char *path,
+							const struct ctl_field *fields,
+							size_t field_count,
+							const struct ctl_context *ctx);
 void unregister_net_sysctl_table(struct ctl_table_header *header);
 #else
 static inline int net_sysctl_init(void) { return 0; }
@@ -541,6 +547,15 @@ static inline struct ctl_table_header *register_net_sysctl_fields(struct net *ne
 								  const char *path,
 								  const struct ctl_field *fields,
 								  size_t field_count)
+{
+	return NULL;
+}
+
+static inline struct ctl_table_header *
+register_net_sysctl_fields_ctx(struct net *net, const char *path,
+			       const struct ctl_field *fields,
+			       size_t field_count,
+			       const struct ctl_context *ctx)
 {
 	return NULL;
 }

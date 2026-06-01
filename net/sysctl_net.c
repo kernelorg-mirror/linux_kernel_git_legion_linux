@@ -195,6 +195,22 @@ struct ctl_table_header *register_net_sysctl_sz(struct net *net,
 }
 EXPORT_SYMBOL_GPL(register_net_sysctl_sz);
 
+struct ctl_table_header *register_net_sysctl_fields_ctx(struct net *net,
+							const char *path,
+							const struct ctl_field *fields,
+							size_t field_count,
+							const struct ctl_context *ctx)
+{
+	if (!net_eq(net, &init_net) &&
+	    !ensure_safe_net_sysctl_fields(net, path, fields, field_count,
+					   ctx))
+		return NULL;
+
+	return __register_sysctl_fields(&net->sysctls, path, fields,
+					field_count, ctx);
+}
+EXPORT_SYMBOL_GPL(register_net_sysctl_fields_ctx);
+
 struct ctl_table_header *register_net_sysctl_fields(struct net *net,
 						    const char *path,
 						    const struct ctl_field *fields,
@@ -204,13 +220,8 @@ struct ctl_table_header *register_net_sysctl_fields(struct net *net,
 		.ns.net_ns = net,
 	};
 
-	if (!net_eq(net, &init_net) &&
-	    !ensure_safe_net_sysctl_fields(net, path, fields, field_count,
-					   &ctx))
-		return NULL;
-
-	return __register_sysctl_fields(&net->sysctls, path, fields,
-					field_count, &ctx);
+	return register_net_sysctl_fields_ctx(net, path, fields, field_count,
+					      &ctx);
 }
 EXPORT_SYMBOL_GPL(register_net_sysctl_fields);
 
