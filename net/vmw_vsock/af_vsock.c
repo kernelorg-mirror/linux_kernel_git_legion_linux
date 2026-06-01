@@ -2835,12 +2835,10 @@ static int __vsock_net_mode_string(const struct ctl_table *table, int write,
 static int vsock_net_mode_string(const struct ctl_table *table, int write,
 				 void *buffer, size_t *lenp, loff_t *ppos)
 {
-	struct net *net;
+	struct net *net = table->data;
 
 	if (write)
 		return -EPERM;
-
-	net = container_of(table->data, struct net, vsock.mode);
 
 	return __vsock_net_mode_string(table, write, buffer, lenp, ppos,
 				       vsock_net_mode(net), NULL);
@@ -2850,10 +2848,8 @@ static int vsock_net_child_mode_string(const struct ctl_table *table, int write,
 				       void *buffer, size_t *lenp, loff_t *ppos)
 {
 	enum vsock_net_mode new_mode;
-	struct net *net;
+	struct net *net = table->data;
 	int ret;
-
-	net = container_of(table->data, struct net, vsock.child_ns_mode);
 
 	ret = __vsock_net_mode_string(table, write, buffer, lenp, ppos,
 				      vsock_net_child_mode(net), &new_mode);
@@ -2875,70 +2871,62 @@ static int vsock_net_child_mode_string(const struct ctl_table *table, int write,
 	return 0;
 }
 
-static struct ctl_table vsock_table[] = {
+static void *vsock_net_data(const struct ctl_context *ctx)
+{
+	return ctx->ns.net_ns;
+}
+
+static void *vsock_g2h_fallback_data(const struct ctl_context *ctx)
+{
+	return &ctx->ns.net_ns->vsock.g2h_fallback;
+}
+
+static const struct ctl_field vsock_table[] = {
 	{
-		.procname	= "ns_mode",
-		.data		= &init_net.vsock.mode,
-		.maxlen		= VSOCK_NET_MODE_STR_MAX,
-		.mode		= 0444,
-		.proc_handler	= vsock_net_mode_string
+		.table = {
+			.procname	= "ns_mode",
+			.maxlen		= VSOCK_NET_MODE_STR_MAX,
+			.mode		= 0444,
+			.proc_handler	= vsock_net_mode_string,
+		},
+		.data = vsock_net_data,
 	},
 	{
-		.procname	= "child_ns_mode",
-		.data		= &init_net.vsock.child_ns_mode,
-		.maxlen		= VSOCK_NET_MODE_STR_MAX,
-		.mode		= 0644,
-		.proc_handler	= vsock_net_child_mode_string
+		.table = {
+			.procname	= "child_ns_mode",
+			.maxlen		= VSOCK_NET_MODE_STR_MAX,
+			.mode		= 0644,
+			.proc_handler	= vsock_net_child_mode_string,
+		},
+		.data = vsock_net_data,
 	},
 	{
-		.procname	= "g2h_fallback",
-		.data		= &init_net.vsock.g2h_fallback,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_ONE,
+		.table = {
+			.procname	= "g2h_fallback",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec_minmax,
+			.extra1		= SYSCTL_ZERO,
+			.extra2		= SYSCTL_ONE,
+		},
+		.data = vsock_g2h_fallback_data,
 	},
 };
 
 static int __net_init vsock_sysctl_register(struct net *net)
 {
-	struct ctl_table *table;
-
-	if (net_eq(net, &init_net)) {
-		table = vsock_table;
-	} else {
-		table = kmemdup(vsock_table, sizeof(vsock_table), GFP_KERNEL);
-		if (!table)
-			goto err_alloc;
-
-		table[0].data = &net->vsock.mode;
-		table[1].data = &net->vsock.child_ns_mode;
-		table[2].data = &net->vsock.g2h_fallback;
-	}
-
-	net->vsock.sysctl_hdr = register_net_sysctl_sz(net, "net/vsock", table,
-						       ARRAY_SIZE(vsock_table));
+	net->vsock.sysctl_hdr = register_net_sysctl_fields(net, "net/vsock",
+							   vsock_table,
+							   ARRAY_SIZE(vsock_table));
 	if (!net->vsock.sysctl_hdr)
-		goto err_reg;
+		return -ENOMEM;
 
 	return 0;
-
-err_reg:
-	if (!net_eq(net, &init_net))
-		kfree(table);
-err_alloc:
-	return -ENOMEM;
 }
 
 static void vsock_sysctl_unregister(struct net *net)
 {
-	const struct ctl_table *table;
-
-	table = net->vsock.sysctl_hdr->ctl_table_arg;
 	unregister_net_sysctl_table(net->vsock.sysctl_hdr);
-	if (!net_eq(net, &init_net))
-		kfree(table);
 }
 
 static void vsock_net_init(struct net *net)
