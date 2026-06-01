@@ -1181,42 +1181,74 @@ int brnf_sysctl_call_tables(const struct ctl_table *ctl, int write,
 	return ret;
 }
 
-static struct ctl_table brnf_table[] = {
+#define BRNF_DATA(name, expr)						\
+static void *brnf_ ## name ## _data(const struct ctl_context *ctx)	\
+{									\
+	struct brnf_net *brnet = net_generic(ctx->ns.net_ns, brnf_net_id); \
+	return (expr);							\
+}
+
+BRNF_DATA(call_arptables, &brnet->call_arptables)
+BRNF_DATA(call_iptables, &brnet->call_iptables)
+BRNF_DATA(call_ip6tables, &brnet->call_ip6tables)
+BRNF_DATA(filter_vlan_tagged, &brnet->filter_vlan_tagged)
+BRNF_DATA(filter_pppoe_tagged, &brnet->filter_pppoe_tagged)
+BRNF_DATA(pass_vlan_indev, &brnet->pass_vlan_indev)
+
+static const struct ctl_field brnf_table[] = {
 	{
-		.procname	= "bridge-nf-call-arptables",
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= brnf_sysctl_call_tables,
+		.table = {
+			.procname	= "bridge-nf-call-arptables",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= brnf_sysctl_call_tables,
+		},
+		.data = brnf_call_arptables_data,
 	},
 	{
-		.procname	= "bridge-nf-call-iptables",
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= brnf_sysctl_call_tables,
+		.table = {
+			.procname	= "bridge-nf-call-iptables",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= brnf_sysctl_call_tables,
+		},
+		.data = brnf_call_iptables_data,
 	},
 	{
-		.procname	= "bridge-nf-call-ip6tables",
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= brnf_sysctl_call_tables,
+		.table = {
+			.procname	= "bridge-nf-call-ip6tables",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= brnf_sysctl_call_tables,
+		},
+		.data = brnf_call_ip6tables_data,
 	},
 	{
-		.procname	= "bridge-nf-filter-vlan-tagged",
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= brnf_sysctl_call_tables,
+		.table = {
+			.procname	= "bridge-nf-filter-vlan-tagged",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= brnf_sysctl_call_tables,
+		},
+		.data = brnf_filter_vlan_tagged_data,
 	},
 	{
-		.procname	= "bridge-nf-filter-pppoe-tagged",
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= brnf_sysctl_call_tables,
+		.table = {
+			.procname	= "bridge-nf-filter-pppoe-tagged",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= brnf_sysctl_call_tables,
+		},
+		.data = brnf_filter_pppoe_tagged_data,
 	},
 	{
-		.procname	= "bridge-nf-pass-vlan-input-dev",
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= brnf_sysctl_call_tables,
+		.table = {
+			.procname	= "bridge-nf-pass-vlan-input-dev",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= brnf_sysctl_call_tables,
+		},
+		.data = brnf_pass_vlan_indev_data,
 	},
 };
 
@@ -1232,45 +1264,24 @@ static inline void br_netfilter_sysctl_default(struct brnf_net *brnf)
 
 static int br_netfilter_sysctl_init_net(struct net *net)
 {
-	struct ctl_table *table = brnf_table;
 	struct brnf_net *brnet;
 
-	if (!net_eq(net, &init_net)) {
-		table = kmemdup(table, sizeof(brnf_table), GFP_KERNEL);
-		if (!table)
-			return -ENOMEM;
-	}
-
 	brnet = net_generic(net, brnf_net_id);
-	table[0].data = &brnet->call_arptables;
-	table[1].data = &brnet->call_iptables;
-	table[2].data = &brnet->call_ip6tables;
-	table[3].data = &brnet->filter_vlan_tagged;
-	table[4].data = &brnet->filter_pppoe_tagged;
-	table[5].data = &brnet->pass_vlan_indev;
 
 	br_netfilter_sysctl_default(brnet);
 
-	brnet->ctl_hdr = register_net_sysctl_sz(net, "net/bridge", table,
-						ARRAY_SIZE(brnf_table));
-	if (!brnet->ctl_hdr) {
-		if (!net_eq(net, &init_net))
-			kfree(table);
-
+	brnet->ctl_hdr = register_net_sysctl_fields(net, "net/bridge",
+						    brnf_table,
+						    ARRAY_SIZE(brnf_table));
+	if (!brnet->ctl_hdr)
 		return -ENOMEM;
-	}
 
 	return 0;
 }
 
-static void br_netfilter_sysctl_exit_net(struct net *net,
-					 struct brnf_net *brnet)
+static void br_netfilter_sysctl_exit_net(struct brnf_net *brnet)
 {
-	const struct ctl_table *table = brnet->ctl_hdr->ctl_table_arg;
-
 	unregister_net_sysctl_table(brnet->ctl_hdr);
-	if (!net_eq(net, &init_net))
-		kfree(table);
 }
 
 static int __net_init brnf_init_net(struct net *net)
@@ -1290,7 +1301,7 @@ static void __net_exit brnf_exit_net(struct net *net)
 	}
 
 #ifdef CONFIG_SYSCTL
-	br_netfilter_sysctl_exit_net(net, brnet);
+	br_netfilter_sysctl_exit_net(brnet);
 #endif
 }
 
