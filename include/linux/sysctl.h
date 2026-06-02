@@ -93,6 +93,7 @@ struct ctl_context {
 	} ns;
 	union {
 		struct mpls_dev *mpls_dev;
+		struct ipv4_devconf *ipv4_devconf;
 	} target;
 };
 

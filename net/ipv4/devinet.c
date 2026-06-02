@@ -2615,14 +2615,22 @@ static int ipv4_doint_and_flush(const struct ctl_table *ctl, int write,
 
 #define DEVINET_SYSCTL_ENTRY(attr, name, mval, proc) \
 	{ \
-		.procname	= name, \
-		.data		= ipv4_devconf.data + \
-				  IPV4_DEVCONF_ ## attr - 1, \
-		.maxlen		= sizeof(int), \
-		.mode		= mval, \
-		.proc_handler	= proc, \
-		.extra1		= &ipv4_devconf, \
+		.table = { \
+			.procname	= name, \
+			.maxlen		= sizeof(int), \
+			.mode		= mval, \
+			.proc_handler	= proc, \
+		}, \
+		.data		= devinet_ ## attr ## _data, \
+		.extra1		= devinet_data, \
+		.extra2		= devinet_net, \
 	}
+
+#define DEVINET_SYSCTL_DATA(attr)					\
+static void *devinet_ ## attr ## _data(const struct ctl_context *ctx)	\
+{									\
+	return &ctx->target.ipv4_devconf->data[IPV4_DEVCONF_ ## attr - 1]; \
+}
 
 #define DEVINET_SYSCTL_RW_ENTRY(attr, name) \
 	DEVINET_SYSCTL_ENTRY(attr, name, 0644, devinet_conf_proc)
@@ -2636,104 +2644,129 @@ static int ipv4_doint_and_flush(const struct ctl_table *ctl, int write,
 #define DEVINET_SYSCTL_FLUSHING_ENTRY(attr, name) \
 	DEVINET_SYSCTL_COMPLEX_ENTRY(attr, name, ipv4_doint_and_flush)
 
-static struct devinet_sysctl_table {
-	struct ctl_table_header *sysctl_header;
-	struct ctl_table devinet_vars[IPV4_DEVCONF_MAX];
-} devinet_sysctl = {
-	.devinet_vars = {
-		DEVINET_SYSCTL_COMPLEX_ENTRY(FORWARDING, "forwarding",
-					     devinet_sysctl_forward),
-		DEVINET_SYSCTL_RO_ENTRY(MC_FORWARDING, "mc_forwarding"),
-		DEVINET_SYSCTL_RW_ENTRY(BC_FORWARDING, "bc_forwarding"),
+static void *devinet_data(const struct ctl_context *ctx)
+{
+	return ctx->target.ipv4_devconf;
+}
 
-		DEVINET_SYSCTL_RW_ENTRY(ACCEPT_REDIRECTS, "accept_redirects"),
-		DEVINET_SYSCTL_RW_ENTRY(SECURE_REDIRECTS, "secure_redirects"),
-		DEVINET_SYSCTL_RW_ENTRY(SHARED_MEDIA, "shared_media"),
-		DEVINET_SYSCTL_RW_ENTRY(RP_FILTER, "rp_filter"),
-		DEVINET_SYSCTL_RW_ENTRY(SEND_REDIRECTS, "send_redirects"),
-		DEVINET_SYSCTL_RW_ENTRY(ACCEPT_SOURCE_ROUTE,
-					"accept_source_route"),
-		DEVINET_SYSCTL_RW_ENTRY(ACCEPT_LOCAL, "accept_local"),
-		DEVINET_SYSCTL_RW_ENTRY(SRC_VMARK, "src_valid_mark"),
-		DEVINET_SYSCTL_RW_ENTRY(PROXY_ARP, "proxy_arp"),
-		DEVINET_SYSCTL_RW_ENTRY(MEDIUM_ID, "medium_id"),
-		DEVINET_SYSCTL_RW_ENTRY(BOOTP_RELAY, "bootp_relay"),
-		DEVINET_SYSCTL_RW_ENTRY(LOG_MARTIANS, "log_martians"),
-		DEVINET_SYSCTL_RW_ENTRY(TAG, "tag"),
-		DEVINET_SYSCTL_RW_ENTRY(ARPFILTER, "arp_filter"),
-		DEVINET_SYSCTL_RW_ENTRY(ARP_ANNOUNCE, "arp_announce"),
-		DEVINET_SYSCTL_RW_ENTRY(ARP_IGNORE, "arp_ignore"),
-		DEVINET_SYSCTL_RW_ENTRY(ARP_ACCEPT, "arp_accept"),
-		DEVINET_SYSCTL_RW_ENTRY(ARP_NOTIFY, "arp_notify"),
-		DEVINET_SYSCTL_RW_ENTRY(ARP_EVICT_NOCARRIER,
-					"arp_evict_nocarrier"),
-		DEVINET_SYSCTL_RW_ENTRY(PROXY_ARP_PVLAN, "proxy_arp_pvlan"),
-		DEVINET_SYSCTL_RW_ENTRY(FORCE_IGMP_VERSION,
-					"force_igmp_version"),
-		DEVINET_SYSCTL_RW_ENTRY(IGMPV2_UNSOLICITED_REPORT_INTERVAL,
-					"igmpv2_unsolicited_report_interval"),
-		DEVINET_SYSCTL_RW_ENTRY(IGMPV3_UNSOLICITED_REPORT_INTERVAL,
-					"igmpv3_unsolicited_report_interval"),
-		DEVINET_SYSCTL_RW_ENTRY(IGNORE_ROUTES_WITH_LINKDOWN,
-					"ignore_routes_with_linkdown"),
-		DEVINET_SYSCTL_RW_ENTRY(DROP_GRATUITOUS_ARP,
-					"drop_gratuitous_arp"),
+static void *devinet_net(const struct ctl_context *ctx)
+{
+	return ctx->ns.net_ns;
+}
 
-		DEVINET_SYSCTL_FLUSHING_ENTRY(NOXFRM, "disable_xfrm"),
-		DEVINET_SYSCTL_FLUSHING_ENTRY(NOPOLICY, "disable_policy"),
-		DEVINET_SYSCTL_FLUSHING_ENTRY(PROMOTE_SECONDARIES,
-					      "promote_secondaries"),
-		DEVINET_SYSCTL_FLUSHING_ENTRY(ROUTE_LOCALNET,
-					      "route_localnet"),
-		DEVINET_SYSCTL_FLUSHING_ENTRY(DROP_UNICAST_IN_L2_MULTICAST,
-					      "drop_unicast_in_l2_multicast"),
-	},
+DEVINET_SYSCTL_DATA(FORWARDING)
+DEVINET_SYSCTL_DATA(MC_FORWARDING)
+DEVINET_SYSCTL_DATA(BC_FORWARDING)
+DEVINET_SYSCTL_DATA(ACCEPT_REDIRECTS)
+DEVINET_SYSCTL_DATA(SECURE_REDIRECTS)
+DEVINET_SYSCTL_DATA(SHARED_MEDIA)
+DEVINET_SYSCTL_DATA(RP_FILTER)
+DEVINET_SYSCTL_DATA(SEND_REDIRECTS)
+DEVINET_SYSCTL_DATA(ACCEPT_SOURCE_ROUTE)
+DEVINET_SYSCTL_DATA(ACCEPT_LOCAL)
+DEVINET_SYSCTL_DATA(SRC_VMARK)
+DEVINET_SYSCTL_DATA(PROXY_ARP)
+DEVINET_SYSCTL_DATA(MEDIUM_ID)
+DEVINET_SYSCTL_DATA(BOOTP_RELAY)
+DEVINET_SYSCTL_DATA(LOG_MARTIANS)
+DEVINET_SYSCTL_DATA(TAG)
+DEVINET_SYSCTL_DATA(ARPFILTER)
+DEVINET_SYSCTL_DATA(ARP_ANNOUNCE)
+DEVINET_SYSCTL_DATA(ARP_IGNORE)
+DEVINET_SYSCTL_DATA(ARP_ACCEPT)
+DEVINET_SYSCTL_DATA(ARP_NOTIFY)
+DEVINET_SYSCTL_DATA(ARP_EVICT_NOCARRIER)
+DEVINET_SYSCTL_DATA(PROXY_ARP_PVLAN)
+DEVINET_SYSCTL_DATA(FORCE_IGMP_VERSION)
+DEVINET_SYSCTL_DATA(IGMPV2_UNSOLICITED_REPORT_INTERVAL)
+DEVINET_SYSCTL_DATA(IGMPV3_UNSOLICITED_REPORT_INTERVAL)
+DEVINET_SYSCTL_DATA(IGNORE_ROUTES_WITH_LINKDOWN)
+DEVINET_SYSCTL_DATA(DROP_GRATUITOUS_ARP)
+DEVINET_SYSCTL_DATA(NOXFRM)
+DEVINET_SYSCTL_DATA(NOPOLICY)
+DEVINET_SYSCTL_DATA(PROMOTE_SECONDARIES)
+DEVINET_SYSCTL_DATA(ROUTE_LOCALNET)
+DEVINET_SYSCTL_DATA(DROP_UNICAST_IN_L2_MULTICAST)
+
+static const struct ctl_field devinet_sysctl[] = {
+	DEVINET_SYSCTL_COMPLEX_ENTRY(FORWARDING, "forwarding",
+				     devinet_sysctl_forward),
+	DEVINET_SYSCTL_RO_ENTRY(MC_FORWARDING, "mc_forwarding"),
+	DEVINET_SYSCTL_RW_ENTRY(BC_FORWARDING, "bc_forwarding"),
+
+	DEVINET_SYSCTL_RW_ENTRY(ACCEPT_REDIRECTS, "accept_redirects"),
+	DEVINET_SYSCTL_RW_ENTRY(SECURE_REDIRECTS, "secure_redirects"),
+	DEVINET_SYSCTL_RW_ENTRY(SHARED_MEDIA, "shared_media"),
+	DEVINET_SYSCTL_RW_ENTRY(RP_FILTER, "rp_filter"),
+	DEVINET_SYSCTL_RW_ENTRY(SEND_REDIRECTS, "send_redirects"),
+	DEVINET_SYSCTL_RW_ENTRY(ACCEPT_SOURCE_ROUTE, "accept_source_route"),
+	DEVINET_SYSCTL_RW_ENTRY(ACCEPT_LOCAL, "accept_local"),
+	DEVINET_SYSCTL_RW_ENTRY(SRC_VMARK, "src_valid_mark"),
+	DEVINET_SYSCTL_RW_ENTRY(PROXY_ARP, "proxy_arp"),
+	DEVINET_SYSCTL_RW_ENTRY(MEDIUM_ID, "medium_id"),
+	DEVINET_SYSCTL_RW_ENTRY(BOOTP_RELAY, "bootp_relay"),
+	DEVINET_SYSCTL_RW_ENTRY(LOG_MARTIANS, "log_martians"),
+	DEVINET_SYSCTL_RW_ENTRY(TAG, "tag"),
+	DEVINET_SYSCTL_RW_ENTRY(ARPFILTER, "arp_filter"),
+	DEVINET_SYSCTL_RW_ENTRY(ARP_ANNOUNCE, "arp_announce"),
+	DEVINET_SYSCTL_RW_ENTRY(ARP_IGNORE, "arp_ignore"),
+	DEVINET_SYSCTL_RW_ENTRY(ARP_ACCEPT, "arp_accept"),
+	DEVINET_SYSCTL_RW_ENTRY(ARP_NOTIFY, "arp_notify"),
+	DEVINET_SYSCTL_RW_ENTRY(ARP_EVICT_NOCARRIER, "arp_evict_nocarrier"),
+	DEVINET_SYSCTL_RW_ENTRY(PROXY_ARP_PVLAN, "proxy_arp_pvlan"),
+	DEVINET_SYSCTL_RW_ENTRY(FORCE_IGMP_VERSION, "force_igmp_version"),
+	DEVINET_SYSCTL_RW_ENTRY(IGMPV2_UNSOLICITED_REPORT_INTERVAL,
+				"igmpv2_unsolicited_report_interval"),
+	DEVINET_SYSCTL_RW_ENTRY(IGMPV3_UNSOLICITED_REPORT_INTERVAL,
+				"igmpv3_unsolicited_report_interval"),
+	DEVINET_SYSCTL_RW_ENTRY(IGNORE_ROUTES_WITH_LINKDOWN,
+				"ignore_routes_with_linkdown"),
+	DEVINET_SYSCTL_RW_ENTRY(DROP_GRATUITOUS_ARP, "drop_gratuitous_arp"),
+
+	DEVINET_SYSCTL_FLUSHING_ENTRY(NOXFRM, "disable_xfrm"),
+	DEVINET_SYSCTL_FLUSHING_ENTRY(NOPOLICY, "disable_policy"),
+	DEVINET_SYSCTL_FLUSHING_ENTRY(PROMOTE_SECONDARIES,
+				      "promote_secondaries"),
+	DEVINET_SYSCTL_FLUSHING_ENTRY(ROUTE_LOCALNET, "route_localnet"),
+	DEVINET_SYSCTL_FLUSHING_ENTRY(DROP_UNICAST_IN_L2_MULTICAST,
+				      "drop_unicast_in_l2_multicast"),
 };
+
+static_assert(ARRAY_SIZE(devinet_sysctl) == IPV4_DEVCONF_MAX);
 
 static int __devinet_sysctl_register(struct net *net, char *dev_name,
 				     int ifindex, struct ipv4_devconf *p)
 {
-	int i;
-	struct devinet_sysctl_table *t;
+	struct ctl_context ctx = {
+		.ns.net_ns = net,
+		.target.ipv4_devconf = p,
+	};
+	struct ctl_table_header *header;
 	char path[sizeof("net/ipv4/conf/") + IFNAMSIZ];
-
-	t = kmemdup(&devinet_sysctl, sizeof(*t), GFP_KERNEL_ACCOUNT);
-	if (!t)
-		goto out;
-
-	for (i = 0; i < ARRAY_SIZE(t->devinet_vars); i++) {
-		t->devinet_vars[i].data += (char *)p - (char *)&ipv4_devconf;
-		t->devinet_vars[i].extra1 = p;
-		t->devinet_vars[i].extra2 = net;
-	}
 
 	snprintf(path, sizeof(path), "net/ipv4/conf/%s", dev_name);
 
-	t->sysctl_header = register_net_sysctl(net, path, t->devinet_vars);
-	if (!t->sysctl_header)
-		goto free;
+	header = register_net_sysctl_fields_ctx(net, path, devinet_sysctl,
+						ARRAY_SIZE(devinet_sysctl),
+						&ctx);
+	if (!header)
+		return -ENOMEM;
 
-	p->sysctl = t;
+	p->sysctl = header;
 
 	inet_netconf_notify_devconf(net, RTM_NEWNETCONF, NETCONFA_ALL,
 				    ifindex, p);
 	return 0;
-
-free:
-	kfree(t);
-out:
-	return -ENOMEM;
 }
 
 static void __devinet_sysctl_unregister(struct net *net,
 					struct ipv4_devconf *cnf, int ifindex)
 {
-	struct devinet_sysctl_table *t = cnf->sysctl;
+	struct ctl_table_header *header = cnf->sysctl;
 
-	if (t) {
+	if (header) {
 		cnf->sysctl = NULL;
-		unregister_net_sysctl_table(t->sysctl_header);
-		kfree(t);
+		unregister_net_sysctl_table(header);
 	}
 
 	inet_netconf_notify_devconf(net, RTM_DELNETCONF, 0, ifindex, NULL);
