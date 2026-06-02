@@ -678,100 +678,102 @@ static struct ctl_table net_core_table[] = {
 	},
 };
 
-static struct ctl_table netns_core_table[] = {
+static umode_t netns_core_global_mode(const struct ctl_context *ctx)
+{
+	return net_eq(ctx->ns.net_ns, &init_net) ? 0644 : 0444;
+}
+
+static void *netns_core_net_data(const struct ctl_context *ctx)
+{
+	return ctx->ns.net_ns;
+}
+
+#define NETNS_CORE_DATA(name)						\
+static void *netns_core_ ## name ## _data(const struct ctl_context *ctx) \
+{									\
+	return &ctx->ns.net_ns->core.sysctl_ ## name;			\
+}
+
+#define NETNS_CORE_SYSCTL_ENTRY(name, member, len, mval, handler)	\
+	{								\
+		.table = {						\
+			.procname	= name,				\
+			.maxlen		= len,				\
+			.mode		= mval,				\
+			.proc_handler	= handler,			\
+		},							\
+		.data = netns_core_ ## member ## _data,			\
+	}
+
+#define NETNS_CORE_SYSCTL_LIMIT(name, member, len, mval, handler, min, max) \
+	{								\
+		.table = {						\
+			.procname	= name,				\
+			.maxlen		= len,				\
+			.mode		= mval,				\
+			.proc_handler	= handler,			\
+			.extra1		= min,				\
+			.extra2		= max,				\
+		},							\
+		.data = netns_core_ ## member ## _data,			\
+	}
+
+#define NETNS_CORE_GLOBAL(name, data_ptr, len, handler, min)		\
+	{								\
+		.table = {						\
+			.procname	= name,				\
+			.data		= data_ptr,			\
+			.maxlen		= len,				\
+			.mode		= 0644,				\
+			.proc_handler	= handler,			\
+			.extra1		= min,				\
+		},							\
+		.mode = netns_core_global_mode,				\
+	}
+
+NETNS_CORE_DATA(somaxconn)
+NETNS_CORE_DATA(optmem_max)
+NETNS_CORE_DATA(txrehash)
+NETNS_CORE_DATA(txq_reselection)
+NETNS_CORE_DATA(tstamp_allow_data)
+NETNS_CORE_DATA(bypass_prot_mem)
+
+static const struct ctl_field netns_core_table[] = {
 #if IS_ENABLED(CONFIG_RPS)
 	{
-		.procname	= "rps_default_mask",
-		.data		= &init_net,
-		.mode		= 0644,
-		.proc_handler	= rps_default_mask_sysctl
+		.table = {
+			.procname	= "rps_default_mask",
+			.mode		= 0644,
+			.proc_handler	= rps_default_mask_sysctl,
+		},
+		.data = netns_core_net_data,
 	},
 #endif
-	{
-		.procname	= "somaxconn",
-		.data		= &init_net.core.sysctl_somaxconn,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.extra1		= SYSCTL_ZERO,
-		.proc_handler	= proc_dointvec_minmax
-	},
-	{
-		.procname	= "optmem_max",
-		.data		= &init_net.core.sysctl_optmem_max,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.extra1		= SYSCTL_ZERO,
-		.proc_handler	= proc_dointvec_minmax
-	},
-	{
-		.procname	= "txrehash",
-		.data		= &init_net.core.sysctl_txrehash,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_ONE,
-		.proc_handler	= proc_dou8vec_minmax,
-	},
-	{
-		.procname	= "txq_reselection_ms",
-		.data		= &init_net.core.sysctl_txq_reselection,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_ms_jiffies,
-	},
-	{
-		.procname	= "tstamp_allow_data",
-		.data		= &init_net.core.sysctl_tstamp_allow_data,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_ONE
-	},
-	{
-		.procname	= "bypass_prot_mem",
-		.data		= &init_net.core.sysctl_bypass_prot_mem,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_ONE
-	},
-	/* sysctl_core_net_init() will set the values after this
-	 * to readonly in network namespaces
-	 */
-	{
-		.procname	= "wmem_max",
-		.data		= &sysctl_wmem_max,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &min_sndbuf,
-	},
-	{
-		.procname	= "rmem_max",
-		.data		= &sysctl_rmem_max,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &min_rcvbuf,
-	},
-	{
-		.procname	= "wmem_default",
-		.data		= &sysctl_wmem_default,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &min_sndbuf,
-	},
-	{
-		.procname	= "rmem_default",
-		.data		= &sysctl_rmem_default,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &min_rcvbuf,
-	},
+	NETNS_CORE_SYSCTL_LIMIT("somaxconn", somaxconn,
+				sizeof(int), 0644, proc_dointvec_minmax,
+				SYSCTL_ZERO, NULL),
+	NETNS_CORE_SYSCTL_LIMIT("optmem_max", optmem_max,
+				sizeof(int), 0644, proc_dointvec_minmax,
+				SYSCTL_ZERO, NULL),
+	NETNS_CORE_SYSCTL_LIMIT("txrehash", txrehash,
+				sizeof(u8), 0644, proc_dou8vec_minmax,
+				SYSCTL_ZERO, SYSCTL_ONE),
+	NETNS_CORE_SYSCTL_ENTRY("txq_reselection_ms", txq_reselection,
+				sizeof(int), 0644, proc_dointvec_ms_jiffies),
+	NETNS_CORE_SYSCTL_LIMIT("tstamp_allow_data", tstamp_allow_data,
+				sizeof(u8), 0644, proc_dou8vec_minmax,
+				SYSCTL_ZERO, SYSCTL_ONE),
+	NETNS_CORE_SYSCTL_LIMIT("bypass_prot_mem", bypass_prot_mem,
+				sizeof(u8), 0644, proc_dou8vec_minmax,
+				SYSCTL_ZERO, SYSCTL_ONE),
+	NETNS_CORE_GLOBAL("wmem_max", &sysctl_wmem_max,
+				sizeof(int), proc_dointvec_minmax, &min_sndbuf),
+	NETNS_CORE_GLOBAL("rmem_max", &sysctl_rmem_max,
+				sizeof(int), proc_dointvec_minmax, &min_rcvbuf),
+	NETNS_CORE_GLOBAL("wmem_default", &sysctl_wmem_default,
+				sizeof(int), proc_dointvec_minmax, &min_sndbuf),
+	NETNS_CORE_GLOBAL("rmem_default", &sysctl_rmem_default,
+				sizeof(int), proc_dointvec_minmax, &min_rcvbuf),
 };
 
 static int __init fb_tunnels_only_for_init_net_sysctl_setup(char *str)
@@ -790,49 +792,25 @@ __setup("fb_tunnels=", fb_tunnels_only_for_init_net_sysctl_setup);
 static __net_init int sysctl_core_net_init(struct net *net)
 {
 	size_t table_size = ARRAY_SIZE(netns_core_table);
-	struct ctl_table *tbl;
+	struct ctl_context ctx = {
+		.ns.net_ns = net,
+	};
 
-	tbl = netns_core_table;
-	if (!net_eq(net, &init_net)) {
-		int i;
-		tbl = kmemdup(tbl, sizeof(netns_core_table), GFP_KERNEL);
-		if (tbl == NULL)
-			goto err_dup;
-
-		for (i = 0; i < table_size; ++i) {
-			if (tbl[i].data == &sysctl_wmem_max)
-				break;
-
-			tbl[i].data += (char *)net - (char *)&init_net;
-		}
-		for (; i < table_size; ++i)
-			tbl[i].mode &= ~0222;
-	}
-
-	net->core.sysctl_hdr = register_net_sysctl_sz(net, "net/core", tbl, table_size);
+	net->core.sysctl_hdr = register_net_sysctl_fields_ctx(net, "net/core",
+							      netns_core_table,
+							      table_size, &ctx);
 	if (net->core.sysctl_hdr == NULL)
-		goto err_reg;
+		return -ENOMEM;
 
 	return 0;
-
-err_reg:
-	if (tbl != netns_core_table)
-		kfree(tbl);
-err_dup:
-	return -ENOMEM;
 }
 
 static __net_exit void sysctl_core_net_exit(struct net *net)
 {
-	const struct ctl_table *tbl;
-
-	tbl = net->core.sysctl_hdr->ctl_table_arg;
 	unregister_net_sysctl_table(net->core.sysctl_hdr);
-	BUG_ON(tbl == netns_core_table);
 #if IS_ENABLED(CONFIG_RPS)
 	kfree(net->core.rps_default_mask);
 #endif
-	kfree(tbl);
 }
 
 static __net_initdata struct pernet_operations sysctl_core_ops = {

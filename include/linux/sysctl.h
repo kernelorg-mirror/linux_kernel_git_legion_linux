@@ -205,6 +205,7 @@ struct ctl_table {
 
 struct ctl_field {
 	struct ctl_table table;
+	umode_t (*mode)(const struct ctl_context *ctx);
 	void *(*data)(const struct ctl_context *ctx);
 	void *(*extra1)(const struct ctl_context *ctx);
 	void *(*extra2)(const struct ctl_context *ctx);
@@ -215,6 +216,8 @@ static inline void sysctl_field_to_table(const struct ctl_field *field,
 					 struct ctl_table *table)
 {
 	*table = field->table;
+	if (field->mode)
+		table->mode = field->mode(ctx);
 	if (field->data)
 		table->data = field->data(ctx);
 	if (field->extra1)
