@@ -38,7 +38,9 @@ struct nsproxy;
 struct ctl_table_root;
 struct ctl_table_header;
 struct ctl_dir;
+struct inet6_dev;
 struct ipc_namespace;
+struct ipv6_devconf;
 struct mpls_dev;
 struct net;
 struct neigh_parms;
@@ -96,6 +98,10 @@ struct ctl_context {
 		struct mpls_dev *mpls_dev;
 		struct ipv4_devconf *ipv4_devconf;
 		struct neigh_parms *neigh_parms;
+		struct {
+			struct ipv6_devconf *devconf;
+			struct inet6_dev *inet6_dev;
+		} addrconf;
 	} target;
 };
 
