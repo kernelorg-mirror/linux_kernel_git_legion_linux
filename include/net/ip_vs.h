@@ -1214,7 +1214,6 @@ struct netns_ipvs {
 
 	/* sys-ctl struct */
 	struct ctl_table_header	*sysctl_hdr;
-	struct ctl_table	*sysctl_tbl;
 #endif
 
 	/* sysctl variables */

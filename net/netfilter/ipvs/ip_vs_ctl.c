@@ -2606,211 +2606,208 @@ static int ipvs_proc_svc_lfactor(const struct ctl_table *table, int write,
 
 /*
  *	IPVS sysctl table (under the /proc/sys/net/ipv4/vs/)
- *	Do not change order or insert new entries without
- *	align with netns init in ip_vs_control_net_init()
  */
 
-static struct ctl_table vs_vars[] = {
-	{
-		.procname	= "amemthresh",
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
-	},
-	{
-		.procname	= "am_droprate",
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
-	},
-	{
-		.procname	= "drop_entry",
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_do_defense_mode,
-	},
-	{
-		.procname	= "drop_packet",
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_do_defense_mode,
-	},
+static umode_t ipvs_unpriv_mode(const struct ctl_context *ctx)
+{
+	return ctx->target.ipvs->net->user_ns != &init_user_ns ? 0444 : 0644;
+}
+
+static umode_t ipvs_init_net_mode(const struct ctl_context *ctx)
+{
+	return net_eq(ctx->target.ipvs->net, &init_net) ? 0644 : 0444;
+}
+
+static void *ipvs_extra2(const struct ctl_context *ctx)
+{
+	return ctx->target.ipvs;
+}
+
+#define IPVS_DATA(name)						\
+static void *ipvs_ ## name ## _data(const struct ctl_context *ctx)	\
+{									\
+	return &ctx->target.ipvs->sysctl_ ## name;			\
+}
+
+#define IPVS_SYSCTL(name, pname, len, handler)			\
+	{								\
+		.table = {						\
+			.procname	= pname,			\
+			.maxlen		= len,				\
+			.mode		= 0644,				\
+			.proc_handler	= handler,			\
+		},							\
+		.data = ipvs_ ## name ## _data,				\
+	}
+
+#define IPVS_SYSCTL_MODE(name, pname, len, handler, modefn)		\
+	{								\
+		.table = {						\
+			.procname	= pname,			\
+			.maxlen		= len,				\
+			.mode		= 0644,				\
+			.proc_handler	= handler,			\
+		},							\
+		.mode = modefn,						\
+		.data = ipvs_ ## name ## _data,				\
+	}
+
+#define IPVS_SYSCTL_EXTRA(name, pname, len, handler)			\
+	{								\
+		.table = {						\
+			.procname	= pname,			\
+			.maxlen		= len,				\
+			.mode		= 0644,				\
+			.proc_handler	= handler,			\
+		},							\
+		.data = ipvs_ ## name ## _data,				\
+		.extra2 = ipvs_extra2,					\
+	}
+
+#define IPVS_SYSCTL_EXTRA_MODE(name, pname, len, handler, modefn)	\
+	{								\
+		.table = {						\
+			.procname	= pname,			\
+			.maxlen		= len,				\
+			.mode		= 0644,				\
+			.proc_handler	= handler,			\
+		},							\
+		.mode = modefn,						\
+		.data = ipvs_ ## name ## _data,				\
+		.extra2 = ipvs_extra2,					\
+	}
+
+#define IPVS_SYSCTL_LIMIT(name, pname, len, handler, min, max)	\
+	{								\
+		.table = {						\
+			.procname	= pname,			\
+			.maxlen		= len,				\
+			.mode		= 0644,				\
+			.proc_handler	= handler,			\
+			.extra1		= min,				\
+			.extra2		= max,				\
+		},							\
+		.data = ipvs_ ## name ## _data,				\
+	}
+
+IPVS_DATA(amemthresh)
+IPVS_DATA(am_droprate)
+IPVS_DATA(drop_entry)
+IPVS_DATA(drop_packet)
 #ifdef CONFIG_IP_VS_NFCT
-	{
-		.procname	= "conntrack",
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
-	},
+IPVS_DATA(conntrack)
 #endif
-	{
-		.procname	= "secure_tcp",
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_do_defense_mode,
-	},
-	{
-		.procname	= "snat_reroute",
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
-	},
-	{
-		.procname	= "sync_version",
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_ONE,
-	},
-	{
-		.procname	= "sync_ports",
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_do_sync_ports,
-	},
-	{
-		.procname	= "sync_persist_mode",
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
-	},
-	{
-		.procname	= "sync_qlen_max",
-		.maxlen		= sizeof(unsigned long),
-		.mode		= 0644,
-		.proc_handler	= proc_doulongvec_minmax,
-	},
-	{
-		.procname	= "sync_sock_size",
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
-	},
-	{
-		.procname	= "cache_bypass",
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
-	},
-	{
-		.procname	= "expire_nodest_conn",
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
-	},
-	{
-		.procname	= "sloppy_tcp",
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
-	},
-	{
-		.procname	= "sloppy_sctp",
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
-	},
-	{
-		.procname	= "expire_quiescent_template",
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
-	},
-	{
-		.procname	= "sync_threshold",
-		.maxlen		=
-			sizeof(((struct netns_ipvs *)0)->sysctl_sync_threshold),
-		.mode		= 0644,
-		.proc_handler	= proc_do_sync_threshold,
-	},
-	{
-		.procname	= "sync_refresh_period",
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-	},
-	{
-		.procname	= "sync_retries",
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_THREE,
-	},
-	{
-		.procname	= "nat_icmp_send",
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
-	},
-	{
-		.procname	= "pmtu_disc",
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
-	},
-	{
-		.procname	= "backup_only",
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
-	},
-	{
-		.procname	= "conn_reuse_mode",
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
-	},
-	{
-		.procname	= "schedule_icmp",
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
-	},
-	{
-		.procname	= "ignore_tunneled",
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
-	},
-	{
-		.procname	= "run_estimation",
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= ipvs_proc_run_estimation,
-	},
-	{
-		.procname	= "est_cpulist",
-		.maxlen		= NR_CPUS,	/* unused */
-		.mode		= 0644,
-		.proc_handler	= ipvs_proc_est_cpulist,
-	},
-	{
-		.procname	= "est_nice",
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= ipvs_proc_est_nice,
-	},
-	{
-		.procname	= "conn_lfactor",
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= ipvs_proc_conn_lfactor,
-	},
-	{
-		.procname	= "svc_lfactor",
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= ipvs_proc_svc_lfactor,
-	},
+IPVS_DATA(secure_tcp)
+IPVS_DATA(snat_reroute)
+IPVS_DATA(sync_ver)
+IPVS_DATA(sync_ports)
+IPVS_DATA(sync_persist_mode)
+IPVS_DATA(sync_qlen_max)
+IPVS_DATA(sync_sock_size)
+IPVS_DATA(cache_bypass)
+IPVS_DATA(expire_nodest_conn)
+IPVS_DATA(sloppy_tcp)
+IPVS_DATA(sloppy_sctp)
+IPVS_DATA(expire_quiescent_template)
+IPVS_DATA(sync_threshold)
+IPVS_DATA(sync_refresh_period)
+IPVS_DATA(sync_retries)
+IPVS_DATA(nat_icmp_send)
+IPVS_DATA(pmtu_disc)
+IPVS_DATA(backup_only)
+IPVS_DATA(conn_reuse_mode)
+IPVS_DATA(schedule_icmp)
+IPVS_DATA(ignore_tunneled)
+IPVS_DATA(run_estimation)
+IPVS_DATA(est_cpulist)
+IPVS_DATA(est_nice)
+IPVS_DATA(conn_lfactor)
+IPVS_DATA(svc_lfactor)
+
+static const struct ctl_field vs_vars[] = {
+	IPVS_SYSCTL(amemthresh, "amemthresh",
+			sizeof(int), proc_dointvec),
+	IPVS_SYSCTL(am_droprate, "am_droprate",
+			sizeof(int), proc_dointvec),
+	IPVS_SYSCTL_EXTRA(drop_entry, "drop_entry",
+			sizeof(int), proc_do_defense_mode),
+	IPVS_SYSCTL_EXTRA(drop_packet, "drop_packet",
+			sizeof(int), proc_do_defense_mode),
+#ifdef CONFIG_IP_VS_NFCT
+	IPVS_SYSCTL(conntrack, "conntrack",
+			sizeof(int), proc_dointvec),
+#endif
+	IPVS_SYSCTL_EXTRA(secure_tcp, "secure_tcp",
+			sizeof(int), proc_do_defense_mode),
+	IPVS_SYSCTL(snat_reroute, "snat_reroute",
+			sizeof(int), proc_dointvec),
+	IPVS_SYSCTL_LIMIT(sync_ver, "sync_version",
+			sizeof(int), proc_dointvec_minmax,
+			SYSCTL_ZERO, SYSCTL_ONE),
+	IPVS_SYSCTL(sync_ports, "sync_ports",
+			sizeof(int), proc_do_sync_ports),
+	IPVS_SYSCTL(sync_persist_mode, "sync_persist_mode",
+			sizeof(int), proc_dointvec),
+	IPVS_SYSCTL_MODE(sync_qlen_max, "sync_qlen_max",
+			sizeof(unsigned long), proc_doulongvec_minmax,
+			ipvs_unpriv_mode),
+	IPVS_SYSCTL_MODE(sync_sock_size, "sync_sock_size",
+			sizeof(int), proc_dointvec, ipvs_unpriv_mode),
+	IPVS_SYSCTL(cache_bypass, "cache_bypass",
+			sizeof(int), proc_dointvec),
+	IPVS_SYSCTL(expire_nodest_conn, "expire_nodest_conn",
+			sizeof(int), proc_dointvec),
+	IPVS_SYSCTL(sloppy_tcp, "sloppy_tcp",
+			sizeof(int), proc_dointvec),
+	IPVS_SYSCTL(sloppy_sctp, "sloppy_sctp",
+			sizeof(int), proc_dointvec),
+	IPVS_SYSCTL(expire_quiescent_template, "expire_quiescent_template",
+			sizeof(int), proc_dointvec),
+	IPVS_SYSCTL_EXTRA(sync_threshold, "sync_threshold",
+			sizeof_field(struct netns_ipvs, sysctl_sync_threshold),
+			proc_do_sync_threshold),
+	IPVS_SYSCTL(sync_refresh_period, "sync_refresh_period",
+			sizeof(int), proc_dointvec_jiffies),
+	IPVS_SYSCTL_LIMIT(sync_retries, "sync_retries",
+			sizeof(int), proc_dointvec_minmax,
+			SYSCTL_ZERO, SYSCTL_THREE),
+	IPVS_SYSCTL(nat_icmp_send, "nat_icmp_send",
+			sizeof(int), proc_dointvec),
+	IPVS_SYSCTL(pmtu_disc, "pmtu_disc",
+			sizeof(int), proc_dointvec),
+	IPVS_SYSCTL(backup_only, "backup_only",
+			sizeof(int), proc_dointvec),
+	IPVS_SYSCTL(conn_reuse_mode, "conn_reuse_mode",
+			sizeof(int), proc_dointvec),
+	IPVS_SYSCTL(schedule_icmp, "schedule_icmp",
+			sizeof(int), proc_dointvec),
+	IPVS_SYSCTL(ignore_tunneled, "ignore_tunneled",
+			sizeof(int), proc_dointvec),
+	IPVS_SYSCTL_EXTRA_MODE(run_estimation, "run_estimation",
+			sizeof(int), ipvs_proc_run_estimation,
+			ipvs_unpriv_mode),
+	IPVS_SYSCTL_EXTRA_MODE(est_cpulist, "est_cpulist",
+			0, ipvs_proc_est_cpulist,
+			ipvs_unpriv_mode),
+	IPVS_SYSCTL_EXTRA_MODE(est_nice, "est_nice",
+			sizeof(int), ipvs_proc_est_nice,
+			ipvs_unpriv_mode),
+	IPVS_SYSCTL_EXTRA_MODE(conn_lfactor, "conn_lfactor",
+			sizeof(int), ipvs_proc_conn_lfactor,
+			ipvs_unpriv_mode),
+	IPVS_SYSCTL_EXTRA_MODE(svc_lfactor, "svc_lfactor",
+			sizeof(int), ipvs_proc_svc_lfactor,
+			ipvs_unpriv_mode),
 #ifdef CONFIG_IP_VS_DEBUG
 	{
-		.procname	= "debug_level",
-		.data		= &sysctl_ip_vs_debug_level,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.table = {
+			.procname	= "debug_level",
+			.data		= &sysctl_ip_vs_debug_level,
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec,
+		},
+		.mode = ipvs_init_net_mode,
 	},
 #endif
 };
@@ -4947,10 +4944,11 @@ static void ip_vs_genl_unregister(void)
 static int __net_init ip_vs_control_net_init_sysctl(struct netns_ipvs *ipvs)
 {
 	struct net *net = ipvs->net;
-	struct ctl_table *tbl;
-	int idx, ret;
-	size_t ctl_table_size = ARRAY_SIZE(vs_vars);
-	bool unpriv = net->user_ns != &init_user_ns;
+	struct ctl_context ctx = {
+		.ns.net_ns = net,
+		.target.ipvs = ipvs,
+	};
+	int ret;
 
 	atomic_set(&ipvs->dropentry, 0);
 	spin_lock_init(&ipvs->dropentry_lock);
@@ -4961,109 +4959,34 @@ static int __net_init ip_vs_control_net_init_sysctl(struct netns_ipvs *ipvs)
 			  expire_nodest_conn_handler);
 	ipvs->est_stopped = 0;
 
-	if (!net_eq(net, &init_net)) {
-		tbl = kmemdup(vs_vars, sizeof(vs_vars), GFP_KERNEL);
-		if (tbl == NULL)
-			return -ENOMEM;
-	} else
-		tbl = vs_vars;
 	/* Initialize sysctl defaults */
-	for (idx = 0; idx < ARRAY_SIZE(vs_vars); idx++) {
-		if (tbl[idx].proc_handler == proc_do_defense_mode)
-			tbl[idx].extra2 = ipvs;
-	}
-	idx = 0;
 	ipvs->sysctl_amemthresh = 1024;
-	tbl[idx++].data = &ipvs->sysctl_amemthresh;
 	ipvs->sysctl_am_droprate = 10;
-	tbl[idx++].data = &ipvs->sysctl_am_droprate;
-	tbl[idx++].data = &ipvs->sysctl_drop_entry;
-	tbl[idx++].data = &ipvs->sysctl_drop_packet;
-#ifdef CONFIG_IP_VS_NFCT
-	tbl[idx++].data = &ipvs->sysctl_conntrack;
-#endif
-	tbl[idx++].data = &ipvs->sysctl_secure_tcp;
 	ipvs->sysctl_snat_reroute = 1;
-	tbl[idx++].data = &ipvs->sysctl_snat_reroute;
 	ipvs->sysctl_sync_ver = 1;
-	tbl[idx++].data = &ipvs->sysctl_sync_ver;
 	ipvs->sysctl_sync_ports = 1;
-	tbl[idx++].data = &ipvs->sysctl_sync_ports;
-	tbl[idx++].data = &ipvs->sysctl_sync_persist_mode;
 
 	ipvs->sysctl_sync_qlen_max = nr_free_buffer_pages() / 32;
-	if (unpriv)
-		tbl[idx].mode = 0444;
-	tbl[idx++].data = &ipvs->sysctl_sync_qlen_max;
-
 	ipvs->sysctl_sync_sock_size = 0;
-	if (unpriv)
-		tbl[idx].mode = 0444;
-	tbl[idx++].data = &ipvs->sysctl_sync_sock_size;
 
-	tbl[idx++].data = &ipvs->sysctl_cache_bypass;
-	tbl[idx++].data = &ipvs->sysctl_expire_nodest_conn;
-	tbl[idx++].data = &ipvs->sysctl_sloppy_tcp;
-	tbl[idx++].data = &ipvs->sysctl_sloppy_sctp;
-	tbl[idx++].data = &ipvs->sysctl_expire_quiescent_template;
 	ipvs->sysctl_sync_threshold[0] = DEFAULT_SYNC_THRESHOLD;
 	ipvs->sysctl_sync_threshold[1] = DEFAULT_SYNC_PERIOD;
-	tbl[idx].data = &ipvs->sysctl_sync_threshold;
-	tbl[idx].extra2 = ipvs;
-	tbl[idx++].maxlen = sizeof(ipvs->sysctl_sync_threshold);
 	ipvs->sysctl_sync_refresh_period = DEFAULT_SYNC_REFRESH_PERIOD;
-	tbl[idx++].data = &ipvs->sysctl_sync_refresh_period;
 	ipvs->sysctl_sync_retries = clamp_t(int, DEFAULT_SYNC_RETRIES, 0, 3);
-	tbl[idx++].data = &ipvs->sysctl_sync_retries;
-	tbl[idx++].data = &ipvs->sysctl_nat_icmp_send;
 	ipvs->sysctl_pmtu_disc = 1;
-	tbl[idx++].data = &ipvs->sysctl_pmtu_disc;
-	tbl[idx++].data = &ipvs->sysctl_backup_only;
 	ipvs->sysctl_conn_reuse_mode = 1;
-	tbl[idx++].data = &ipvs->sysctl_conn_reuse_mode;
-	tbl[idx++].data = &ipvs->sysctl_schedule_icmp;
-	tbl[idx++].data = &ipvs->sysctl_ignore_tunneled;
 
 	ipvs->sysctl_run_estimation = 1;
-	if (unpriv)
-		tbl[idx].mode = 0444;
-	tbl[idx].extra2 = ipvs;
-	tbl[idx++].data = &ipvs->sysctl_run_estimation;
-
 	ipvs->est_cpulist_valid = 0;
-	if (unpriv)
-		tbl[idx].mode = 0444;
-	tbl[idx].extra2 = ipvs;
-	tbl[idx++].data = &ipvs->sysctl_est_cpulist;
-
 	ipvs->sysctl_est_nice = IPVS_EST_NICE;
-	if (unpriv)
-		tbl[idx].mode = 0444;
-	tbl[idx].extra2 = ipvs;
-	tbl[idx++].data = &ipvs->sysctl_est_nice;
-
-	if (unpriv)
-		tbl[idx].mode = 0444;
-	tbl[idx].extra2 = ipvs;
-	tbl[idx++].data = &ipvs->sysctl_conn_lfactor;
-
-	if (unpriv)
-		tbl[idx].mode = 0444;
-	tbl[idx].extra2 = ipvs;
-	tbl[idx++].data = &ipvs->sysctl_svc_lfactor;
-
-#ifdef CONFIG_IP_VS_DEBUG
-	/* Global sysctls must be ro in non-init netns */
-	if (!net_eq(net, &init_net))
-		tbl[idx++].mode = 0444;
-#endif
 
 	ret = -ENOMEM;
-	ipvs->sysctl_hdr = register_net_sysctl_sz(net, "net/ipv4/vs", tbl,
-						  ctl_table_size);
+	ipvs->sysctl_hdr = register_net_sysctl_fields_ctx(net, "net/ipv4/vs",
+							  vs_vars,
+							  ARRAY_SIZE(vs_vars),
+							  &ctx);
 	if (!ipvs->sysctl_hdr)
-		goto err;
-	ipvs->sysctl_tbl = tbl;
+		return ret;
 
 	ret = ip_vs_start_estimator(ipvs, &ipvs->tot_stats->s);
 	if (ret < 0)
@@ -5077,15 +5000,11 @@ static int __net_init ip_vs_control_net_init_sysctl(struct netns_ipvs *ipvs)
 
 err:
 	unregister_net_sysctl_table(ipvs->sysctl_hdr);
-	if (!net_eq(net, &init_net))
-		kfree(tbl);
 	return ret;
 }
 
 static void __net_exit ip_vs_control_net_cleanup_sysctl(struct netns_ipvs *ipvs)
 {
-	struct net *net = ipvs->net;
-
 	cancel_delayed_work_sync(&ipvs->expire_nodest_conn_work);
 	cancel_delayed_work_sync(&ipvs->defense_work);
 	cancel_work_sync(&ipvs->defense_work.work);
@@ -5101,9 +5020,6 @@ static void __net_exit ip_vs_control_net_cleanup_sysctl(struct netns_ipvs *ipvs)
 
 	if (ipvs->est_cpulist_valid)
 		free_cpumask_var(ipvs->sysctl_est_cpulist);
-
-	if (!net_eq(net, &init_net))
-		kfree(ipvs->sysctl_tbl);
 }
 
 #else
