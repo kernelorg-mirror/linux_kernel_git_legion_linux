@@ -7377,7 +7377,7 @@ static int addrconf_sysctl_register(struct inet6_dev *idev)
 		return -EINVAL;
 
 	err = neigh_sysctl_register(idev->dev, idev->nd_parms,
-				    &ndisc_ifinfo_sysctl_change);
+				    &ndisc_neigh_sysctl_ops);
 	if (err)
 		return err;
 	err = __addrconf_sysctl_register(dev_net(idev->dev), idev->dev->name,

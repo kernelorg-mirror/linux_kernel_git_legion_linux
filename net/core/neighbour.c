@@ -3738,9 +3738,9 @@ static int neigh_proc_dointvec_unres_qlen(const struct ctl_table *ctl, int write
 	return ret;
 }
 
-static int neigh_proc_base_reachable_time(const struct ctl_table *ctl, int write,
-					  void *buffer, size_t *lenp,
-					  loff_t *ppos)
+static int neigh_proc_base_reachable_time_default(const struct ctl_table *ctl,
+						  int write, void *buffer,
+						  size_t *lenp, loff_t *ppos)
 {
 	struct neigh_parms *p = ctl->extra2;
 	int ret;
@@ -3762,17 +3762,106 @@ static int neigh_proc_base_reachable_time(const struct ctl_table *ctl, int write
 	return ret;
 }
 
-#define NEIGH_PARMS_DATA_OFFSET(index)	\
-	(&((struct neigh_parms *) 0)->data[index])
+static void neigh_sysctl_warn_deprecated(const struct ctl_table *ctl, int write)
+{
+	struct neigh_parms *p = ctl->extra2;
+
+	if (p->sysctl_ops && p->sysctl_ops->warn_deprecated)
+		p->sysctl_ops->warn_deprecated(ctl, write);
+}
+
+static void neigh_sysctl_notify_change(const struct ctl_table *ctl, int write,
+				       int ret)
+{
+	struct neigh_parms *p = ctl->extra2;
+
+	if (p->sysctl_ops && p->sysctl_ops->notify_change)
+		p->sysctl_ops->notify_change(ctl, write, ret);
+}
+
+static int neigh_proc_retrans_time(const struct ctl_table *ctl, int write,
+				   void *buffer, size_t *lenp, loff_t *ppos)
+{
+	struct neigh_parms *p = ctl->extra2;
+	int ret;
+
+	if (p->sysctl_ops) {
+		neigh_sysctl_warn_deprecated(ctl, write);
+		ret = neigh_proc_dointvec(ctl, write, buffer, lenp, ppos);
+	} else {
+		ret = neigh_proc_dointvec_userhz_jiffies(ctl, write, buffer, lenp, ppos);
+	}
+	neigh_sysctl_notify_change(ctl, write, ret);
+	return ret;
+}
+
+static int neigh_proc_base_reachable_time(const struct ctl_table *ctl,
+					  int write, void *buffer,
+					  size_t *lenp, loff_t *ppos)
+{
+	struct neigh_parms *p = ctl->extra2;
+	int ret;
+
+	if (p->sysctl_ops) {
+		neigh_sysctl_warn_deprecated(ctl, write);
+		ret = neigh_proc_dointvec_jiffies(ctl, write, buffer, lenp, ppos);
+	} else {
+		ret = neigh_proc_base_reachable_time_default(ctl, write, buffer, lenp, ppos);
+	}
+	neigh_sysctl_notify_change(ctl, write, ret);
+	return ret;
+}
+
+static int neigh_proc_retrans_time_ms(const struct ctl_table *ctl, int write,
+				      void *buffer, size_t *lenp, loff_t *ppos)
+{
+	int ret = neigh_proc_dointvec_ms_jiffies(ctl, write, buffer, lenp, ppos);
+	neigh_sysctl_notify_change(ctl, write, ret);
+	return ret;
+}
+
+static int neigh_proc_base_reachable_time_ms(const struct ctl_table *ctl,
+					     int write, void *buffer,
+					     size_t *lenp, loff_t *ppos)
+{
+	struct neigh_parms *p = ctl->extra2;
+	int ret;
+
+	if (p->sysctl_ops) {
+		ret = neigh_proc_dointvec_ms_jiffies(ctl, write, buffer, lenp, ppos);
+	} else {
+		ret = neigh_proc_base_reachable_time_default(ctl, write, buffer, lenp, ppos);
+	}
+	neigh_sysctl_notify_change(ctl, write, ret);
+	return ret;
+}
 
 #define NEIGH_SYSCTL_ENTRY(attr, data_attr, name, mval, proc) \
 	[NEIGH_VAR_ ## attr] = { \
-		.procname	= name, \
-		.data		= NEIGH_PARMS_DATA_OFFSET(NEIGH_VAR_ ## data_attr), \
-		.maxlen		= sizeof(int), \
-		.mode		= mval, \
-		.proc_handler	= proc, \
+		.table = { \
+			.procname	= name, \
+			.maxlen		= sizeof(int), \
+			.mode		= mval, \
+			.proc_handler	= proc, \
+		}, \
+		.data   = neigh_ ## data_attr ## _data, \
+		.extra1 = neigh_dev, \
+		.extra2 =neigh_parms, \
 	}
+
+#define NEIGH_PARMS_DATA(attr)						\
+static void *neigh_ ## attr ## _data(const struct ctl_context *ctx)	\
+{									\
+	return &ctx->target.neigh_parms->data[NEIGH_VAR_ ## attr];	\
+}
+
+#define NEIGH_TABLE_DATA(name, ptr)					\
+static void *neigh_ ## name ## _data(const struct ctl_context *ctx)	\
+{									\
+	void *data = (ptr);						\
+									\
+	return data;							\
+}
 
 #define NEIGH_SYSCTL_ZERO_INTMAX_ENTRY(attr, name) \
 	NEIGH_SYSCTL_ENTRY(attr, attr, name, 0644, neigh_proc_dointvec_zero_intmax)
@@ -3792,36 +3881,72 @@ static int neigh_proc_base_reachable_time(const struct ctl_table *ctl, int write
 #define NEIGH_SYSCTL_UNRES_QLEN_REUSED_ENTRY(attr, data_attr, name) \
 	NEIGH_SYSCTL_ENTRY(attr, data_attr, name, 0644, neigh_proc_dointvec_unres_qlen)
 
-static struct neigh_sysctl_table {
-	struct ctl_table_header *sysctl_header;
-	struct ctl_table neigh_vars[NEIGH_VAR_MAX];
-} neigh_sysctl_template __read_mostly = {
-	.neigh_vars = {
-		NEIGH_SYSCTL_ZERO_INTMAX_ENTRY(MCAST_PROBES, "mcast_solicit"),
-		NEIGH_SYSCTL_ZERO_INTMAX_ENTRY(UCAST_PROBES, "ucast_solicit"),
-		NEIGH_SYSCTL_ZERO_INTMAX_ENTRY(APP_PROBES, "app_solicit"),
-		NEIGH_SYSCTL_ZERO_INTMAX_ENTRY(MCAST_REPROBES, "mcast_resolicit"),
-		NEIGH_SYSCTL_USERHZ_JIFFIES_ENTRY(RETRANS_TIME, "retrans_time"),
-		NEIGH_SYSCTL_JIFFIES_ENTRY(BASE_REACHABLE_TIME, "base_reachable_time"),
-		NEIGH_SYSCTL_JIFFIES_ENTRY(DELAY_PROBE_TIME, "delay_first_probe_time"),
-		NEIGH_SYSCTL_MS_JIFFIES_POSITIVE_ENTRY(INTERVAL_PROBE_TIME_MS,
-						       "interval_probe_time_ms"),
-		NEIGH_SYSCTL_JIFFIES_ENTRY(GC_STALETIME, "gc_stale_time"),
-		NEIGH_SYSCTL_ZERO_INTMAX_ENTRY(QUEUE_LEN_BYTES, "unres_qlen_bytes"),
-		NEIGH_SYSCTL_ZERO_INTMAX_ENTRY(PROXY_QLEN, "proxy_qlen"),
-		NEIGH_SYSCTL_USERHZ_JIFFIES_ENTRY(ANYCAST_DELAY, "anycast_delay"),
-		NEIGH_SYSCTL_USERHZ_JIFFIES_ENTRY(PROXY_DELAY, "proxy_delay"),
-		NEIGH_SYSCTL_USERHZ_JIFFIES_ENTRY(LOCKTIME, "locktime"),
-		NEIGH_SYSCTL_UNRES_QLEN_REUSED_ENTRY(QUEUE_LEN, QUEUE_LEN_BYTES, "unres_qlen"),
-		NEIGH_SYSCTL_MS_JIFFIES_REUSED_ENTRY(RETRANS_TIME_MS, RETRANS_TIME, "retrans_time_ms"),
-		NEIGH_SYSCTL_MS_JIFFIES_REUSED_ENTRY(BASE_REACHABLE_TIME_MS, BASE_REACHABLE_TIME, "base_reachable_time_ms"),
-		[NEIGH_VAR_GC_INTERVAL] = {
+static void *neigh_dev(const struct ctl_context *ctx)
+{
+	return ctx->target.neigh_parms->dev;
+}
+
+static void *neigh_parms(const struct ctl_context *ctx)
+{
+	return ctx->target.neigh_parms;
+}
+
+NEIGH_PARMS_DATA(MCAST_PROBES)
+NEIGH_PARMS_DATA(UCAST_PROBES)
+NEIGH_PARMS_DATA(APP_PROBES)
+NEIGH_PARMS_DATA(MCAST_REPROBES)
+NEIGH_PARMS_DATA(RETRANS_TIME)
+NEIGH_PARMS_DATA(BASE_REACHABLE_TIME)
+NEIGH_PARMS_DATA(DELAY_PROBE_TIME)
+NEIGH_PARMS_DATA(INTERVAL_PROBE_TIME_MS)
+NEIGH_PARMS_DATA(GC_STALETIME)
+NEIGH_PARMS_DATA(QUEUE_LEN_BYTES)
+NEIGH_PARMS_DATA(PROXY_QLEN)
+NEIGH_PARMS_DATA(ANYCAST_DELAY)
+NEIGH_PARMS_DATA(PROXY_DELAY)
+NEIGH_PARMS_DATA(LOCKTIME)
+NEIGH_TABLE_DATA(gc_interval, &ctx->target.neigh_parms->tbl->gc_interval)
+NEIGH_TABLE_DATA(gc_thresh1, &ctx->target.neigh_parms->tbl->gc_thresh1)
+NEIGH_TABLE_DATA(gc_thresh2, &ctx->target.neigh_parms->tbl->gc_thresh2)
+NEIGH_TABLE_DATA(gc_thresh3, &ctx->target.neigh_parms->tbl->gc_thresh3)
+
+static const struct ctl_field neigh_sysctl_template[] = {
+	NEIGH_SYSCTL_ZERO_INTMAX_ENTRY(MCAST_PROBES, "mcast_solicit"),
+	NEIGH_SYSCTL_ZERO_INTMAX_ENTRY(UCAST_PROBES, "ucast_solicit"),
+	NEIGH_SYSCTL_ZERO_INTMAX_ENTRY(APP_PROBES, "app_solicit"),
+	NEIGH_SYSCTL_ZERO_INTMAX_ENTRY(MCAST_REPROBES, "mcast_resolicit"),
+	NEIGH_SYSCTL_ENTRY(RETRANS_TIME, RETRANS_TIME, "retrans_time", 0644,
+			   neigh_proc_retrans_time),
+	NEIGH_SYSCTL_ENTRY(BASE_REACHABLE_TIME, BASE_REACHABLE_TIME,
+			   "base_reachable_time", 0644,
+			   neigh_proc_base_reachable_time),
+	NEIGH_SYSCTL_JIFFIES_ENTRY(DELAY_PROBE_TIME, "delay_first_probe_time"),
+	NEIGH_SYSCTL_MS_JIFFIES_POSITIVE_ENTRY(INTERVAL_PROBE_TIME_MS,
+					       "interval_probe_time_ms"),
+	NEIGH_SYSCTL_JIFFIES_ENTRY(GC_STALETIME, "gc_stale_time"),
+	NEIGH_SYSCTL_ZERO_INTMAX_ENTRY(QUEUE_LEN_BYTES, "unres_qlen_bytes"),
+	NEIGH_SYSCTL_ZERO_INTMAX_ENTRY(PROXY_QLEN, "proxy_qlen"),
+	NEIGH_SYSCTL_USERHZ_JIFFIES_ENTRY(ANYCAST_DELAY, "anycast_delay"),
+	NEIGH_SYSCTL_USERHZ_JIFFIES_ENTRY(PROXY_DELAY, "proxy_delay"),
+	NEIGH_SYSCTL_USERHZ_JIFFIES_ENTRY(LOCKTIME, "locktime"),
+	NEIGH_SYSCTL_UNRES_QLEN_REUSED_ENTRY(QUEUE_LEN, QUEUE_LEN_BYTES,
+					     "unres_qlen"),
+	NEIGH_SYSCTL_ENTRY(RETRANS_TIME_MS, RETRANS_TIME, "retrans_time_ms",
+			   0644, neigh_proc_retrans_time_ms),
+	NEIGH_SYSCTL_ENTRY(BASE_REACHABLE_TIME_MS, BASE_REACHABLE_TIME,
+			   "base_reachable_time_ms", 0644,
+			   neigh_proc_base_reachable_time_ms),
+	[NEIGH_VAR_GC_INTERVAL] = {
+		.table = {
 			.procname	= "gc_interval",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
 			.proc_handler	= proc_dointvec_jiffies,
 		},
-		[NEIGH_VAR_GC_THRESH1] = {
+		.data = neigh_gc_interval_data,
+	},
+	[NEIGH_VAR_GC_THRESH1] = {
+		.table = {
 			.procname	= "gc_thresh1",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
@@ -3829,7 +3954,10 @@ static struct neigh_sysctl_table {
 			.extra2		= SYSCTL_INT_MAX,
 			.proc_handler	= proc_dointvec_minmax,
 		},
-		[NEIGH_VAR_GC_THRESH2] = {
+		.data = neigh_gc_thresh1_data,
+	},
+	[NEIGH_VAR_GC_THRESH2] = {
+		.table = {
 			.procname	= "gc_thresh2",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
@@ -3837,7 +3965,10 @@ static struct neigh_sysctl_table {
 			.extra2		= SYSCTL_INT_MAX,
 			.proc_handler	= proc_dointvec_minmax,
 		},
-		[NEIGH_VAR_GC_THRESH3] = {
+		.data = neigh_gc_thresh2_data,
+	},
+	[NEIGH_VAR_GC_THRESH3] = {
+		.table = {
 			.procname	= "gc_thresh3",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
@@ -3845,65 +3976,31 @@ static struct neigh_sysctl_table {
 			.extra2		= SYSCTL_INT_MAX,
 			.proc_handler	= proc_dointvec_minmax,
 		},
+		.data = neigh_gc_thresh3_data,
 	},
 };
 
+static_assert(ARRAY_SIZE(neigh_sysctl_template) == NEIGH_VAR_MAX);
+
 int neigh_sysctl_register(struct net_device *dev, struct neigh_parms *p,
-			  proc_handler *handler)
+			  const struct neigh_sysctl_ops *ops)
 {
-	int i;
-	struct neigh_sysctl_table *t;
+	struct ctl_context ctx = {
+		.ns.net_ns = neigh_parms_net(p),
+		.target.neigh_parms = p,
+	};
 	const char *dev_name_source;
 	char neigh_path[ sizeof("net//neigh/") + IFNAMSIZ + IFNAMSIZ ];
 	char *p_name;
 	size_t neigh_vars_size;
 
-	t = kmemdup(&neigh_sysctl_template, sizeof(*t), GFP_KERNEL_ACCOUNT);
-	if (!t)
-		goto err;
-
-	for (i = 0; i < NEIGH_VAR_GC_INTERVAL; i++) {
-		t->neigh_vars[i].data += (long) p;
-		t->neigh_vars[i].extra1 = dev;
-		t->neigh_vars[i].extra2 = p;
-	}
-
-	neigh_vars_size = ARRAY_SIZE(t->neigh_vars);
+	neigh_vars_size = ARRAY_SIZE(neigh_sysctl_template);
 	if (dev) {
 		dev_name_source = dev->name;
 		/* Terminate the table early */
 		neigh_vars_size = NEIGH_VAR_BASE_REACHABLE_TIME_MS + 1;
 	} else {
-		struct neigh_table *tbl = p->tbl;
 		dev_name_source = "default";
-		t->neigh_vars[NEIGH_VAR_GC_INTERVAL].data = &tbl->gc_interval;
-		t->neigh_vars[NEIGH_VAR_GC_THRESH1].data = &tbl->gc_thresh1;
-		t->neigh_vars[NEIGH_VAR_GC_THRESH2].data = &tbl->gc_thresh2;
-		t->neigh_vars[NEIGH_VAR_GC_THRESH3].data = &tbl->gc_thresh3;
-	}
-
-	if (handler) {
-		/* RetransTime */
-		t->neigh_vars[NEIGH_VAR_RETRANS_TIME].proc_handler = handler;
-		/* ReachableTime */
-		t->neigh_vars[NEIGH_VAR_BASE_REACHABLE_TIME].proc_handler = handler;
-		/* RetransTime (in milliseconds)*/
-		t->neigh_vars[NEIGH_VAR_RETRANS_TIME_MS].proc_handler = handler;
-		/* ReachableTime (in milliseconds) */
-		t->neigh_vars[NEIGH_VAR_BASE_REACHABLE_TIME_MS].proc_handler = handler;
-	} else {
-		/* Those handlers will update p->reachable_time after
-		 * base_reachable_time(_ms) is set to ensure the new timer starts being
-		 * applied after the next neighbour update instead of waiting for
-		 * neigh_periodic_work to update its value (can be multiple minutes)
-		 * So any handler that replaces them should do this as well
-		 */
-		/* ReachableTime */
-		t->neigh_vars[NEIGH_VAR_BASE_REACHABLE_TIME].proc_handler =
-			neigh_proc_base_reachable_time;
-		/* ReachableTime (in milliseconds) */
-		t->neigh_vars[NEIGH_VAR_BASE_REACHABLE_TIME_MS].proc_handler =
-			neigh_proc_base_reachable_time;
 	}
 
 	switch (neigh_parms_family(p)) {
@@ -3919,29 +4016,29 @@ int neigh_sysctl_register(struct net_device *dev, struct neigh_parms *p,
 
 	snprintf(neigh_path, sizeof(neigh_path), "net/%s/neigh/%s",
 		p_name, dev_name_source);
-	t->sysctl_header = register_net_sysctl_sz(neigh_parms_net(p),
-						  neigh_path, t->neigh_vars,
-						  neigh_vars_size);
-	if (!t->sysctl_header)
-		goto free;
+	p->sysctl_ops = ops;
+	p->sysctl_table = register_net_sysctl_fields_ctx(neigh_parms_net(p),
+							 neigh_path,
+							 neigh_sysctl_template,
+							 neigh_vars_size,
+							 &ctx);
+	if (!p->sysctl_table) {
+		p->sysctl_ops = NULL;
+		return -ENOBUFS;
+	}
 
-	p->sysctl_table = t;
 	return 0;
-
-free:
-	kfree(t);
-err:
-	return -ENOBUFS;
 }
 EXPORT_SYMBOL(neigh_sysctl_register);
 
 void neigh_sysctl_unregister(struct neigh_parms *p)
 {
 	if (p->sysctl_table) {
-		struct neigh_sysctl_table *t = p->sysctl_table;
+		struct ctl_table_header *header = p->sysctl_table;
+
 		p->sysctl_table = NULL;
-		unregister_net_sysctl_table(t->sysctl_header);
-		kfree(t);
+		p->sysctl_ops = NULL;
+		unregister_net_sysctl_table(header);
 	}
 }
 EXPORT_SYMBOL(neigh_sysctl_unregister);

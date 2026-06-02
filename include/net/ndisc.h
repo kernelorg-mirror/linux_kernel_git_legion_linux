@@ -445,8 +445,7 @@ void igmp6_event_report(struct sk_buff *skb);
 
 
 #ifdef CONFIG_SYSCTL
-int ndisc_ifinfo_sysctl_change(const struct ctl_table *ctl, int write,
-			       void *buffer, size_t *lenp, loff_t *ppos);
+extern const struct neigh_sysctl_ops ndisc_neigh_sysctl_ops;
 #endif
 
 void inet6_ifinfo_notify(int event, struct inet6_dev *idev);

@@ -41,6 +41,7 @@ struct ctl_dir;
 struct ipc_namespace;
 struct mpls_dev;
 struct net;
+struct neigh_parms;
 struct pid_namespace;
 struct user_namespace;
 
@@ -94,6 +95,7 @@ struct ctl_context {
 	union {
 		struct mpls_dev *mpls_dev;
 		struct ipv4_devconf *ipv4_devconf;
+		struct neigh_parms *neigh_parms;
 	} target;
 };
 

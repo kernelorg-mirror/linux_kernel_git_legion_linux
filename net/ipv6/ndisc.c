@@ -1926,30 +1926,20 @@ static void ndisc_warn_deprecated_sysctl(const struct ctl_table *ctl,
 	}
 }
 
-int ndisc_ifinfo_sysctl_change(const struct ctl_table *ctl, int write, void *buffer,
-		size_t *lenp, loff_t *ppos)
+static void ndisc_neigh_sysctl_warn_deprecated(const struct ctl_table *ctl,
+					       int write)
+{
+	struct net_device *dev = ctl->extra1;
+
+	ndisc_warn_deprecated_sysctl(ctl, "syscall",
+				     dev ? dev->name : "default");
+}
+
+static void ndisc_neigh_sysctl_notify_change(const struct ctl_table *ctl,
+					     int write, int ret)
 {
 	struct net_device *dev = ctl->extra1;
 	struct inet6_dev *idev;
-	int ret;
-
-	if ((strcmp(ctl->procname, "retrans_time") == 0) ||
-	    (strcmp(ctl->procname, "base_reachable_time") == 0))
-		ndisc_warn_deprecated_sysctl(ctl, "syscall", dev ? dev->name : "default");
-
-	if (strcmp(ctl->procname, "retrans_time") == 0)
-		ret = neigh_proc_dointvec(ctl, write, buffer, lenp, ppos);
-
-	else if (strcmp(ctl->procname, "base_reachable_time") == 0)
-		ret = neigh_proc_dointvec_jiffies(ctl, write,
-						  buffer, lenp, ppos);
-
-	else if ((strcmp(ctl->procname, "retrans_time_ms") == 0) ||
-		 (strcmp(ctl->procname, "base_reachable_time_ms") == 0))
-		ret = neigh_proc_dointvec_ms_jiffies(ctl, write,
-						     buffer, lenp, ppos);
-	else
-		ret = -1;
 
 	if (write && ret == 0 && dev && (idev = in6_dev_get(dev)) != NULL) {
 		if (ctl->data == NEIGH_VAR_PTR(idev->nd_parms, BASE_REACHABLE_TIME))
@@ -1959,9 +1949,12 @@ int ndisc_ifinfo_sysctl_change(const struct ctl_table *ctl, int write, void *buf
 		inet6_ifinfo_notify(RTM_NEWLINK, idev);
 		in6_dev_put(idev);
 	}
-	return ret;
 }
 
+const struct neigh_sysctl_ops ndisc_neigh_sysctl_ops = {
+	.warn_deprecated	= ndisc_neigh_sysctl_warn_deprecated,
+	.notify_change		= ndisc_neigh_sysctl_notify_change,
+};
 
 #endif
 
@@ -2013,7 +2006,7 @@ int __init ndisc_init(void)
 
 #ifdef CONFIG_SYSCTL
 	err = neigh_sysctl_register(NULL, &nd_tbl.parms,
-				    ndisc_ifinfo_sysctl_change);
+				    &ndisc_neigh_sysctl_ops);
 	if (err)
 		goto out_unregister_pernet;
 out:

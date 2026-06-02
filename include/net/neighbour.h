@@ -76,6 +76,7 @@ struct neigh_parms {
 	struct list_head list;
 	int	(*neigh_setup)(struct neighbour *);
 	struct neigh_table *tbl;
+	const struct neigh_sysctl_ops *sysctl_ops;
 
 	void	*sysctl_table;
 
@@ -434,8 +435,13 @@ int neigh_proc_dointvec_jiffies(const struct ctl_table *ctl, int write,
 int neigh_proc_dointvec_ms_jiffies(const struct ctl_table *ctl, int write,
 				   void *buffer, size_t *lenp, loff_t *ppos);
 
+struct neigh_sysctl_ops {
+	void (*warn_deprecated)(const struct ctl_table *ctl, int write);
+	void (*notify_change)(const struct ctl_table *ctl, int write, int ret);
+};
+
 int neigh_sysctl_register(struct net_device *dev, struct neigh_parms *p,
-			  proc_handler *proc_handler);
+			  const struct neigh_sysctl_ops *ops);
 void neigh_sysctl_unregister(struct neigh_parms *p);
 
 static inline void __neigh_parms_put(struct neigh_parms *parms)
