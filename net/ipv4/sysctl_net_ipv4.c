@@ -624,1065 +624,1451 @@ static struct ctl_table ipv4_table[] = {
 	},
 };
 
-static struct ctl_table ipv4_net_table[] = {
+static void *ipv4_tcp_death_row_sysctl_max_tw_buckets_data(const struct ctl_context *ctx)
+{
+	return &ctx->ns.net_ns->ipv4.tcp_death_row.sysctl_max_tw_buckets;
+}
+
+static void *ipv4_ping_group_range_range_data(const struct ctl_context *ctx)
+{
+	return &ctx->ns.net_ns->ipv4.ping_group_range.range;
+}
+
+static void *ipv4_net_data(const struct ctl_context *ctx)
+{
+	return ctx->ns.net_ns;
+}
+
+#define IPV4_DATA(field)						\
+static void *ipv4_ ## field ## _data(const struct ctl_context *ctx)	\
+{									\
+	return &ctx->ns.net_ns->ipv4.field;				\
+}
+
+IPV4_DATA(sysctl_fib_multipath_hash_fields)
+IPV4_DATA(sysctl_fib_multipath_hash_policy)
+IPV4_DATA(sysctl_fib_multipath_use_neigh)
+IPV4_DATA(sysctl_fib_notify_on_flag_change)
+IPV4_DATA(sysctl_fwmark_reflect)
+IPV4_DATA(sysctl_icmp_echo_enable_probe)
+IPV4_DATA(sysctl_icmp_echo_ignore_all)
+IPV4_DATA(sysctl_icmp_echo_ignore_broadcasts)
+IPV4_DATA(sysctl_icmp_errors_extension_mask)
+IPV4_DATA(sysctl_icmp_errors_use_inbound_ifaddr)
+IPV4_DATA(sysctl_icmp_ignore_bogus_error_responses)
+IPV4_DATA(sysctl_icmp_msgs_burst)
+IPV4_DATA(sysctl_icmp_msgs_per_sec)
+IPV4_DATA(sysctl_icmp_ratelimit)
+IPV4_DATA(sysctl_icmp_ratemask)
+IPV4_DATA(sysctl_igmp_llm_reports)
+IPV4_DATA(sysctl_igmp_max_memberships)
+IPV4_DATA(sysctl_igmp_max_msf)
+IPV4_DATA(sysctl_igmp_qrv)
+IPV4_DATA(sysctl_ip_autobind_reuse)
+IPV4_DATA(sysctl_ip_default_ttl)
+IPV4_DATA(sysctl_ip_dynaddr)
+IPV4_DATA(sysctl_ip_early_demux)
+IPV4_DATA(sysctl_ip_fwd_update_priority)
+IPV4_DATA(sysctl_ip_fwd_use_pmtu)
+IPV4_DATA(sysctl_ip_local_port_step_width)
+IPV4_DATA(sysctl_ip_no_pmtu_disc)
+IPV4_DATA(sysctl_ip_nonlocal_bind)
+IPV4_DATA(sysctl_ip_prot_sock)
+IPV4_DATA(sysctl_local_reserved_ports)
+IPV4_DATA(sysctl_max_syn_backlog)
+IPV4_DATA(sysctl_nexthop_compat_mode)
+#ifdef CONFIG_NET_L3_MASTER_DEV
+IPV4_DATA(sysctl_raw_l3mdev_accept)
+#endif
+IPV4_DATA(sysctl_tcp_abort_on_overflow)
+IPV4_DATA(sysctl_tcp_adv_win_scale)
+IPV4_DATA(sysctl_tcp_app_win)
+IPV4_DATA(sysctl_tcp_autocorking)
+IPV4_DATA(sysctl_tcp_backlog_ack_defer)
+IPV4_DATA(sysctl_tcp_base_mss)
+IPV4_DATA(sysctl_tcp_challenge_ack_limit)
+IPV4_DATA(sysctl_tcp_child_ehash_entries)
+IPV4_DATA(sysctl_tcp_comp_sack_delay_ns)
+IPV4_DATA(sysctl_tcp_comp_sack_nr)
+IPV4_DATA(sysctl_tcp_comp_sack_rtt_percent)
+IPV4_DATA(sysctl_tcp_comp_sack_slack_ns)
+IPV4_DATA(sysctl_tcp_dsack)
+IPV4_DATA(sysctl_tcp_early_demux)
+IPV4_DATA(sysctl_tcp_early_retrans)
+IPV4_DATA(sysctl_tcp_ecn)
+IPV4_DATA(sysctl_tcp_ecn_fallback)
+IPV4_DATA(sysctl_tcp_ecn_option)
+IPV4_DATA(sysctl_tcp_ecn_option_beacon)
+IPV4_DATA(sysctl_tcp_fack)
+IPV4_DATA(sysctl_tcp_fastopen)
+IPV4_DATA(sysctl_tcp_fastopen_blackhole_timeout)
+IPV4_DATA(sysctl_tcp_fin_timeout)
+IPV4_DATA(sysctl_tcp_frto)
+IPV4_DATA(sysctl_tcp_fwmark_accept)
+IPV4_DATA(sysctl_tcp_invalid_ratelimit)
+IPV4_DATA(sysctl_tcp_keepalive_intvl)
+IPV4_DATA(sysctl_tcp_keepalive_probes)
+IPV4_DATA(sysctl_tcp_keepalive_time)
+#ifdef CONFIG_NET_L3_MASTER_DEV
+IPV4_DATA(sysctl_tcp_l3mdev_accept)
+#endif
+IPV4_DATA(sysctl_tcp_limit_output_bytes)
+IPV4_DATA(sysctl_tcp_max_reordering)
+IPV4_DATA(sysctl_tcp_migrate_req)
+IPV4_DATA(sysctl_tcp_min_rtt_wlen)
+IPV4_DATA(sysctl_tcp_min_snd_mss)
+IPV4_DATA(sysctl_tcp_min_tso_segs)
+IPV4_DATA(sysctl_tcp_moderate_rcvbuf)
+IPV4_DATA(sysctl_tcp_mtu_probe_floor)
+IPV4_DATA(sysctl_tcp_mtu_probing)
+IPV4_DATA(sysctl_tcp_no_ssthresh_metrics_save)
+IPV4_DATA(sysctl_tcp_nometrics_save)
+IPV4_DATA(sysctl_tcp_notsent_lowat)
+IPV4_DATA(sysctl_tcp_orphan_retries)
+IPV4_DATA(sysctl_tcp_pacing_ca_ratio)
+IPV4_DATA(sysctl_tcp_pacing_ss_ratio)
+IPV4_DATA(sysctl_tcp_pingpong_thresh)
+IPV4_DATA(sysctl_tcp_plb_cong_thresh)
+IPV4_DATA(sysctl_tcp_plb_enabled)
+IPV4_DATA(sysctl_tcp_plb_idle_rehash_rounds)
+IPV4_DATA(sysctl_tcp_plb_rehash_rounds)
+IPV4_DATA(sysctl_tcp_plb_suspend_rto_sec)
+IPV4_DATA(sysctl_tcp_probe_interval)
+IPV4_DATA(sysctl_tcp_probe_threshold)
+IPV4_DATA(sysctl_tcp_rcvbuf_low_rtt)
+IPV4_DATA(sysctl_tcp_recovery)
+IPV4_DATA(sysctl_tcp_reflect_tos)
+IPV4_DATA(sysctl_tcp_reordering)
+IPV4_DATA(sysctl_tcp_retrans_collapse)
+IPV4_DATA(sysctl_tcp_retries1)
+IPV4_DATA(sysctl_tcp_retries2)
+IPV4_DATA(sysctl_tcp_rfc1337)
+IPV4_DATA(sysctl_tcp_rmem)
+IPV4_DATA(sysctl_tcp_rto_max_ms)
+IPV4_DATA(sysctl_tcp_rto_min_us)
+IPV4_DATA(sysctl_tcp_sack)
+IPV4_DATA(sysctl_tcp_shrink_window)
+IPV4_DATA(sysctl_tcp_slow_start_after_idle)
+IPV4_DATA(sysctl_tcp_stdurg)
+IPV4_DATA(sysctl_tcp_syn_linear_timeouts)
+IPV4_DATA(sysctl_tcp_syn_retries)
+IPV4_DATA(sysctl_tcp_synack_retries)
+IPV4_DATA(sysctl_tcp_syncookies)
+IPV4_DATA(sysctl_tcp_thin_linear_timeouts)
+IPV4_DATA(sysctl_tcp_timestamps)
+IPV4_DATA(sysctl_tcp_tso_rtt_log)
+IPV4_DATA(sysctl_tcp_tso_win_divisor)
+IPV4_DATA(sysctl_tcp_tw_reuse)
+IPV4_DATA(sysctl_tcp_tw_reuse_delay)
+IPV4_DATA(sysctl_tcp_window_scaling)
+IPV4_DATA(sysctl_tcp_wmem)
+IPV4_DATA(sysctl_tcp_workaround_signed_windows)
+IPV4_DATA(sysctl_udp_child_hash_entries)
+IPV4_DATA(sysctl_udp_early_demux)
+#ifdef CONFIG_NET_L3_MASTER_DEV
+IPV4_DATA(sysctl_udp_l3mdev_accept)
+#endif
+IPV4_DATA(sysctl_udp_rmem_min)
+IPV4_DATA(sysctl_udp_wmem_min)
+IPV4_DATA(tcp_congestion_control)
+
+static const struct ctl_field ipv4_net_table[] = {
 	{
-		.procname	= "tcp_max_tw_buckets",
-		.data		= &init_net.ipv4.tcp_death_row.sysctl_max_tw_buckets,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.table = {
+			.procname	= "tcp_max_tw_buckets",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec
+		},
+		.data = ipv4_tcp_death_row_sysctl_max_tw_buckets_data,
 	},
 	{
-		.procname	= "icmp_echo_ignore_all",
-		.data		= &init_net.ipv4.sysctl_icmp_echo_ignore_all,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_ONE
+		.table = {
+			.procname	= "icmp_echo_ignore_all",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+			.extra1		= SYSCTL_ZERO,
+			.extra2		= SYSCTL_ONE
+		},
+		.data = ipv4_sysctl_icmp_echo_ignore_all_data,
 	},
 	{
-		.procname	= "icmp_echo_enable_probe",
-		.data		= &init_net.ipv4.sysctl_icmp_echo_enable_probe,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_ONE
+		.table = {
+			.procname	= "icmp_echo_enable_probe",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+			.extra1		= SYSCTL_ZERO,
+			.extra2		= SYSCTL_ONE
+		},
+		.data = ipv4_sysctl_icmp_echo_enable_probe_data,
 	},
 	{
-		.procname	= "icmp_echo_ignore_broadcasts",
-		.data		= &init_net.ipv4.sysctl_icmp_echo_ignore_broadcasts,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_ONE
+		.table = {
+			.procname	= "icmp_echo_ignore_broadcasts",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+			.extra1		= SYSCTL_ZERO,
+			.extra2		= SYSCTL_ONE
+		},
+		.data = ipv4_sysctl_icmp_echo_ignore_broadcasts_data,
 	},
 	{
-		.procname	= "icmp_ignore_bogus_error_responses",
-		.data		= &init_net.ipv4.sysctl_icmp_ignore_bogus_error_responses,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_ONE
+		.table = {
+			.procname	= "icmp_ignore_bogus_error_responses",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+			.extra1		= SYSCTL_ZERO,
+			.extra2		= SYSCTL_ONE
+		},
+		.data = ipv4_sysctl_icmp_ignore_bogus_error_responses_data,
 	},
 	{
-		.procname	= "icmp_errors_use_inbound_ifaddr",
-		.data		= &init_net.ipv4.sysctl_icmp_errors_use_inbound_ifaddr,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_ONE
+		.table = {
+			.procname	= "icmp_errors_use_inbound_ifaddr",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+			.extra1		= SYSCTL_ZERO,
+			.extra2		= SYSCTL_ONE
+		},
+		.data = ipv4_sysctl_icmp_errors_use_inbound_ifaddr_data,
 	},
 	{
-		.procname	= "icmp_errors_extension_mask",
-		.data		= &init_net.ipv4.sysctl_icmp_errors_extension_mask,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= &icmp_errors_extension_mask_all,
+		.table = {
+			.procname	= "icmp_errors_extension_mask",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+			.extra1		= SYSCTL_ZERO,
+			.extra2		= &icmp_errors_extension_mask_all,
+		},
+		.data = ipv4_sysctl_icmp_errors_extension_mask_data,
 	},
 	{
-		.procname	= "icmp_ratelimit",
-		.data		= &init_net.ipv4.sysctl_icmp_ratelimit,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_ms_jiffies,
+		.table = {
+			.procname	= "icmp_ratelimit",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec_ms_jiffies,
+		},
+		.data = ipv4_sysctl_icmp_ratelimit_data,
 	},
 	{
-		.procname	= "icmp_ratemask",
-		.data		= &init_net.ipv4.sysctl_icmp_ratemask,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.table = {
+			.procname	= "icmp_ratemask",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec
+		},
+		.data = ipv4_sysctl_icmp_ratemask_data,
 	},
 	{
-		.procname	= "icmp_msgs_per_sec",
-		.data		= &init_net.ipv4.sysctl_icmp_msgs_per_sec,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= SYSCTL_ZERO,
+		.table = {
+			.procname	= "icmp_msgs_per_sec",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec_minmax,
+			.extra1		= SYSCTL_ZERO,
+		},
+		.data = ipv4_sysctl_icmp_msgs_per_sec_data,
 	},
 	{
-		.procname	= "icmp_msgs_burst",
-		.data		= &init_net.ipv4.sysctl_icmp_msgs_burst,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= SYSCTL_ZERO,
+		.table = {
+			.procname	= "icmp_msgs_burst",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec_minmax,
+			.extra1		= SYSCTL_ZERO,
+		},
+		.data = ipv4_sysctl_icmp_msgs_burst_data,
 	},
 	{
-		.procname	= "ping_group_range",
-		.data		= &init_net.ipv4.ping_group_range.range,
-		.maxlen		= sizeof(gid_t)*2,
-		.mode		= 0644,
-		.proc_handler	= ipv4_ping_group_range,
+		.table = {
+			.procname	= "ping_group_range",
+			.maxlen		= sizeof(gid_t) * 2,
+			.mode		= 0644,
+			.proc_handler	= ipv4_ping_group_range,
+		},
+		.data = ipv4_ping_group_range_range_data,
 	},
 #ifdef CONFIG_NET_L3_MASTER_DEV
 	{
-		.procname	= "raw_l3mdev_accept",
-		.data		= &init_net.ipv4.sysctl_raw_l3mdev_accept,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_ONE,
+		.table = {
+			.procname	= "raw_l3mdev_accept",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+			.extra1		= SYSCTL_ZERO,
+			.extra2		= SYSCTL_ONE,
+		},
+		.data = ipv4_sysctl_raw_l3mdev_accept_data,
 	},
 #endif
 	{
-		.procname	= "tcp_ecn",
-		.data		= &init_net.ipv4.sysctl_tcp_ecn,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= &tcp_ecn_mode_max,
+		.table = {
+			.procname	= "tcp_ecn",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+			.extra1		= SYSCTL_ZERO,
+			.extra2		= &tcp_ecn_mode_max,
+		},
+		.data = ipv4_sysctl_tcp_ecn_data,
 	},
 	{
-		.procname	= "tcp_ecn_option",
-		.data		= &init_net.ipv4.sysctl_tcp_ecn_option,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_THREE,
+		.table = {
+			.procname	= "tcp_ecn_option",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+			.extra1		= SYSCTL_ZERO,
+			.extra2		= SYSCTL_THREE,
+		},
+		.data = ipv4_sysctl_tcp_ecn_option_data,
 	},
 	{
-		.procname	= "tcp_ecn_option_beacon",
-		.data		= &init_net.ipv4.sysctl_tcp_ecn_option_beacon,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_THREE,
+		.table = {
+			.procname	= "tcp_ecn_option_beacon",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+			.extra1		= SYSCTL_ZERO,
+			.extra2		= SYSCTL_THREE,
+		},
+		.data = ipv4_sysctl_tcp_ecn_option_beacon_data,
 	},
 	{
-		.procname	= "tcp_ecn_fallback",
-		.data		= &init_net.ipv4.sysctl_tcp_ecn_fallback,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_ONE,
+		.table = {
+			.procname	= "tcp_ecn_fallback",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+			.extra1		= SYSCTL_ZERO,
+			.extra2		= SYSCTL_ONE,
+		},
+		.data = ipv4_sysctl_tcp_ecn_fallback_data,
 	},
 	{
-		.procname	= "ip_dynaddr",
-		.data		= &init_net.ipv4.sysctl_ip_dynaddr,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.table = {
+			.procname	= "ip_dynaddr",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+		},
+		.data = ipv4_sysctl_ip_dynaddr_data,
 	},
 	{
-		.procname	= "ip_early_demux",
-		.data		= &init_net.ipv4.sysctl_ip_early_demux,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.table = {
+			.procname	= "ip_early_demux",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+		},
+		.data = ipv4_sysctl_ip_early_demux_data,
 	},
 	{
-		.procname       = "udp_early_demux",
-		.data           = &init_net.ipv4.sysctl_udp_early_demux,
-		.maxlen         = sizeof(u8),
-		.mode           = 0644,
-		.proc_handler   = proc_dou8vec_minmax,
+		.table = {
+			.procname       = "udp_early_demux",
+			.maxlen         = sizeof(u8),
+			.mode           = 0644,
+			.proc_handler   = proc_dou8vec_minmax,
+		},
+		.data = ipv4_sysctl_udp_early_demux_data,
 	},
 	{
-		.procname       = "tcp_early_demux",
-		.data           = &init_net.ipv4.sysctl_tcp_early_demux,
-		.maxlen         = sizeof(u8),
-		.mode           = 0644,
-		.proc_handler   = proc_dou8vec_minmax,
+		.table = {
+			.procname       = "tcp_early_demux",
+			.maxlen         = sizeof(u8),
+			.mode           = 0644,
+			.proc_handler   = proc_dou8vec_minmax,
+		},
+		.data = ipv4_sysctl_tcp_early_demux_data,
 	},
 	{
-		.procname       = "nexthop_compat_mode",
-		.data           = &init_net.ipv4.sysctl_nexthop_compat_mode,
-		.maxlen         = sizeof(u8),
-		.mode           = 0644,
-		.proc_handler   = proc_dou8vec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_ONE,
+		.table = {
+			.procname       = "nexthop_compat_mode",
+			.maxlen         = sizeof(u8),
+			.mode           = 0644,
+			.proc_handler   = proc_dou8vec_minmax,
+			.extra1		= SYSCTL_ZERO,
+			.extra2		= SYSCTL_ONE,
+		},
+		.data = ipv4_sysctl_nexthop_compat_mode_data,
 	},
 	{
-		.procname	= "ip_default_ttl",
-		.data		= &init_net.ipv4.sysctl_ip_default_ttl,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
-		.extra1		= &ip_ttl_min,
-		.extra2		= &ip_ttl_max,
+		.table = {
+			.procname	= "ip_default_ttl",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+			.extra1		= &ip_ttl_min,
+			.extra2		= &ip_ttl_max,
+		},
+		.data = ipv4_sysctl_ip_default_ttl_data,
 	},
 	{
-		.procname	= "ip_local_port_range",
-		.maxlen		= 0,
-		.data		= &init_net,
-		.mode		= 0644,
-		.proc_handler	= ipv4_local_port_range,
+		.table = {
+			.procname	= "ip_local_port_range",
+			.maxlen		= 0,
+			.mode		= 0644,
+			.proc_handler	= ipv4_local_port_range,
+		},
+		.data = ipv4_net_data,
 	},
 	{
-		.procname	= "ip_local_port_step_width",
-		.maxlen		= sizeof(u32),
-		.data		= &init_net.ipv4.sysctl_ip_local_port_step_width,
-		.mode		= 0644,
-		.proc_handler	= proc_douintvec,
+		.table = {
+			.procname	= "ip_local_port_step_width",
+			.maxlen		= sizeof(u32),
+			.mode		= 0644,
+			.proc_handler	= proc_douintvec,
+		},
+		.data = ipv4_sysctl_ip_local_port_step_width_data,
 	},
 	{
-		.procname	= "ip_local_reserved_ports",
-		.data		= &init_net.ipv4.sysctl_local_reserved_ports,
-		.maxlen		= 65536,
-		.mode		= 0644,
-		.proc_handler	= proc_do_large_bitmap,
+		.table = {
+			.procname	= "ip_local_reserved_ports",
+			.maxlen		= 65536,
+			.mode		= 0644,
+			.proc_handler	= proc_do_large_bitmap,
+		},
+		.data = ipv4_sysctl_local_reserved_ports_data,
 	},
 	{
-		.procname	= "ip_no_pmtu_disc",
-		.data		= &init_net.ipv4.sysctl_ip_no_pmtu_disc,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.table = {
+			.procname	= "ip_no_pmtu_disc",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+		},
+		.data = ipv4_sysctl_ip_no_pmtu_disc_data,
 	},
 	{
-		.procname	= "ip_forward_use_pmtu",
-		.data		= &init_net.ipv4.sysctl_ip_fwd_use_pmtu,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.table = {
+			.procname	= "ip_forward_use_pmtu",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+		},
+		.data = ipv4_sysctl_ip_fwd_use_pmtu_data,
 	},
 	{
-		.procname	= "ip_forward_update_priority",
-		.data		= &init_net.ipv4.sysctl_ip_fwd_update_priority,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler   = ipv4_fwd_update_priority,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_ONE,
+		.table = {
+			.procname	= "ip_forward_update_priority",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler   = ipv4_fwd_update_priority,
+			.extra1		= SYSCTL_ZERO,
+			.extra2		= SYSCTL_ONE,
+		},
+		.data = ipv4_sysctl_ip_fwd_update_priority_data,
 	},
 	{
-		.procname	= "ip_nonlocal_bind",
-		.data		= &init_net.ipv4.sysctl_ip_nonlocal_bind,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.table = {
+			.procname	= "ip_nonlocal_bind",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+		},
+		.data = ipv4_sysctl_ip_nonlocal_bind_data,
 	},
 	{
-		.procname	= "ip_autobind_reuse",
-		.data		= &init_net.ipv4.sysctl_ip_autobind_reuse,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
-		.extra1         = SYSCTL_ZERO,
-		.extra2         = SYSCTL_ONE,
+		.table = {
+			.procname	= "ip_autobind_reuse",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+			.extra1         = SYSCTL_ZERO,
+			.extra2         = SYSCTL_ONE,
+		},
+		.data = ipv4_sysctl_ip_autobind_reuse_data,
 	},
 	{
-		.procname	= "fwmark_reflect",
-		.data		= &init_net.ipv4.sysctl_fwmark_reflect,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.table = {
+			.procname	= "fwmark_reflect",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+		},
+		.data = ipv4_sysctl_fwmark_reflect_data,
 	},
 	{
-		.procname	= "tcp_fwmark_accept",
-		.data		= &init_net.ipv4.sysctl_tcp_fwmark_accept,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.table = {
+			.procname	= "tcp_fwmark_accept",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+		},
+		.data = ipv4_sysctl_tcp_fwmark_accept_data,
 	},
 #ifdef CONFIG_NET_L3_MASTER_DEV
 	{
-		.procname	= "tcp_l3mdev_accept",
-		.data		= &init_net.ipv4.sysctl_tcp_l3mdev_accept,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_ONE,
+		.table = {
+			.procname	= "tcp_l3mdev_accept",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+			.extra1		= SYSCTL_ZERO,
+			.extra2		= SYSCTL_ONE,
+		},
+		.data = ipv4_sysctl_tcp_l3mdev_accept_data,
 	},
 #endif
 	{
-		.procname	= "tcp_mtu_probing",
-		.data		= &init_net.ipv4.sysctl_tcp_mtu_probing,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.table = {
+			.procname	= "tcp_mtu_probing",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+		},
+		.data = ipv4_sysctl_tcp_mtu_probing_data,
 	},
 	{
-		.procname	= "tcp_base_mss",
-		.data		= &init_net.ipv4.sysctl_tcp_base_mss,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.table = {
+			.procname	= "tcp_base_mss",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec,
+		},
+		.data = ipv4_sysctl_tcp_base_mss_data,
 	},
 	{
-		.procname	= "tcp_min_snd_mss",
-		.data		= &init_net.ipv4.sysctl_tcp_min_snd_mss,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &tcp_min_snd_mss_min,
-		.extra2		= &tcp_min_snd_mss_max,
+		.table = {
+			.procname	= "tcp_min_snd_mss",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec_minmax,
+			.extra1		= &tcp_min_snd_mss_min,
+			.extra2		= &tcp_min_snd_mss_max,
+		},
+		.data = ipv4_sysctl_tcp_min_snd_mss_data,
 	},
 	{
-		.procname	= "tcp_mtu_probe_floor",
-		.data		= &init_net.ipv4.sysctl_tcp_mtu_probe_floor,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &tcp_min_snd_mss_min,
-		.extra2		= &tcp_min_snd_mss_max,
+		.table = {
+			.procname	= "tcp_mtu_probe_floor",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec_minmax,
+			.extra1		= &tcp_min_snd_mss_min,
+			.extra2		= &tcp_min_snd_mss_max,
+		},
+		.data = ipv4_sysctl_tcp_mtu_probe_floor_data,
 	},
 	{
-		.procname	= "tcp_probe_threshold",
-		.data		= &init_net.ipv4.sysctl_tcp_probe_threshold,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.table = {
+			.procname	= "tcp_probe_threshold",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec,
+		},
+		.data = ipv4_sysctl_tcp_probe_threshold_data,
 	},
 	{
-		.procname	= "tcp_probe_interval",
-		.data		= &init_net.ipv4.sysctl_tcp_probe_interval,
-		.maxlen		= sizeof(u32),
-		.mode		= 0644,
-		.proc_handler	= proc_douintvec_minmax,
-		.extra2		= &u32_max_div_HZ,
+		.table = {
+			.procname	= "tcp_probe_interval",
+			.maxlen		= sizeof(u32),
+			.mode		= 0644,
+			.proc_handler	= proc_douintvec_minmax,
+			.extra2		= &u32_max_div_HZ,
+		},
+		.data = ipv4_sysctl_tcp_probe_interval_data,
 	},
 	{
-		.procname	= "igmp_link_local_mcast_reports",
-		.data		= &init_net.ipv4.sysctl_igmp_llm_reports,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.table = {
+			.procname	= "igmp_link_local_mcast_reports",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+		},
+		.data = ipv4_sysctl_igmp_llm_reports_data,
 	},
 	{
-		.procname	= "igmp_max_memberships",
-		.data		= &init_net.ipv4.sysctl_igmp_max_memberships,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.table = {
+			.procname	= "igmp_max_memberships",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec
+		},
+		.data = ipv4_sysctl_igmp_max_memberships_data,
 	},
 	{
-		.procname	= "igmp_max_msf",
-		.data		= &init_net.ipv4.sysctl_igmp_max_msf,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.table = {
+			.procname	= "igmp_max_msf",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec
+		},
+		.data = ipv4_sysctl_igmp_max_msf_data,
 	},
 #ifdef CONFIG_IP_MULTICAST
 	{
-		.procname	= "igmp_qrv",
-		.data		= &init_net.ipv4.sysctl_igmp_qrv,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= SYSCTL_ONE
+		.table = {
+			.procname	= "igmp_qrv",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec_minmax,
+			.extra1		= SYSCTL_ONE
+		},
+		.data = ipv4_sysctl_igmp_qrv_data,
 	},
 #endif
 	{
-		.procname	= "tcp_congestion_control",
-		.data		= &init_net.ipv4.tcp_congestion_control,
-		.mode		= 0644,
-		.maxlen		= TCP_CA_NAME_MAX,
-		.proc_handler	= proc_tcp_congestion_control,
+		.table = {
+			.procname	= "tcp_congestion_control",
+			.mode		= 0644,
+			.maxlen		= TCP_CA_NAME_MAX,
+			.proc_handler	= proc_tcp_congestion_control,
+		},
+		.data = ipv4_tcp_congestion_control_data,
 	},
 	{
-		.procname	= "tcp_available_congestion_control",
-		.maxlen		= TCP_CA_BUF_MAX,
-		.mode		= 0444,
-		.proc_handler   = proc_tcp_available_congestion_control,
+		.table = {
+			.procname	= "tcp_available_congestion_control",
+			.maxlen		= TCP_CA_BUF_MAX,
+			.mode		= 0444,
+			.proc_handler   = proc_tcp_available_congestion_control,
+		},
 	},
 	{
-		.procname	= "tcp_allowed_congestion_control",
-		.maxlen		= TCP_CA_BUF_MAX,
-		.mode		= 0644,
-		.proc_handler   = proc_allowed_congestion_control,
+		.table = {
+			.procname	= "tcp_allowed_congestion_control",
+			.maxlen		= TCP_CA_BUF_MAX,
+			.mode		= 0644,
+			.proc_handler   = proc_allowed_congestion_control,
+		},
 	},
 	{
-		.procname	= "tcp_keepalive_time",
-		.data		= &init_net.ipv4.sysctl_tcp_keepalive_time,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+		.table = {
+			.procname	= "tcp_keepalive_time",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec_jiffies,
+		},
+		.data = ipv4_sysctl_tcp_keepalive_time_data,
 	},
 	{
-		.procname	= "tcp_keepalive_probes",
-		.data		= &init_net.ipv4.sysctl_tcp_keepalive_probes,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.table = {
+			.procname	= "tcp_keepalive_probes",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+		},
+		.data = ipv4_sysctl_tcp_keepalive_probes_data,
 	},
 	{
-		.procname	= "tcp_keepalive_intvl",
-		.data		= &init_net.ipv4.sysctl_tcp_keepalive_intvl,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+		.table = {
+			.procname	= "tcp_keepalive_intvl",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec_jiffies,
+		},
+		.data = ipv4_sysctl_tcp_keepalive_intvl_data,
 	},
 	{
-		.procname	= "tcp_syn_retries",
-		.data		= &init_net.ipv4.sysctl_tcp_syn_retries,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
-		.extra1		= &tcp_syn_retries_min,
-		.extra2		= &tcp_syn_retries_max
+		.table = {
+			.procname	= "tcp_syn_retries",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+			.extra1		= &tcp_syn_retries_min,
+			.extra2		= &tcp_syn_retries_max
+		},
+		.data = ipv4_sysctl_tcp_syn_retries_data,
 	},
 	{
-		.procname	= "tcp_synack_retries",
-		.data		= &init_net.ipv4.sysctl_tcp_synack_retries,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.table = {
+			.procname	= "tcp_synack_retries",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+		},
+		.data = ipv4_sysctl_tcp_synack_retries_data,
 	},
 #ifdef CONFIG_SYN_COOKIES
 	{
-		.procname	= "tcp_syncookies",
-		.data		= &init_net.ipv4.sysctl_tcp_syncookies,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.table = {
+			.procname	= "tcp_syncookies",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+		},
+		.data = ipv4_sysctl_tcp_syncookies_data,
 	},
 #endif
 	{
-		.procname	= "tcp_migrate_req",
-		.data		= &init_net.ipv4.sysctl_tcp_migrate_req,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_ONE
+		.table = {
+			.procname	= "tcp_migrate_req",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+			.extra1		= SYSCTL_ZERO,
+			.extra2		= SYSCTL_ONE
+		},
+		.data = ipv4_sysctl_tcp_migrate_req_data,
 	},
 	{
-		.procname	= "tcp_reordering",
-		.data		= &init_net.ipv4.sysctl_tcp_reordering,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.table = {
+			.procname	= "tcp_reordering",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec
+		},
+		.data = ipv4_sysctl_tcp_reordering_data,
 	},
 	{
-		.procname	= "tcp_retries1",
-		.data		= &init_net.ipv4.sysctl_tcp_retries1,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
-		.extra2		= &tcp_retr1_max
+		.table = {
+			.procname	= "tcp_retries1",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+			.extra2		= &tcp_retr1_max
+		},
+		.data = ipv4_sysctl_tcp_retries1_data,
 	},
 	{
-		.procname	= "tcp_retries2",
-		.data		= &init_net.ipv4.sysctl_tcp_retries2,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.table = {
+			.procname	= "tcp_retries2",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+		},
+		.data = ipv4_sysctl_tcp_retries2_data,
 	},
 	{
-		.procname	= "tcp_orphan_retries",
-		.data		= &init_net.ipv4.sysctl_tcp_orphan_retries,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.table = {
+			.procname	= "tcp_orphan_retries",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+		},
+		.data = ipv4_sysctl_tcp_orphan_retries_data,
 	},
 	{
-		.procname	= "tcp_fin_timeout",
-		.data		= &init_net.ipv4.sysctl_tcp_fin_timeout,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
+		.table = {
+			.procname	= "tcp_fin_timeout",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec_jiffies,
+		},
+		.data = ipv4_sysctl_tcp_fin_timeout_data,
 	},
 	{
-		.procname	= "tcp_notsent_lowat",
-		.data		= &init_net.ipv4.sysctl_tcp_notsent_lowat,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_douintvec,
+		.table = {
+			.procname	= "tcp_notsent_lowat",
+			.maxlen		= sizeof(unsigned int),
+			.mode		= 0644,
+			.proc_handler	= proc_douintvec,
+		},
+		.data = ipv4_sysctl_tcp_notsent_lowat_data,
 	},
 	{
-		.procname	= "tcp_tw_reuse",
-		.data		= &init_net.ipv4.sysctl_tcp_tw_reuse,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_TWO,
+		.table = {
+			.procname	= "tcp_tw_reuse",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+			.extra1		= SYSCTL_ZERO,
+			.extra2		= SYSCTL_TWO,
+		},
+		.data = ipv4_sysctl_tcp_tw_reuse_data,
 	},
 	{
-		.procname	= "tcp_tw_reuse_delay",
-		.data		= &init_net.ipv4.sysctl_tcp_tw_reuse_delay,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_douintvec_minmax,
-		.extra1		= SYSCTL_ONE,
-		.extra2		= &tcp_tw_reuse_delay_max,
+		.table = {
+			.procname	= "tcp_tw_reuse_delay",
+			.maxlen		= sizeof(unsigned int),
+			.mode		= 0644,
+			.proc_handler	= proc_douintvec_minmax,
+			.extra1		= SYSCTL_ONE,
+			.extra2		= &tcp_tw_reuse_delay_max,
+		},
+		.data = ipv4_sysctl_tcp_tw_reuse_delay_data,
 	},
 	{
-		.procname	= "tcp_max_syn_backlog",
-		.data		= &init_net.ipv4.sysctl_max_syn_backlog,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.table = {
+			.procname	= "tcp_max_syn_backlog",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec
+		},
+		.data = ipv4_sysctl_max_syn_backlog_data,
 	},
 	{
-		.procname	= "tcp_fastopen",
-		.data		= &init_net.ipv4.sysctl_tcp_fastopen,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.table = {
+			.procname	= "tcp_fastopen",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec,
+		},
+		.data = ipv4_sysctl_tcp_fastopen_data,
 	},
 	{
-		.procname	= "tcp_fastopen_key",
-		.mode		= 0600,
-		.data		= &init_net.ipv4.sysctl_tcp_fastopen,
-		/* maxlen to print the list of keys in hex (*2), with dashes
-		 * separating doublewords and a comma in between keys.
-		 */
-		.maxlen		= ((TCP_FASTOPEN_KEY_LENGTH *
-				   2 * TCP_FASTOPEN_KEY_MAX) +
-				   (TCP_FASTOPEN_KEY_MAX * 5)),
-		.proc_handler	= proc_tcp_fastopen_key,
+		.table = {
+			.procname	= "tcp_fastopen_key",
+			.mode		= 0600,
+			/* maxlen to print the list of keys in hex (*2), with dashes
+			 * separating doublewords and a comma in between keys.
+			 */
+			.maxlen		= ((TCP_FASTOPEN_KEY_LENGTH *
+					   2 * TCP_FASTOPEN_KEY_MAX) +
+					   (TCP_FASTOPEN_KEY_MAX * 5)),
+			.proc_handler	= proc_tcp_fastopen_key,
+		},
+		.data = ipv4_sysctl_tcp_fastopen_data,
 	},
 	{
-		.procname	= "tcp_fastopen_blackhole_timeout_sec",
-		.data		= &init_net.ipv4.sysctl_tcp_fastopen_blackhole_timeout,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_tfo_blackhole_detect_timeout,
-		.extra1		= SYSCTL_ZERO,
+		.table = {
+			.procname	= "tcp_fastopen_blackhole_timeout_sec",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_tfo_blackhole_detect_timeout,
+			.extra1		= SYSCTL_ZERO,
+		},
+		.data = ipv4_sysctl_tcp_fastopen_blackhole_timeout_data,
 	},
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
 	{
-		.procname	= "fib_multipath_use_neigh",
-		.data		= &init_net.ipv4.sysctl_fib_multipath_use_neigh,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_ONE,
+		.table = {
+			.procname	= "fib_multipath_use_neigh",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+			.extra1		= SYSCTL_ZERO,
+			.extra2		= SYSCTL_ONE,
+		},
+		.data = ipv4_sysctl_fib_multipath_use_neigh_data,
 	},
 	{
-		.procname	= "fib_multipath_hash_policy",
-		.data		= &init_net.ipv4.sysctl_fib_multipath_hash_policy,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_fib_multipath_hash_policy,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_THREE,
+		.table = {
+			.procname	= "fib_multipath_hash_policy",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_fib_multipath_hash_policy,
+			.extra1		= SYSCTL_ZERO,
+			.extra2		= SYSCTL_THREE,
+		},
+		.data = ipv4_sysctl_fib_multipath_hash_policy_data,
 	},
 	{
-		.procname	= "fib_multipath_hash_fields",
-		.data		= &init_net.ipv4.sysctl_fib_multipath_hash_fields,
-		.maxlen		= sizeof(u32),
-		.mode		= 0644,
-		.proc_handler	= proc_fib_multipath_hash_fields,
-		.extra1		= SYSCTL_ONE,
-		.extra2		= &fib_multipath_hash_fields_all_mask,
+		.table = {
+			.procname	= "fib_multipath_hash_fields",
+			.maxlen		= sizeof(u32),
+			.mode		= 0644,
+			.proc_handler	= proc_fib_multipath_hash_fields,
+			.extra1		= SYSCTL_ONE,
+			.extra2		= &fib_multipath_hash_fields_all_mask,
+		},
+		.data = ipv4_sysctl_fib_multipath_hash_fields_data,
 	},
 	{
-		.procname	= "fib_multipath_hash_seed",
-		.data		= &init_net,
-		.maxlen		= sizeof(u32),
-		.mode		= 0644,
-		.proc_handler	= proc_fib_multipath_hash_seed,
+		.table = {
+			.procname	= "fib_multipath_hash_seed",
+			.maxlen		= sizeof(u32),
+			.mode		= 0644,
+			.proc_handler	= proc_fib_multipath_hash_seed,
+		},
+		.data = ipv4_net_data,
 	},
 #endif
 	{
-		.procname	= "ip_unprivileged_port_start",
-		.maxlen		= sizeof(int),
-		.data		= &init_net.ipv4.sysctl_ip_prot_sock,
-		.mode		= 0644,
-		.proc_handler	= ipv4_privileged_ports,
+		.table = {
+			.procname	= "ip_unprivileged_port_start",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= ipv4_privileged_ports,
+		},
+		.data = ipv4_sysctl_ip_prot_sock_data,
 	},
 #ifdef CONFIG_NET_L3_MASTER_DEV
 	{
-		.procname	= "udp_l3mdev_accept",
-		.data		= &init_net.ipv4.sysctl_udp_l3mdev_accept,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_ONE,
+		.table = {
+			.procname	= "udp_l3mdev_accept",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+			.extra1		= SYSCTL_ZERO,
+			.extra2		= SYSCTL_ONE,
+		},
+		.data = ipv4_sysctl_udp_l3mdev_accept_data,
 	},
 #endif
 	{
-		.procname	= "tcp_sack",
-		.data		= &init_net.ipv4.sysctl_tcp_sack,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.table = {
+			.procname	= "tcp_sack",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+		},
+		.data = ipv4_sysctl_tcp_sack_data,
 	},
 	{
-		.procname	= "tcp_window_scaling",
-		.data		= &init_net.ipv4.sysctl_tcp_window_scaling,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.table = {
+			.procname	= "tcp_window_scaling",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+		},
+		.data = ipv4_sysctl_tcp_window_scaling_data,
 	},
 	{
-		.procname	= "tcp_timestamps",
-		.data		= &init_net.ipv4.sysctl_tcp_timestamps,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.table = {
+			.procname	= "tcp_timestamps",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+		},
+		.data = ipv4_sysctl_tcp_timestamps_data,
 	},
 	{
-		.procname	= "tcp_early_retrans",
-		.data		= &init_net.ipv4.sysctl_tcp_early_retrans,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_FOUR,
+		.table = {
+			.procname	= "tcp_early_retrans",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+			.extra1		= SYSCTL_ZERO,
+			.extra2		= SYSCTL_FOUR,
+		},
+		.data = ipv4_sysctl_tcp_early_retrans_data,
 	},
 	{
-		.procname	= "tcp_recovery",
-		.data		= &init_net.ipv4.sysctl_tcp_recovery,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.table = {
+			.procname	= "tcp_recovery",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+		},
+		.data = ipv4_sysctl_tcp_recovery_data,
 	},
 	{
-		.procname       = "tcp_thin_linear_timeouts",
-		.data           = &init_net.ipv4.sysctl_tcp_thin_linear_timeouts,
-		.maxlen         = sizeof(u8),
-		.mode           = 0644,
-		.proc_handler   = proc_dou8vec_minmax,
+		.table = {
+			.procname       = "tcp_thin_linear_timeouts",
+			.maxlen         = sizeof(u8),
+			.mode           = 0644,
+			.proc_handler   = proc_dou8vec_minmax,
+		},
+		.data = ipv4_sysctl_tcp_thin_linear_timeouts_data,
 	},
 	{
-		.procname	= "tcp_slow_start_after_idle",
-		.data		= &init_net.ipv4.sysctl_tcp_slow_start_after_idle,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.table = {
+			.procname	= "tcp_slow_start_after_idle",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+		},
+		.data = ipv4_sysctl_tcp_slow_start_after_idle_data,
 	},
 	{
-		.procname	= "tcp_retrans_collapse",
-		.data		= &init_net.ipv4.sysctl_tcp_retrans_collapse,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.table = {
+			.procname	= "tcp_retrans_collapse",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+		},
+		.data = ipv4_sysctl_tcp_retrans_collapse_data,
 	},
 	{
-		.procname	= "tcp_stdurg",
-		.data		= &init_net.ipv4.sysctl_tcp_stdurg,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.table = {
+			.procname	= "tcp_stdurg",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+		},
+		.data = ipv4_sysctl_tcp_stdurg_data,
 	},
 	{
-		.procname	= "tcp_rfc1337",
-		.data		= &init_net.ipv4.sysctl_tcp_rfc1337,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.table = {
+			.procname	= "tcp_rfc1337",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+		},
+		.data = ipv4_sysctl_tcp_rfc1337_data,
 	},
 	{
-		.procname	= "tcp_abort_on_overflow",
-		.data		= &init_net.ipv4.sysctl_tcp_abort_on_overflow,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.table = {
+			.procname	= "tcp_abort_on_overflow",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+		},
+		.data = ipv4_sysctl_tcp_abort_on_overflow_data,
 	},
 	{
-		.procname	= "tcp_fack",
-		.data		= &init_net.ipv4.sysctl_tcp_fack,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.table = {
+			.procname	= "tcp_fack",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+		},
+		.data = ipv4_sysctl_tcp_fack_data,
 	},
 	{
-		.procname	= "tcp_max_reordering",
-		.data		= &init_net.ipv4.sysctl_tcp_max_reordering,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.table = {
+			.procname	= "tcp_max_reordering",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec
+		},
+		.data = ipv4_sysctl_tcp_max_reordering_data,
 	},
 	{
-		.procname	= "tcp_dsack",
-		.data		= &init_net.ipv4.sysctl_tcp_dsack,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.table = {
+			.procname	= "tcp_dsack",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+		},
+		.data = ipv4_sysctl_tcp_dsack_data,
 	},
 	{
-		.procname	= "tcp_app_win",
-		.data		= &init_net.ipv4.sysctl_tcp_app_win,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= &tcp_app_win_max,
+		.table = {
+			.procname	= "tcp_app_win",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+			.extra1		= SYSCTL_ZERO,
+			.extra2		= &tcp_app_win_max,
+		},
+		.data = ipv4_sysctl_tcp_app_win_data,
 	},
 	{
-		.procname	= "tcp_adv_win_scale",
-		.data		= &init_net.ipv4.sysctl_tcp_adv_win_scale,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &tcp_adv_win_scale_min,
-		.extra2		= &tcp_adv_win_scale_max,
+		.table = {
+			.procname	= "tcp_adv_win_scale",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec_minmax,
+			.extra1		= &tcp_adv_win_scale_min,
+			.extra2		= &tcp_adv_win_scale_max,
+		},
+		.data = ipv4_sysctl_tcp_adv_win_scale_data,
 	},
 	{
-		.procname	= "tcp_frto",
-		.data		= &init_net.ipv4.sysctl_tcp_frto,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.table = {
+			.procname	= "tcp_frto",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+		},
+		.data = ipv4_sysctl_tcp_frto_data,
 	},
 	{
-		.procname	= "tcp_no_metrics_save",
-		.data		= &init_net.ipv4.sysctl_tcp_nometrics_save,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.table = {
+			.procname	= "tcp_no_metrics_save",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+		},
+		.data = ipv4_sysctl_tcp_nometrics_save_data,
 	},
 	{
-		.procname	= "tcp_no_ssthresh_metrics_save",
-		.data		= &init_net.ipv4.sysctl_tcp_no_ssthresh_metrics_save,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_ONE,
+		.table = {
+			.procname	= "tcp_no_ssthresh_metrics_save",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+			.extra1		= SYSCTL_ZERO,
+			.extra2		= SYSCTL_ONE,
+		},
+		.data = ipv4_sysctl_tcp_no_ssthresh_metrics_save_data,
 	},
 	{
-		.procname	= "tcp_moderate_rcvbuf",
-		.data		= &init_net.ipv4.sysctl_tcp_moderate_rcvbuf,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.table = {
+			.procname	= "tcp_moderate_rcvbuf",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+		},
+		.data = ipv4_sysctl_tcp_moderate_rcvbuf_data,
 	},
 	{
-		.procname	= "tcp_rcvbuf_low_rtt",
-		.data		= &init_net.ipv4.sysctl_tcp_rcvbuf_low_rtt,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_INT_MAX,
+		.table = {
+			.procname	= "tcp_rcvbuf_low_rtt",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec_minmax,
+			.extra1		= SYSCTL_ZERO,
+			.extra2		= SYSCTL_INT_MAX,
+		},
+		.data = ipv4_sysctl_tcp_rcvbuf_low_rtt_data,
 	},
 	{
-		.procname	= "tcp_tso_win_divisor",
-		.data		= &init_net.ipv4.sysctl_tcp_tso_win_divisor,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.table = {
+			.procname	= "tcp_tso_win_divisor",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+		},
+		.data = ipv4_sysctl_tcp_tso_win_divisor_data,
 	},
 	{
-		.procname	= "tcp_workaround_signed_windows",
-		.data		= &init_net.ipv4.sysctl_tcp_workaround_signed_windows,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.table = {
+			.procname	= "tcp_workaround_signed_windows",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+		},
+		.data = ipv4_sysctl_tcp_workaround_signed_windows_data,
 	},
 	{
-		.procname	= "tcp_limit_output_bytes",
-		.data		= &init_net.ipv4.sysctl_tcp_limit_output_bytes,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.table = {
+			.procname	= "tcp_limit_output_bytes",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec
+		},
+		.data = ipv4_sysctl_tcp_limit_output_bytes_data,
 	},
 	{
-		.procname	= "tcp_challenge_ack_limit",
-		.data		= &init_net.ipv4.sysctl_tcp_challenge_ack_limit,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.table = {
+			.procname	= "tcp_challenge_ack_limit",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec
+		},
+		.data = ipv4_sysctl_tcp_challenge_ack_limit_data,
 	},
 	{
-		.procname	= "tcp_min_tso_segs",
-		.data		= &init_net.ipv4.sysctl_tcp_min_tso_segs,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
-		.extra1		= SYSCTL_ONE,
+		.table = {
+			.procname	= "tcp_min_tso_segs",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+			.extra1		= SYSCTL_ONE,
+		},
+		.data = ipv4_sysctl_tcp_min_tso_segs_data,
 	},
 	{
-		.procname	= "tcp_tso_rtt_log",
-		.data		= &init_net.ipv4.sysctl_tcp_tso_rtt_log,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
+		.table = {
+			.procname	= "tcp_tso_rtt_log",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+		},
+		.data = ipv4_sysctl_tcp_tso_rtt_log_data,
 	},
 	{
-		.procname	= "tcp_min_rtt_wlen",
-		.data		= &init_net.ipv4.sysctl_tcp_min_rtt_wlen,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= &one_day_secs
+		.table = {
+			.procname	= "tcp_min_rtt_wlen",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec_minmax,
+			.extra1		= SYSCTL_ZERO,
+			.extra2		= &one_day_secs
+		},
+		.data = ipv4_sysctl_tcp_min_rtt_wlen_data,
 	},
 	{
-		.procname	= "tcp_autocorking",
-		.data		= &init_net.ipv4.sysctl_tcp_autocorking,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_ONE,
+		.table = {
+			.procname	= "tcp_autocorking",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+			.extra1		= SYSCTL_ZERO,
+			.extra2		= SYSCTL_ONE,
+		},
+		.data = ipv4_sysctl_tcp_autocorking_data,
 	},
 	{
-		.procname	= "tcp_invalid_ratelimit",
-		.data		= &init_net.ipv4.sysctl_tcp_invalid_ratelimit,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_ms_jiffies,
+		.table = {
+			.procname	= "tcp_invalid_ratelimit",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec_ms_jiffies,
+		},
+		.data = ipv4_sysctl_tcp_invalid_ratelimit_data,
 	},
 	{
-		.procname	= "tcp_pacing_ss_ratio",
-		.data		= &init_net.ipv4.sysctl_tcp_pacing_ss_ratio,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_ONE_THOUSAND,
+		.table = {
+			.procname	= "tcp_pacing_ss_ratio",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec_minmax,
+			.extra1		= SYSCTL_ZERO,
+			.extra2		= SYSCTL_ONE_THOUSAND,
+		},
+		.data = ipv4_sysctl_tcp_pacing_ss_ratio_data,
 	},
 	{
-		.procname	= "tcp_pacing_ca_ratio",
-		.data		= &init_net.ipv4.sysctl_tcp_pacing_ca_ratio,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_ONE_THOUSAND,
+		.table = {
+			.procname	= "tcp_pacing_ca_ratio",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec_minmax,
+			.extra1		= SYSCTL_ZERO,
+			.extra2		= SYSCTL_ONE_THOUSAND,
+		},
+		.data = ipv4_sysctl_tcp_pacing_ca_ratio_data,
 	},
 	{
-		.procname	= "tcp_wmem",
-		.data		= &init_net.ipv4.sysctl_tcp_wmem,
-		.maxlen		= sizeof(init_net.ipv4.sysctl_tcp_wmem),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= SYSCTL_ONE,
+		.table = {
+			.procname	= "tcp_wmem",
+			.maxlen		= sizeof_field(struct netns_ipv4, sysctl_tcp_wmem),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec_minmax,
+			.extra1		= SYSCTL_ONE,
+		},
+		.data = ipv4_sysctl_tcp_wmem_data,
 	},
 	{
-		.procname	= "tcp_rmem",
-		.data		= &init_net.ipv4.sysctl_tcp_rmem,
-		.maxlen		= sizeof(init_net.ipv4.sysctl_tcp_rmem),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= SYSCTL_ONE,
+		.table = {
+			.procname	= "tcp_rmem",
+			.maxlen		= sizeof_field(struct netns_ipv4, sysctl_tcp_rmem),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec_minmax,
+			.extra1		= SYSCTL_ONE,
+		},
+		.data = ipv4_sysctl_tcp_rmem_data,
 	},
 	{
-		.procname	= "tcp_comp_sack_delay_ns",
-		.data		= &init_net.ipv4.sysctl_tcp_comp_sack_delay_ns,
-		.maxlen		= sizeof(unsigned long),
-		.mode		= 0644,
-		.proc_handler	= proc_doulongvec_minmax,
+		.table = {
+			.procname	= "tcp_comp_sack_delay_ns",
+			.maxlen		= sizeof(unsigned long),
+			.mode		= 0644,
+			.proc_handler	= proc_doulongvec_minmax,
+		},
+		.data = ipv4_sysctl_tcp_comp_sack_delay_ns_data,
 	},
 	{
-		.procname	= "tcp_comp_sack_rtt_percent",
-		.data		= &init_net.ipv4.sysctl_tcp_comp_sack_rtt_percent,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= SYSCTL_ONE,
-		.extra2		= SYSCTL_ONE_THOUSAND,
+		.table = {
+			.procname	= "tcp_comp_sack_rtt_percent",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec_minmax,
+			.extra1		= SYSCTL_ONE,
+			.extra2		= SYSCTL_ONE_THOUSAND,
+		},
+		.data = ipv4_sysctl_tcp_comp_sack_rtt_percent_data,
 	},
 	{
-		.procname	= "tcp_comp_sack_slack_ns",
-		.data		= &init_net.ipv4.sysctl_tcp_comp_sack_slack_ns,
-		.maxlen		= sizeof(unsigned long),
-		.mode		= 0644,
-		.proc_handler	= proc_doulongvec_minmax,
+		.table = {
+			.procname	= "tcp_comp_sack_slack_ns",
+			.maxlen		= sizeof(unsigned long),
+			.mode		= 0644,
+			.proc_handler	= proc_doulongvec_minmax,
+		},
+		.data = ipv4_sysctl_tcp_comp_sack_slack_ns_data,
 	},
 	{
-		.procname	= "tcp_comp_sack_nr",
-		.data		= &init_net.ipv4.sysctl_tcp_comp_sack_nr,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
-		.extra1		= SYSCTL_ZERO,
+		.table = {
+			.procname	= "tcp_comp_sack_nr",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+			.extra1		= SYSCTL_ZERO,
+		},
+		.data = ipv4_sysctl_tcp_comp_sack_nr_data,
 	},
 	{
-		.procname	= "tcp_backlog_ack_defer",
-		.data		= &init_net.ipv4.sysctl_tcp_backlog_ack_defer,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_ONE,
+		.table = {
+			.procname	= "tcp_backlog_ack_defer",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+			.extra1		= SYSCTL_ZERO,
+			.extra2		= SYSCTL_ONE,
+		},
+		.data = ipv4_sysctl_tcp_backlog_ack_defer_data,
 	},
 	{
-		.procname       = "tcp_reflect_tos",
-		.data           = &init_net.ipv4.sysctl_tcp_reflect_tos,
-		.maxlen         = sizeof(u8),
-		.mode           = 0644,
-		.proc_handler   = proc_dou8vec_minmax,
-		.extra1         = SYSCTL_ZERO,
-		.extra2         = SYSCTL_ONE,
+		.table = {
+			.procname       = "tcp_reflect_tos",
+			.maxlen         = sizeof(u8),
+			.mode           = 0644,
+			.proc_handler   = proc_dou8vec_minmax,
+			.extra1         = SYSCTL_ZERO,
+			.extra2         = SYSCTL_ONE,
+		},
+		.data = ipv4_sysctl_tcp_reflect_tos_data,
 	},
 	{
-		.procname	= "tcp_ehash_entries",
-		.data		= &init_net.ipv4.sysctl_tcp_child_ehash_entries,
-		.mode		= 0444,
-		.proc_handler	= proc_tcp_ehash_entries,
+		.table = {
+			.procname	= "tcp_ehash_entries",
+			.mode		= 0444,
+			.proc_handler	= proc_tcp_ehash_entries,
+		},
+		.data = ipv4_sysctl_tcp_child_ehash_entries_data,
 	},
 	{
-		.procname	= "tcp_child_ehash_entries",
-		.data		= &init_net.ipv4.sysctl_tcp_child_ehash_entries,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_douintvec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= &tcp_child_ehash_entries_max,
+		.table = {
+			.procname	= "tcp_child_ehash_entries",
+			.maxlen		= sizeof(unsigned int),
+			.mode		= 0644,
+			.proc_handler	= proc_douintvec_minmax,
+			.extra1		= SYSCTL_ZERO,
+			.extra2		= &tcp_child_ehash_entries_max,
+		},
+		.data = ipv4_sysctl_tcp_child_ehash_entries_data,
 	},
 	{
-		.procname	= "udp_hash_entries",
-		.data		= &init_net.ipv4.sysctl_udp_child_hash_entries,
-		.mode		= 0444,
-		.proc_handler	= proc_udp_hash_entries,
+		.table = {
+			.procname	= "udp_hash_entries",
+			.mode		= 0444,
+			.proc_handler	= proc_udp_hash_entries,
+		},
+		.data = ipv4_sysctl_udp_child_hash_entries_data,
 	},
 	{
-		.procname	= "udp_child_hash_entries",
-		.data		= &init_net.ipv4.sysctl_udp_child_hash_entries,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_douintvec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= &udp_child_hash_entries_max,
+		.table = {
+			.procname	= "udp_child_hash_entries",
+			.maxlen		= sizeof(unsigned int),
+			.mode		= 0644,
+			.proc_handler	= proc_douintvec_minmax,
+			.extra1		= SYSCTL_ZERO,
+			.extra2		= &udp_child_hash_entries_max,
+		},
+		.data = ipv4_sysctl_udp_child_hash_entries_data,
 	},
 	{
-		.procname	= "udp_rmem_min",
-		.data		= &init_net.ipv4.sysctl_udp_rmem_min,
-		.maxlen		= sizeof(init_net.ipv4.sysctl_udp_rmem_min),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= SYSCTL_ONE
+		.table = {
+			.procname	= "udp_rmem_min",
+			.maxlen		= sizeof_field(struct netns_ipv4, sysctl_udp_rmem_min),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec_minmax,
+			.extra1		= SYSCTL_ONE
+		},
+		.data = ipv4_sysctl_udp_rmem_min_data,
 	},
 	{
-		.procname	= "udp_wmem_min",
-		.data		= &init_net.ipv4.sysctl_udp_wmem_min,
-		.maxlen		= sizeof(init_net.ipv4.sysctl_udp_wmem_min),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= SYSCTL_ONE
+		.table = {
+			.procname	= "udp_wmem_min",
+			.maxlen		= sizeof_field(struct netns_ipv4, sysctl_udp_wmem_min),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec_minmax,
+			.extra1		= SYSCTL_ONE
+		},
+		.data = ipv4_sysctl_udp_wmem_min_data,
 	},
 	{
-		.procname	= "fib_notify_on_flag_change",
-		.data		= &init_net.ipv4.sysctl_fib_notify_on_flag_change,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_TWO,
+		.table = {
+			.procname	= "fib_notify_on_flag_change",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+			.extra1		= SYSCTL_ZERO,
+			.extra2		= SYSCTL_TWO,
+		},
+		.data = ipv4_sysctl_fib_notify_on_flag_change_data,
 	},
 	{
-		.procname       = "tcp_plb_enabled",
-		.data           = &init_net.ipv4.sysctl_tcp_plb_enabled,
-		.maxlen         = sizeof(u8),
-		.mode           = 0644,
-		.proc_handler   = proc_dou8vec_minmax,
-		.extra1         = SYSCTL_ZERO,
-		.extra2         = SYSCTL_ONE,
+		.table = {
+			.procname       = "tcp_plb_enabled",
+			.maxlen         = sizeof(u8),
+			.mode           = 0644,
+			.proc_handler   = proc_dou8vec_minmax,
+			.extra1         = SYSCTL_ZERO,
+			.extra2         = SYSCTL_ONE,
+		},
+		.data = ipv4_sysctl_tcp_plb_enabled_data,
 	},
 	{
-		.procname       = "tcp_plb_idle_rehash_rounds",
-		.data           = &init_net.ipv4.sysctl_tcp_plb_idle_rehash_rounds,
-		.maxlen         = sizeof(u8),
-		.mode           = 0644,
-		.proc_handler   = proc_dou8vec_minmax,
-		.extra2		= &tcp_plb_max_rounds,
+		.table = {
+			.procname       = "tcp_plb_idle_rehash_rounds",
+			.maxlen         = sizeof(u8),
+			.mode           = 0644,
+			.proc_handler   = proc_dou8vec_minmax,
+			.extra2		= &tcp_plb_max_rounds,
+		},
+		.data = ipv4_sysctl_tcp_plb_idle_rehash_rounds_data,
 	},
 	{
-		.procname       = "tcp_plb_rehash_rounds",
-		.data           = &init_net.ipv4.sysctl_tcp_plb_rehash_rounds,
-		.maxlen         = sizeof(u8),
-		.mode           = 0644,
-		.proc_handler   = proc_dou8vec_minmax,
-		.extra2         = &tcp_plb_max_rounds,
+		.table = {
+			.procname       = "tcp_plb_rehash_rounds",
+			.maxlen         = sizeof(u8),
+			.mode           = 0644,
+			.proc_handler   = proc_dou8vec_minmax,
+			.extra2         = &tcp_plb_max_rounds,
+		},
+		.data = ipv4_sysctl_tcp_plb_rehash_rounds_data,
 	},
 	{
-		.procname       = "tcp_plb_suspend_rto_sec",
-		.data           = &init_net.ipv4.sysctl_tcp_plb_suspend_rto_sec,
-		.maxlen         = sizeof(u8),
-		.mode           = 0644,
-		.proc_handler   = proc_dou8vec_minmax,
+		.table = {
+			.procname       = "tcp_plb_suspend_rto_sec",
+			.maxlen         = sizeof(u8),
+			.mode           = 0644,
+			.proc_handler   = proc_dou8vec_minmax,
+		},
+		.data = ipv4_sysctl_tcp_plb_suspend_rto_sec_data,
 	},
 	{
-		.procname       = "tcp_plb_cong_thresh",
-		.data           = &init_net.ipv4.sysctl_tcp_plb_cong_thresh,
-		.maxlen         = sizeof(int),
-		.mode           = 0644,
-		.proc_handler   = proc_dointvec_minmax,
-		.extra1         = SYSCTL_ZERO,
-		.extra2         = &tcp_plb_max_cong_thresh,
+		.table = {
+			.procname       = "tcp_plb_cong_thresh",
+			.maxlen         = sizeof(int),
+			.mode           = 0644,
+			.proc_handler   = proc_dointvec_minmax,
+			.extra1         = SYSCTL_ZERO,
+			.extra2         = &tcp_plb_max_cong_thresh,
+		},
+		.data = ipv4_sysctl_tcp_plb_cong_thresh_data,
 	},
 	{
-		.procname	= "tcp_syn_linear_timeouts",
-		.data		= &init_net.ipv4.sysctl_tcp_syn_linear_timeouts,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= &tcp_syn_linear_timeouts_max,
+		.table = {
+			.procname	= "tcp_syn_linear_timeouts",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+			.extra1		= SYSCTL_ZERO,
+			.extra2		= &tcp_syn_linear_timeouts_max,
+		},
+		.data = ipv4_sysctl_tcp_syn_linear_timeouts_data,
 	},
 	{
-		.procname	= "tcp_shrink_window",
-		.data		= &init_net.ipv4.sysctl_tcp_shrink_window,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_ONE,
+		.table = {
+			.procname	= "tcp_shrink_window",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+			.extra1		= SYSCTL_ZERO,
+			.extra2		= SYSCTL_ONE,
+		},
+		.data = ipv4_sysctl_tcp_shrink_window_data,
 	},
 	{
-		.procname	= "tcp_pingpong_thresh",
-		.data		= &init_net.ipv4.sysctl_tcp_pingpong_thresh,
-		.maxlen		= sizeof(u8),
-		.mode		= 0644,
-		.proc_handler	= proc_dou8vec_minmax,
-		.extra1		= SYSCTL_ONE,
+		.table = {
+			.procname	= "tcp_pingpong_thresh",
+			.maxlen		= sizeof(u8),
+			.mode		= 0644,
+			.proc_handler	= proc_dou8vec_minmax,
+			.extra1		= SYSCTL_ONE,
+		},
+		.data = ipv4_sysctl_tcp_pingpong_thresh_data,
 	},
 	{
-		.procname	= "tcp_rto_min_us",
-		.data		= &init_net.ipv4.sysctl_tcp_rto_min_us,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= SYSCTL_ONE,
+		.table = {
+			.procname	= "tcp_rto_min_us",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec_minmax,
+			.extra1		= SYSCTL_ONE,
+		},
+		.data = ipv4_sysctl_tcp_rto_min_us_data,
 	},
 	{
-		.procname	= "tcp_rto_max_ms",
-		.data		= &init_net.ipv4.sysctl_tcp_rto_max_ms,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= SYSCTL_ONE_THOUSAND,
-		.extra2		= &tcp_rto_max_max,
+		.table = {
+			.procname	= "tcp_rto_max_ms",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_dointvec_minmax,
+			.extra1		= SYSCTL_ONE_THOUSAND,
+			.extra2		= &tcp_rto_max_max,
+		},
+		.data = ipv4_sysctl_tcp_rto_max_ms_data,
 	},
 };
 
 static __net_init int ipv4_sysctl_init_net(struct net *net)
 {
-	size_t table_size = ARRAY_SIZE(ipv4_net_table);
-	struct ctl_table *table;
+	struct ctl_context ctx = {
+		.ns.net_ns = net,
+	};
 
-	table = ipv4_net_table;
-	if (!net_eq(net, &init_net)) {
-		int i;
-
-		table = kmemdup(table, sizeof(ipv4_net_table), GFP_KERNEL);
-		if (!table)
-			goto err_alloc;
-
-		for (i = 0; i < table_size; i++) {
-			if (table[i].data) {
-				/* Update the variables to point into
-				 * the current struct net
-				 */
-				table[i].data += (void *)net - (void *)&init_net;
-			} else {
-				/* Entries without data pointer are global;
-				 * Make them read-only in non-init_net ns
-				 */
-				table[i].mode &= ~0222;
-			}
-		}
-	}
-
-	net->ipv4.ipv4_hdr = register_net_sysctl_sz(net, "net/ipv4", table,
-						    table_size);
+	net->ipv4.ipv4_hdr = register_net_sysctl_fields_ctx(net, "net/ipv4",
+							    ipv4_net_table,
+							    ARRAY_SIZE(ipv4_net_table),
+							    &ctx);
 	if (!net->ipv4.ipv4_hdr)
-		goto err_reg;
+		goto err_alloc;
 
 	net->ipv4.sysctl_local_reserved_ports = kzalloc(65536 / 8, GFP_KERNEL);
 	if (!net->ipv4.sysctl_local_reserved_ports)
@@ -1694,21 +2080,14 @@ static __net_init int ipv4_sysctl_init_net(struct net *net)
 
 err_ports:
 	unregister_net_sysctl_table(net->ipv4.ipv4_hdr);
-err_reg:
-	if (!net_eq(net, &init_net))
-		kfree(table);
 err_alloc:
 	return -ENOMEM;
 }
 
 static __net_exit void ipv4_sysctl_exit_net(struct net *net)
 {
-	const struct ctl_table *table;
-
 	kfree(net->ipv4.sysctl_local_reserved_ports);
-	table = net->ipv4.ipv4_hdr->ctl_table_arg;
 	unregister_net_sysctl_table(net->ipv4.ipv4_hdr);
-	kfree(table);
 }
 
 static __net_initdata struct pernet_operations ipv4_sysctl_ops = {
