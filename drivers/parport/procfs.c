@@ -249,136 +249,171 @@ static const int parport_max_spintime_value =
 PARPORT_MAX_SPINTIME_VALUE;
 
 
-struct parport_sysctl_table {
-	struct ctl_table_header *port_header;
-	struct ctl_table_header *devices_header;
+static void *parport_extra1(const struct ctl_context *ctx)
+{
+	return ctx->target.parport;
+}
+
+static void *parport_active_data(const struct ctl_context *ctx)
+{
+	return NULL;
+}
+
+static void *parport_spintime_data(const struct ctl_context *ctx)
+{
+	return &ctx->target.parport->spintime;
+}
+
 #ifdef CONFIG_PARPORT_1284
-	struct ctl_table vars[10];
-#else
-	struct ctl_table vars[5];
+#define PARPORT_PROBE_INFO(number)					\
+static void *parport_probe_info ## number(const struct ctl_context *ctx)	\
+{									\
+	return &ctx->target.parport->probe_info[number];		\
+}
+
+PARPORT_PROBE_INFO(0)
+PARPORT_PROBE_INFO(1)
+PARPORT_PROBE_INFO(2)
+PARPORT_PROBE_INFO(3)
+PARPORT_PROBE_INFO(4)
 #endif /* IEEE 1284 support */
-	struct ctl_table device_dir[1];
+
+static const struct ctl_field parport_device_dir[] = {
+	{
+		.table = {
+			.procname	= "active",
+			.maxlen		= 0,
+			.mode		= 0444,
+			.proc_handler	= do_active_device,
+		},
+		.data   = parport_active_data,
+		.extra1 = parport_extra1,
+	},
 };
 
-static const struct parport_sysctl_table parport_sysctl_template = {
-	.port_header = NULL,
-	.devices_header = NULL,
+static const struct ctl_field parport_vars[] = {
 	{
-		{
+		.table = {
 			.procname	= "spintime",
-			.data		= NULL,
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
 			.proc_handler	= proc_dointvec_minmax,
-			.extra1		= (void*) &parport_min_spintime_value,
 			.extra2		= (void*) &parport_max_spintime_value
 		},
-		{
+		.data   = parport_spintime_data,
+		.extra1 = parport_extra1,
+	},
+	{
+		.table = {
 			.procname	= "base-addr",
-			.data		= NULL,
 			.maxlen		= 0,
 			.mode		= 0444,
 			.proc_handler	= do_hardware_base_addr
 		},
-		{
+		.data   = parport_active_data,
+		.extra1 = parport_extra1,
+	},
+	{
+		.table = {
 			.procname	= "irq",
-			.data		= NULL,
 			.maxlen		= 0,
 			.mode		= 0444,
 			.proc_handler	= do_hardware_irq
 		},
-		{
+		.data   = parport_active_data,
+		.extra1 = parport_extra1,
+	},
+	{
+		.table = {
 			.procname	= "dma",
-			.data		= NULL,
 			.maxlen		= 0,
 			.mode		= 0444,
 			.proc_handler	= do_hardware_dma
 		},
-		{
+		.data   = parport_active_data,
+		.extra1 = parport_extra1,
+	},
+	{
+		.table = {
 			.procname	= "modes",
-			.data		= NULL,
 			.maxlen		= 0,
 			.mode		= 0444,
 			.proc_handler	= do_hardware_modes
 		},
+		.data   = parport_active_data,
+		.extra1 = parport_extra1,
+	},
 #ifdef CONFIG_PARPORT_1284
-		{
+	{
+		.table = {
 			.procname	= "autoprobe",
-			.data		= NULL,
 			.maxlen		= 0,
 			.mode		= 0444,
 			.proc_handler	= do_autoprobe
 		},
-		{
+		.data   = parport_active_data,
+		.extra2 = parport_probe_info0,
+	},
+	{
+		.table = {
 			.procname	= "autoprobe0",
-			.data		= NULL,
 			.maxlen		= 0,
 			.mode		= 0444,
 			.proc_handler	= do_autoprobe
 		},
-		{
+		.data   = parport_active_data,
+		.extra2 = parport_probe_info1,
+	},
+	{
+		.table = {
 			.procname	= "autoprobe1",
-			.data		= NULL,
 			.maxlen		= 0,
 			.mode		= 0444,
 			.proc_handler	= do_autoprobe
 		},
-		{
+		.data   = parport_active_data,
+		.extra2 = parport_probe_info2,
+	},
+	{
+		.table = {
 			.procname	= "autoprobe2",
-			.data		= NULL,
 			.maxlen		= 0,
 			.mode		= 0444,
 			.proc_handler	= do_autoprobe
 		},
-		{
+		.data   = parport_active_data,
+		.extra2 = parport_probe_info3,
+	},
+	{
+		.table = {
 			.procname	= "autoprobe3",
-			.data		= NULL,
 			.maxlen		= 0,
 			.mode		= 0444,
 			.proc_handler	= do_autoprobe
 		},
+		.data   = parport_active_data,
+		.extra2 = parport_probe_info4,
+	},
 #endif /* IEEE 1284 support */
-	},
-	{
-		{
-			.procname	= "active",
-			.data		= NULL,
-			.maxlen		= 0,
-			.mode		= 0444,
-			.proc_handler	= do_active_device
-		},
-	},
 };
 
-struct parport_device_sysctl_table
+static void *pardevice_timeslice_data(const struct ctl_context *ctx)
 {
-	struct ctl_table_header *sysctl_header;
-	struct ctl_table vars[1];
-	struct ctl_table device_dir[1];
-};
+	return &ctx->target.pardevice->timeslice;
+}
 
-static const struct parport_device_sysctl_table
-parport_device_sysctl_template = {
-	.sysctl_header = NULL,
+static const struct ctl_field parport_device_vars[] = {
 	{
-		{
-			.procname 	= "timeslice",
-			.data		= NULL,
+		.table = {
+			.procname	= "timeslice",
 			.maxlen		= sizeof(unsigned long),
 			.mode		= 0644,
 			.proc_handler	= proc_doulongvec_ms_jiffies_minmax,
 			.extra1		= (void*) &parport_min_timeslice_value,
 			.extra2		= (void*) &parport_max_timeslice_value
 		},
+		.data = pardevice_timeslice_data,
 	},
-	{
-		{
-			.procname	= NULL,
-			.data		= NULL,
-			.maxlen		= 0,
-			.mode		= 0555,
-		},
-	}
 };
 
 struct parport_default_sysctl_table
@@ -414,32 +449,19 @@ parport_default_sysctl_table = {
 
 int parport_proc_register(struct parport *port)
 {
-	struct parport_sysctl_table *t;
 	char *tmp_dir_path;
-	int i, err = 0;
-
-	t = kmemdup(&parport_sysctl_template, sizeof(*t), GFP_KERNEL);
-	if (t == NULL)
-		return -ENOMEM;
-
-	t->device_dir[0].extra1 = port;
-
-	t->vars[0].data = &port->spintime;
-	for (i = 0; i < 5; i++) {
-		t->vars[i].extra1 = port;
-#ifdef CONFIG_PARPORT_1284
-		t->vars[5 + i].extra2 = &port->probe_info[i];
-#endif /* IEEE 1284 support */
-	}
+	struct ctl_context ctx = {
+		.target.parport = port,
+	};
+	int err = 0;
 
 	tmp_dir_path = kasprintf(GFP_KERNEL, "dev/parport/%s/devices", port->name);
-	if (!tmp_dir_path) {
-		err = -ENOMEM;
-		goto exit_free_t;
-	}
+	if (!tmp_dir_path)
+		return -ENOMEM;
 
-	t->devices_header = register_sysctl(tmp_dir_path, t->device_dir);
-	if (t->devices_header == NULL) {
+	port->devices_sysctl_header = register_sysctl_fields_ctx(tmp_dir_path, parport_device_dir,
+								 ARRAY_SIZE(parport_device_dir), &ctx);
+	if (!port->devices_sysctl_header) {
 		err = -ENOENT;
 		goto  exit_free_tmp_dir_path;
 	}
@@ -452,83 +474,64 @@ int parport_proc_register(struct parport *port)
 		goto unregister_devices_h;
 	}
 
-	t->port_header = register_sysctl(tmp_dir_path, t->vars);
-	if (t->port_header == NULL) {
+	port->port_sysctl_header = register_sysctl_fields_ctx(tmp_dir_path, parport_vars,
+							      ARRAY_SIZE(parport_vars), &ctx);
+	if (!port->port_sysctl_header) {
 		err = -ENOENT;
 		goto unregister_devices_h;
 	}
-
-	port->sysctl_table = t;
 
 	kfree(tmp_dir_path);
 	return 0;
 
 unregister_devices_h:
-	unregister_sysctl_table(t->devices_header);
+	unregister_sysctl_table(port->devices_sysctl_header);
+	port->devices_sysctl_header = NULL;
 
 exit_free_tmp_dir_path:
 	kfree(tmp_dir_path);
-
-exit_free_t:
-	kfree(t);
 	return err;
 }
 
 int parport_proc_unregister(struct parport *port)
 {
-	if (port->sysctl_table) {
-		struct parport_sysctl_table *t = port->sysctl_table;
-		port->sysctl_table = NULL;
-		unregister_sysctl_table(t->devices_header);
-		unregister_sysctl_table(t->port_header);
-		kfree(t);
+	if (port->devices_sysctl_header) {
+		unregister_sysctl_table(port->devices_sysctl_header);
+		port->devices_sysctl_header = NULL;
+	}
+	if (port->port_sysctl_header) {
+		unregister_sysctl_table(port->port_sysctl_header);
+		port->port_sysctl_header = NULL;
 	}
 	return 0;
 }
 
 int parport_device_proc_register(struct pardevice *device)
 {
-	struct parport_device_sysctl_table *t;
 	struct parport * port = device->port;
 	char *tmp_dir_path;
-	int err = 0;
-	
-	t = kmemdup(&parport_device_sysctl_template, sizeof(*t), GFP_KERNEL);
-	if (t == NULL)
-		return -ENOMEM;
+	struct ctl_context ctx = {
+		.target.pardevice = device,
+	};
 
 	/* Allocate a buffer for two paths: dev/parport/PORT/devices/DEVICE. */
 	tmp_dir_path = kasprintf(GFP_KERNEL, "dev/parport/%s/devices/%s", port->name, device->name);
-	if (!tmp_dir_path) {
-		err = -ENOMEM;
-		goto exit_free_t;
-	}
+	if (!tmp_dir_path)
+		return -ENOMEM;
 
-	t->vars[0].data = &device->timeslice;
-
-	t->sysctl_header = register_sysctl(tmp_dir_path, t->vars);
-	if (t->sysctl_header == NULL) {
-		kfree(t);
-		t = NULL;
-	}
-	device->sysctl_table = t;
+	device->sysctl_header = register_sysctl_fields_ctx(tmp_dir_path, parport_device_vars,
+							   ARRAY_SIZE(parport_device_vars),
+							   &ctx);
 
 	kfree(tmp_dir_path);
 	return 0;
-
-exit_free_t:
-	kfree(t);
-
-	return err;
 }
 
 int parport_device_proc_unregister(struct pardevice *device)
 {
-	if (device->sysctl_table) {
-		struct parport_device_sysctl_table *t = device->sysctl_table;
-		device->sysctl_table = NULL;
-		unregister_sysctl_table(t->sysctl_header);
-		kfree(t);
+	if (device->sysctl_header) {
+		unregister_sysctl_table(device->sysctl_header);
+		device->sysctl_header = NULL;
 	}
 	return 0;
 }

@@ -45,6 +45,8 @@ struct mpls_dev;
 struct net;
 struct netns_ipvs;
 struct neigh_parms;
+struct pardevice;
+struct parport;
 struct pid_namespace;
 struct user_namespace;
 
@@ -96,6 +98,11 @@ struct ctl_context {
 		struct pid_namespace *pid_ns;
 	} ns;
 	union {
+		/* parport */
+		struct pardevice *pardevice;
+		struct parport *parport;
+
+		/* network */
 		struct netns_ipvs *ipvs;
 		struct mpls_dev *mpls_dev;
 		struct ipv4_devconf *ipv4_devconf;
@@ -318,6 +325,9 @@ __register_sysctl_fields(struct ctl_table_set *set, const char *path,
 			 const struct ctl_context *ctx);
 struct ctl_table_header *register_sysctl_sz(const char *path, const struct ctl_table *table,
 					    size_t table_size);
+struct ctl_table_header *
+register_sysctl_fields_ctx(const char *path, const struct ctl_field *fields,
+			   size_t field_count, const struct ctl_context *ctx);
 void unregister_sysctl_table(struct ctl_table_header * table);
 
 extern int sysctl_init_bases(void);
@@ -347,6 +357,13 @@ static inline struct ctl_table_header *register_sysctl_mount_point(const char *p
 static inline struct ctl_table_header *register_sysctl_sz(const char *path,
 							  const struct ctl_table *table,
 							  size_t table_size)
+{
+	return NULL;
+}
+
+static inline struct ctl_table_header *
+register_sysctl_fields_ctx(const char *path, const struct ctl_field *fields,
+			   size_t field_count, const struct ctl_context *ctx)
 {
 	return NULL;
 }
