@@ -60,34 +60,48 @@ static struct ctl_table_root set_root = {
 	.permissions = set_permissions,
 };
 
-static long ue_zero = 0;
-static long ue_int_max = INT_MAX;
+static unsigned long ue_zero = 0;
+static unsigned long ue_int_max = INT_MAX;
 
-#define UCOUNT_ENTRY(name)					\
-	{							\
-		.procname	= name,				\
-		.maxlen		= sizeof(long),			\
-		.mode		= 0644,				\
-		.proc_handler	= proc_doulongvec_minmax,	\
-		.extra1		= &ue_zero,			\
-		.extra2		= &ue_int_max,			\
-	}
-static const struct ctl_table user_table[] = {
-	UCOUNT_ENTRY("max_user_namespaces"),
-	UCOUNT_ENTRY("max_pid_namespaces"),
-	UCOUNT_ENTRY("max_uts_namespaces"),
-	UCOUNT_ENTRY("max_ipc_namespaces"),
-	UCOUNT_ENTRY("max_net_namespaces"),
-	UCOUNT_ENTRY("max_mnt_namespaces"),
-	UCOUNT_ENTRY("max_cgroup_namespaces"),
-	UCOUNT_ENTRY("max_time_namespaces"),
+#define UCOUNT_DATA(name, type)						\
+static unsigned long *name ## _data(const struct sysctl_context *ctx)	\
+{									\
+	return &ctx->ns.user_ns->ucount_max[type];			\
+}
+
+UCOUNT_DATA(user_ns, UCOUNT_USER_NAMESPACES);
+UCOUNT_DATA(pid_ns, UCOUNT_PID_NAMESPACES);
+UCOUNT_DATA(uts_ns, UCOUNT_UTS_NAMESPACES);
+UCOUNT_DATA(ipc_ns, UCOUNT_IPC_NAMESPACES);
+UCOUNT_DATA(net_ns, UCOUNT_NET_NAMESPACES);
+UCOUNT_DATA(mnt_ns, UCOUNT_MNT_NAMESPACES);
+UCOUNT_DATA(cgroup_ns, UCOUNT_CGROUP_NAMESPACES);
+UCOUNT_DATA(time_ns, UCOUNT_TIME_NAMESPACES);
 #ifdef CONFIG_INOTIFY_USER
-	UCOUNT_ENTRY("max_inotify_instances"),
-	UCOUNT_ENTRY("max_inotify_watches"),
+UCOUNT_DATA(inotify_instances, UCOUNT_INOTIFY_INSTANCES);
+UCOUNT_DATA(inotify_watches, UCOUNT_INOTIFY_WATCHES);
 #endif
 #ifdef CONFIG_FANOTIFY
-	UCOUNT_ENTRY("max_fanotify_groups"),
-	UCOUNT_ENTRY("max_fanotify_marks"),
+UCOUNT_DATA(fanotify_groups, UCOUNT_FANOTIFY_GROUPS);
+UCOUNT_DATA(fanotify_marks, UCOUNT_FANOTIFY_MARKS);
+#endif
+
+static const struct sysctl_field user_table[] = {
+	SYSCTL_FIELD_STATIC_ULONG_MINMAX("max_user_namespaces", 0644, user_ns_data, &ue_zero, &ue_int_max),
+	SYSCTL_FIELD_STATIC_ULONG_MINMAX("max_pid_namespaces", 0644, pid_ns_data, &ue_zero, &ue_int_max),
+	SYSCTL_FIELD_STATIC_ULONG_MINMAX("max_uts_namespaces", 0644, uts_ns_data, &ue_zero, &ue_int_max),
+	SYSCTL_FIELD_STATIC_ULONG_MINMAX("max_ipc_namespaces", 0644, ipc_ns_data, &ue_zero, &ue_int_max),
+	SYSCTL_FIELD_STATIC_ULONG_MINMAX("max_net_namespaces", 0644, net_ns_data, &ue_zero, &ue_int_max),
+	SYSCTL_FIELD_STATIC_ULONG_MINMAX("max_mnt_namespaces", 0644, mnt_ns_data, &ue_zero, &ue_int_max),
+	SYSCTL_FIELD_STATIC_ULONG_MINMAX("max_cgroup_namespaces", 0644, cgroup_ns_data, &ue_zero, &ue_int_max),
+	SYSCTL_FIELD_STATIC_ULONG_MINMAX("max_time_namespaces", 0644, time_ns_data, &ue_zero, &ue_int_max),
+#ifdef CONFIG_INOTIFY_USER
+	SYSCTL_FIELD_STATIC_ULONG_MINMAX("max_inotify_instances", 0644, inotify_instances_data, &ue_zero, &ue_int_max),
+	SYSCTL_FIELD_STATIC_ULONG_MINMAX("max_inotify_watches", 0644, inotify_watches_data, &ue_zero, &ue_int_max),
+#endif
+#ifdef CONFIG_FANOTIFY
+	SYSCTL_FIELD_STATIC_ULONG_MINMAX("max_fanotify_groups", 0644, fanotify_groups_data, &ue_zero, &ue_int_max),
+	SYSCTL_FIELD_STATIC_ULONG_MINMAX("max_fanotify_marks", 0644, fanotify_marks_data, &ue_zero, &ue_int_max),
 #endif
 };
 #endif /* CONFIG_SYSCTL */
@@ -95,21 +109,14 @@ static const struct ctl_table user_table[] = {
 bool setup_userns_sysctls(struct user_namespace *ns)
 {
 #ifdef CONFIG_SYSCTL
-	struct ctl_table *tbl;
+	struct sysctl_context ctx = {
+		.ns.user_ns = ns,
+	};
 
 	BUILD_BUG_ON(ARRAY_SIZE(user_table) != UCOUNT_COUNTS);
 	setup_sysctl_set(&ns->set, &set_root, set_is_seen);
-	tbl = kmemdup(user_table, sizeof(user_table), GFP_KERNEL);
-	if (tbl) {
-		int i;
-		for (i = 0; i < UCOUNT_COUNTS; i++) {
-			tbl[i].data = &ns->ucount_max[i];
-		}
-		ns->sysctls = __register_sysctl_table(&ns->set, "user", tbl,
-						      ARRAY_SIZE(user_table));
-	}
+	ns->sysctls = register_sysctl_fields(&ns->set, "user", user_table, &ctx);
 	if (!ns->sysctls) {
-		kfree(tbl);
 		retire_sysctl_set(&ns->set);
 		return false;
 	}
@@ -120,12 +127,8 @@ bool setup_userns_sysctls(struct user_namespace *ns)
 void retire_userns_sysctls(struct user_namespace *ns)
 {
 #ifdef CONFIG_SYSCTL
-	const struct ctl_table *tbl;
-
-	tbl = ns->sysctls->ctl_table_arg;
 	unregister_sysctl_table(ns->sysctls);
 	retire_sysctl_set(&ns->set);
-	kfree(tbl);
 #endif
 }
 
