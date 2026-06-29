@@ -186,56 +186,34 @@ static void xfrm6_policy_fini(void)
 }
 
 #ifdef CONFIG_SYSCTL
-static struct ctl_table xfrm6_policy_table[] = {
-	{
-		.procname       = "xfrm6_gc_thresh",
-		.data		= &init_net.xfrm.xfrm6_dst_ops.gc_thresh,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler   = proc_dointvec,
-	},
+static int *xfrm6_gc_thresh_data(const struct ctl_context *ctx)
+{
+	return &ctx->ns.net_ns->xfrm.xfrm6_dst_ops.gc_thresh;
+}
+
+static const struct ctl_field xfrm6_policy_table[] = {
+	CTL_FIELD_INT("xfrm6_gc_thresh", 0644, xfrm6_gc_thresh_data),
 };
 
 static int __net_init xfrm6_net_sysctl_init(struct net *net)
 {
-	struct ctl_table *table;
 	struct ctl_table_header *hdr;
 
-	table = xfrm6_policy_table;
-	if (!net_eq(net, &init_net)) {
-		table = kmemdup(table, sizeof(xfrm6_policy_table), GFP_KERNEL);
-		if (!table)
-			goto err_alloc;
-
-		table[0].data = &net->xfrm.xfrm6_dst_ops.gc_thresh;
-	}
-
-	hdr = register_net_sysctl_sz(net, "net/ipv6", table,
-				     ARRAY_SIZE(xfrm6_policy_table));
+	hdr = register_net_sysctl_fields_sz(net, "net/ipv6", xfrm6_policy_table,
+					    ARRAY_SIZE(xfrm6_policy_table));
 	if (!hdr)
-		goto err_reg;
+		return -ENOMEM;
 
 	net->ipv6.sysctl.xfrm6_hdr = hdr;
 	return 0;
-
-err_reg:
-	if (!net_eq(net, &init_net))
-		kfree(table);
-err_alloc:
-	return -ENOMEM;
 }
 
 static void __net_exit xfrm6_net_sysctl_exit(struct net *net)
 {
-	const struct ctl_table *table;
-
 	if (!net->ipv6.sysctl.xfrm6_hdr)
 		return;
 
-	table = net->ipv6.sysctl.xfrm6_hdr->ctl_table_arg;
 	unregister_net_sysctl_table(net->ipv6.sysctl.xfrm6_hdr);
-	if (!net_eq(net, &init_net))
-		kfree(table);
 }
 #else /* CONFIG_SYSCTL */
 static inline int xfrm6_net_sysctl_init(struct net *net)
