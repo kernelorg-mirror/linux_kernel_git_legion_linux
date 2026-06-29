@@ -141,56 +141,32 @@ static const struct xfrm_policy_afinfo xfrm4_policy_afinfo = {
 };
 
 #ifdef CONFIG_SYSCTL
-static struct ctl_table xfrm4_policy_table[] = {
-	{
-		.procname       = "xfrm4_gc_thresh",
-		.data           = &init_net.xfrm.xfrm4_dst_ops.gc_thresh,
-		.maxlen         = sizeof(int),
-		.mode           = 0644,
-		.proc_handler   = proc_dointvec,
-	},
+static int *xfrm4_gc_thresh_data(const struct sysctl_context *ctx)
+{
+	return &ctx->ns.net_ns->xfrm.xfrm4_dst_ops.gc_thresh;
+}
+
+static const struct sysctl_field xfrm4_policy_table[] = {
+	SYSCTL_FIELD_INT("xfrm4_gc_thresh", 0644, xfrm4_gc_thresh_data),
 };
 
 static __net_init int xfrm4_net_sysctl_init(struct net *net)
 {
-	struct ctl_table *table;
-	struct ctl_table_header *hdr;
+	struct sysctl_context ctx = {
+		.ns.net_ns = net,
+	};
 
-	table = xfrm4_policy_table;
-	if (!net_eq(net, &init_net)) {
-		table = kmemdup(table, sizeof(xfrm4_policy_table), GFP_KERNEL);
-		if (!table)
-			goto err_alloc;
+	net->ipv4.xfrm4_hdr = register_sysctl_fields(&net->sysctls, "net/ipv4",
+						     xfrm4_policy_table, &ctx);
+	if (!net->ipv4.xfrm4_hdr)
+		return -ENOMEM;
 
-		table[0].data = &net->xfrm.xfrm4_dst_ops.gc_thresh;
-	}
-
-	hdr = register_net_sysctl_sz(net, "net/ipv4", table,
-				     ARRAY_SIZE(xfrm4_policy_table));
-	if (!hdr)
-		goto err_reg;
-
-	net->ipv4.xfrm4_hdr = hdr;
 	return 0;
-
-err_reg:
-	if (!net_eq(net, &init_net))
-		kfree(table);
-err_alloc:
-	return -ENOMEM;
 }
 
 static __net_exit void xfrm4_net_sysctl_exit(struct net *net)
 {
-	const struct ctl_table *table;
-
-	if (!net->ipv4.xfrm4_hdr)
-		return;
-
-	table = net->ipv4.xfrm4_hdr->ctl_table_arg;
 	unregister_net_sysctl_table(net->ipv4.xfrm4_hdr);
-	if (!net_eq(net, &init_net))
-		kfree(table);
 }
 #else /* CONFIG_SYSCTL */
 static inline int xfrm4_net_sysctl_init(struct net *net)
