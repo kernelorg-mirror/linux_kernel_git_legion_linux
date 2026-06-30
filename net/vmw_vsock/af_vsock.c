@@ -2875,70 +2875,46 @@ static int vsock_net_child_mode_string(const struct ctl_table *table, int write,
 	return 0;
 }
 
-static struct ctl_table vsock_table[] = {
-	{
-		.procname	= "ns_mode",
-		.data		= &init_net.vsock.mode,
-		.maxlen		= VSOCK_NET_MODE_STR_MAX,
-		.mode		= 0444,
-		.proc_handler	= vsock_net_mode_string
-	},
-	{
-		.procname	= "child_ns_mode",
-		.data		= &init_net.vsock.child_ns_mode,
-		.maxlen		= VSOCK_NET_MODE_STR_MAX,
-		.mode		= 0644,
-		.proc_handler	= vsock_net_child_mode_string
-	},
-	{
-		.procname	= "g2h_fallback",
-		.data		= &init_net.vsock.g2h_fallback,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_ONE,
-	},
+static void *vsock_net_mode_data(const struct ctl_context *ctx)
+{
+	return &ctx->ns.net_ns->vsock.mode;
+}
+
+static void *vsock_net_child_mode_data(const struct ctl_context *ctx)
+{
+	return &ctx->ns.net_ns->vsock.child_ns_mode;
+}
+
+static int *vsock_g2h_fallback_data(const struct ctl_context *ctx)
+{
+	return &ctx->ns.net_ns->vsock.g2h_fallback;
+}
+
+static const struct ctl_field vsock_table[] = {
+	CTL_FIELD_CUSTOM("ns_mode", 0444, VSOCK_NET_MODE_STR_MAX,
+			 vsock_net_mode_data, vsock_net_mode_string),
+	CTL_FIELD_CUSTOM("child_ns_mode", 0644, VSOCK_NET_MODE_STR_MAX,
+			 vsock_net_child_mode_data,
+			 vsock_net_child_mode_string),
+	CTL_FIELD_STATIC_INT_MINMAX("g2h_fallback", 0644,
+				    vsock_g2h_fallback_data,
+				    SYSCTL_ZERO, SYSCTL_ONE),
 };
 
 static int __net_init vsock_sysctl_register(struct net *net)
 {
-	struct ctl_table *table;
-
-	if (net_eq(net, &init_net)) {
-		table = vsock_table;
-	} else {
-		table = kmemdup(vsock_table, sizeof(vsock_table), GFP_KERNEL);
-		if (!table)
-			goto err_alloc;
-
-		table[0].data = &net->vsock.mode;
-		table[1].data = &net->vsock.child_ns_mode;
-		table[2].data = &net->vsock.g2h_fallback;
-	}
-
-	net->vsock.sysctl_hdr = register_net_sysctl_sz(net, "net/vsock", table,
-						       ARRAY_SIZE(vsock_table));
+	net->vsock.sysctl_hdr = register_net_sysctl_fields_sz(net, "net/vsock",
+							      vsock_table,
+							      ARRAY_SIZE(vsock_table));
 	if (!net->vsock.sysctl_hdr)
-		goto err_reg;
+		return -ENOMEM;
 
 	return 0;
-
-err_reg:
-	if (!net_eq(net, &init_net))
-		kfree(table);
-err_alloc:
-	return -ENOMEM;
 }
 
 static void vsock_sysctl_unregister(struct net *net)
 {
-	const struct ctl_table *table;
-
-	table = net->vsock.sysctl_hdr->ctl_table_arg;
 	unregister_net_sysctl_table(net->vsock.sysctl_hdr);
-	if (!net_eq(net, &init_net))
-		kfree(table);
 }
 
 static void vsock_net_init(struct net *net)
