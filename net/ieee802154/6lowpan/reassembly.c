@@ -326,25 +326,30 @@ err:
 
 #ifdef CONFIG_SYSCTL
 
-static struct ctl_table lowpan_frags_ns_ctl_table[] = {
-	{
-		.procname	= "6lowpanfrag_high_thresh",
-		.maxlen		= sizeof(unsigned long),
-		.mode		= 0644,
-		.proc_handler	= proc_doulongvec_minmax,
-	},
-	{
-		.procname	= "6lowpanfrag_low_thresh",
-		.maxlen		= sizeof(unsigned long),
-		.mode		= 0644,
-		.proc_handler	= proc_doulongvec_minmax,
-	},
-	{
-		.procname	= "6lowpanfrag_time",
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-	},
+static unsigned long *lowpan_frags_high_thresh_data(const struct ctl_context *ctx)
+{
+	return &net_ieee802154_lowpan(ctx->ns.net_ns)->fqdir->high_thresh;
+}
+
+static unsigned long *lowpan_frags_low_thresh_data(const struct ctl_context *ctx)
+{
+	return &net_ieee802154_lowpan(ctx->ns.net_ns)->fqdir->low_thresh;
+}
+
+static void *lowpan_frags_timeout_data(const struct ctl_context *ctx)
+{
+	return &net_ieee802154_lowpan(ctx->ns.net_ns)->fqdir->timeout;
+}
+
+static const struct ctl_field lowpan_frags_ns_ctl_table[] = {
+	CTL_FIELD_ULONG_MINMAX("6lowpanfrag_high_thresh", 0644,
+			       lowpan_frags_high_thresh_data,
+			       lowpan_frags_low_thresh_data, NULL),
+	CTL_FIELD_ULONG_MINMAX("6lowpanfrag_low_thresh", 0644,
+			       lowpan_frags_low_thresh_data,
+			       NULL, lowpan_frags_high_thresh_data),
+	CTL_FIELD_CUSTOM("6lowpanfrag_time", 0644, sizeof(int),
+			 lowpan_frags_timeout_data, proc_dointvec_jiffies),
 };
 
 /* secret interval has been deprecated */
@@ -361,55 +366,31 @@ static struct ctl_table lowpan_frags_ctl_table[] = {
 
 static int __net_init lowpan_frags_ns_sysctl_register(struct net *net)
 {
-	struct ctl_table *table;
 	struct ctl_table_header *hdr;
 	struct netns_ieee802154_lowpan *ieee802154_lowpan =
 		net_ieee802154_lowpan(net);
 	size_t table_size = ARRAY_SIZE(lowpan_frags_ns_ctl_table);
 
-	table = lowpan_frags_ns_ctl_table;
-	if (!net_eq(net, &init_net)) {
-		table = kmemdup(table, sizeof(lowpan_frags_ns_ctl_table),
-				GFP_KERNEL);
-		if (table == NULL)
-			goto err_alloc;
+	/* Don't export sysctls to unprivileged users */
+	if (!net_eq(net, &init_net) && net->user_ns != &init_user_ns)
+		table_size = 0;
 
-		/* Don't export sysctls to unprivileged users */
-		if (net->user_ns != &init_user_ns)
-			table_size = 0;
-	}
-
-	table[0].data	= &ieee802154_lowpan->fqdir->high_thresh;
-	table[0].extra1	= &ieee802154_lowpan->fqdir->low_thresh;
-	table[1].data	= &ieee802154_lowpan->fqdir->low_thresh;
-	table[1].extra2	= &ieee802154_lowpan->fqdir->high_thresh;
-	table[2].data	= &ieee802154_lowpan->fqdir->timeout;
-
-	hdr = register_net_sysctl_sz(net, "net/ieee802154/6lowpan", table,
-				     table_size);
+	hdr = register_net_sysctl_fields_sz(net, "net/ieee802154/6lowpan",
+					    lowpan_frags_ns_ctl_table,
+					    table_size);
 	if (hdr == NULL)
-		goto err_reg;
+		return -ENOMEM;
 
 	ieee802154_lowpan->sysctl.frags_hdr = hdr;
 	return 0;
-
-err_reg:
-	if (!net_eq(net, &init_net))
-		kfree(table);
-err_alloc:
-	return -ENOMEM;
 }
 
 static void __net_exit lowpan_frags_ns_sysctl_unregister(struct net *net)
 {
-	const struct ctl_table *table;
 	struct netns_ieee802154_lowpan *ieee802154_lowpan =
 		net_ieee802154_lowpan(net);
 
-	table = ieee802154_lowpan->sysctl.frags_hdr->ctl_table_arg;
 	unregister_net_sysctl_table(ieee802154_lowpan->sysctl.frags_hdr);
-	if (!net_eq(net, &init_net))
-		kfree(table);
 }
 
 static struct ctl_table_header *lowpan_ctl_header;
