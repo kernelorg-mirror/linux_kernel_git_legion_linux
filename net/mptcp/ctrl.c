@@ -19,7 +19,7 @@
 static int mptcp_pernet_id;
 
 #ifdef CONFIG_SYSCTL
-static int mptcp_pm_type_max = __MPTCP_PM_TYPE_MAX;
+static unsigned int mptcp_pm_type_max = __MPTCP_PM_TYPE_MAX;
 #endif
 
 struct mptcp_pernet {
@@ -172,9 +172,12 @@ static int proc_blackhole_detect_timeout(const struct ctl_table *table,
 	struct mptcp_pernet *pernet = container_of(table->data,
 						   struct mptcp_pernet,
 						   blackhole_timeout);
+	struct ctl_table tmp = *table;
 	int ret;
 
-	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+	tmp.extra1 = SYSCTL_ZERO;
+
+	ret = proc_dointvec_minmax(&tmp, write, buffer, lenp, ppos);
 	if (write && ret == 0)
 		atomic_set(&pernet->active_disable_times, 0);
 
@@ -236,9 +239,13 @@ static int proc_pm_type(const struct ctl_table *ctl, int write,
 	struct mptcp_pernet *pernet = container_of(ctl->data,
 						   struct mptcp_pernet,
 						   pm_type);
+	struct ctl_table tmp = *ctl;
 	int ret;
 
-	ret = proc_dou8vec_minmax(ctl, write, buffer, lenp, ppos);
+	tmp.extra1 = SYSCTL_UINT_ZERO;
+	tmp.extra2 = &mptcp_pm_type_max;
+
+	ret = proc_dou8vec_minmax(&tmp, write, buffer, lenp, ppos);
 	if (write && ret == 0) {
 		u8 pm_type = READ_ONCE(*(u8 *)ctl->data);
 		char *pm_name = "";
@@ -271,148 +278,88 @@ static int proc_available_path_managers(const struct ctl_table *ctl,
 	return ret;
 }
 
-static struct ctl_table mptcp_sysctl_table[] = {
-	{
-		.procname = "enabled",
-		.maxlen = sizeof(u8),
-		.mode = 0644,
-		/* users with CAP_NET_ADMIN or root (not and) can change this
-		 * value, same as other sysctl or the 'net' tree.
-		 */
-		.proc_handler = proc_dou8vec_minmax,
-		.extra1       = SYSCTL_ZERO,
-		.extra2       = SYSCTL_ONE
-	},
-	{
-		.procname = "add_addr_timeout",
-		.maxlen = sizeof(unsigned int),
-		.mode = 0644,
-		.proc_handler = proc_dointvec_jiffies,
-	},
-	{
-		.procname = "checksum_enabled",
-		.maxlen = sizeof(u8),
-		.mode = 0644,
-		.proc_handler = proc_dou8vec_minmax,
-		.extra1       = SYSCTL_ZERO,
-		.extra2       = SYSCTL_ONE
-	},
-	{
-		.procname = "allow_join_initial_addr_port",
-		.maxlen = sizeof(u8),
-		.mode = 0644,
-		.proc_handler = proc_dou8vec_minmax,
-		.extra1       = SYSCTL_ZERO,
-		.extra2       = SYSCTL_ONE
-	},
-	{
-		.procname = "stale_loss_cnt",
-		.maxlen = sizeof(unsigned int),
-		.mode = 0644,
-		.proc_handler = proc_douintvec_minmax,
-	},
-	{
-		.procname = "pm_type",
-		.maxlen = sizeof(u8),
-		.mode = 0644,
-		.proc_handler = proc_pm_type,
-		.extra1       = SYSCTL_ZERO,
-		.extra2       = &mptcp_pm_type_max
-	},
-	{
-		.procname = "scheduler",
-		.maxlen	= MPTCP_SCHED_NAME_MAX,
-		.mode = 0644,
-		.proc_handler = proc_scheduler,
-	},
-	{
-		.procname = "available_schedulers",
-		.maxlen	= MPTCP_SCHED_BUF_MAX,
-		.mode = 0444,
-		.proc_handler = proc_available_schedulers,
-	},
-	{
-		.procname = "close_timeout",
-		.maxlen = sizeof(unsigned int),
-		.mode = 0644,
-		.proc_handler = proc_dointvec_jiffies,
-	},
-	{
-		.procname = "blackhole_timeout",
-		.maxlen = sizeof(unsigned int),
-		.mode = 0644,
-		.proc_handler = proc_blackhole_detect_timeout,
-		.extra1 = SYSCTL_ZERO,
-	},
-	{
-		.procname = "syn_retrans_before_tcp_fallback",
-		.maxlen = sizeof(u8),
-		.mode = 0644,
-		.proc_handler = proc_dou8vec_minmax,
-	},
-	{
-		.procname = "path_manager",
-		.maxlen	= MPTCP_PM_NAME_MAX,
-		.mode = 0644,
-		.proc_handler = proc_path_manager,
-	},
-	{
-		.procname = "available_path_managers",
-		.maxlen	= MPTCP_PM_BUF_MAX,
-		.mode = 0444,
-		.proc_handler = proc_available_path_managers,
-	},
+#define MPTCP_DATA(type, field)						\
+static type *mptcp_ ## field ## _data(const struct sysctl_context *ctx)	\
+{									\
+	return &mptcp_get_pernet(ctx->ns.net_ns)->field;		\
+}
+
+#define MPTCP_CUSTOM_DATA(field)					\
+static void *mptcp_ ## field ## _data(const struct sysctl_context *ctx)	\
+{									\
+	return &mptcp_get_pernet(ctx->ns.net_ns)->field;		\
+}
+
+static u8 *mptcp_enabled_data(const struct sysctl_context *ctx)
+{
+	return &mptcp_get_pernet(ctx->ns.net_ns)->mptcp_enabled;
+}
+
+MPTCP_CUSTOM_DATA(add_addr_timeout)
+MPTCP_DATA(u8, checksum_enabled)
+MPTCP_DATA(u8, allow_join_initial_addr_port)
+MPTCP_DATA(unsigned int, stale_loss_cnt)
+MPTCP_CUSTOM_DATA(pm_type)
+MPTCP_CUSTOM_DATA(scheduler)
+MPTCP_CUSTOM_DATA(close_timeout)
+MPTCP_CUSTOM_DATA(blackhole_timeout)
+MPTCP_DATA(u8, syn_retrans_before_tcp_fallback)
+MPTCP_CUSTOM_DATA(path_manager)
+
+static const struct sysctl_field mptcp_sysctl_table[] = {
+	/* users with CAP_NET_ADMIN or root (not and) can change this
+	 * value, same as other sysctl or the 'net' tree.
+	 */
+	SYSCTL_FIELD_STATIC_U8_MINMAX("enabled", 0644, mptcp_enabled_data,
+				   SYSCTL_UINT_ZERO, SYSCTL_UINT_ONE),
+	SYSCTL_FIELD_CUSTOM("add_addr_timeout", 0644, sizeof(unsigned int),
+			 mptcp_add_addr_timeout_data, proc_dointvec_jiffies),
+	SYSCTL_FIELD_STATIC_U8_MINMAX("checksum_enabled", 0644,
+				   mptcp_checksum_enabled_data,
+				   SYSCTL_UINT_ZERO, SYSCTL_UINT_ONE),
+	SYSCTL_FIELD_STATIC_U8_MINMAX("allow_join_initial_addr_port", 0644,
+				   mptcp_allow_join_initial_addr_port_data,
+				   SYSCTL_UINT_ZERO, SYSCTL_UINT_ONE),
+	SYSCTL_FIELD_UINT("stale_loss_cnt", 0644, mptcp_stale_loss_cnt_data),
+	SYSCTL_FIELD_CUSTOM("pm_type", 0644, sizeof(u8),
+			 mptcp_pm_type_data, proc_pm_type),
+	SYSCTL_FIELD_CUSTOM("scheduler", 0644, MPTCP_SCHED_NAME_MAX,
+			 mptcp_scheduler_data, proc_scheduler),
+	SYSCTL_FIELD_CUSTOM("available_schedulers", 0444, MPTCP_SCHED_BUF_MAX,
+			 NULL, proc_available_schedulers),
+	SYSCTL_FIELD_CUSTOM("close_timeout", 0644, sizeof(unsigned int),
+			 mptcp_close_timeout_data, proc_dointvec_jiffies),
+	SYSCTL_FIELD_CUSTOM("blackhole_timeout", 0644, sizeof(unsigned int),
+			 mptcp_blackhole_timeout_data,
+			 proc_blackhole_detect_timeout),
+	SYSCTL_FIELD_U8("syn_retrans_before_tcp_fallback", 0644,
+		     mptcp_syn_retrans_before_tcp_fallback_data),
+	SYSCTL_FIELD_CUSTOM("path_manager", 0644, MPTCP_PM_NAME_MAX,
+			 mptcp_path_manager_data, proc_path_manager),
+	SYSCTL_FIELD_CUSTOM("available_path_managers", 0444, MPTCP_PM_BUF_MAX,
+			 NULL, proc_available_path_managers),
 };
 
 static int mptcp_pernet_new_table(struct net *net, struct mptcp_pernet *pernet)
 {
+	struct sysctl_context ctx = {
+		.ns.net_ns = net,
+	};
 	struct ctl_table_header *hdr;
-	struct ctl_table *table;
 
-	table = mptcp_sysctl_table;
-	if (!net_eq(net, &init_net)) {
-		table = kmemdup(table, sizeof(mptcp_sysctl_table), GFP_KERNEL);
-		if (!table)
-			goto err_alloc;
-	}
-
-	table[0].data = &pernet->mptcp_enabled;
-	table[1].data = &pernet->add_addr_timeout;
-	table[2].data = &pernet->checksum_enabled;
-	table[3].data = &pernet->allow_join_initial_addr_port;
-	table[4].data = &pernet->stale_loss_cnt;
-	table[5].data = &pernet->pm_type;
-	table[6].data = &pernet->scheduler;
-	/* table[7] is for available_schedulers which is read-only info */
-	table[8].data = &pernet->close_timeout;
-	table[9].data = &pernet->blackhole_timeout;
-	table[10].data = &pernet->syn_retrans_before_tcp_fallback;
-	table[11].data = &pernet->path_manager;
-	/* table[12] is for available_path_managers which is read-only info */
-
-	hdr = register_net_sysctl_sz(net, MPTCP_SYSCTL_PATH, table,
-				     ARRAY_SIZE(mptcp_sysctl_table));
+	hdr = register_sysctl_fields(&net->sysctls, MPTCP_SYSCTL_PATH,
+				     mptcp_sysctl_table, &ctx);
 	if (!hdr)
-		goto err_reg;
+		return -ENOMEM;
 
 	pernet->ctl_table_hdr = hdr;
 
 	return 0;
-
-err_reg:
-	if (!net_eq(net, &init_net))
-		kfree(table);
-err_alloc:
-	return -ENOMEM;
 }
 
 static void mptcp_pernet_del_table(struct mptcp_pernet *pernet)
 {
-	const struct ctl_table *table = pernet->ctl_table_hdr->ctl_table_arg;
-
 	unregister_net_sysctl_table(pernet->ctl_table_hdr);
-
-	kfree(table);
 }
 
 #else
