@@ -1828,7 +1828,7 @@ unlock:
 static int vrf_shared_table_handler(const struct ctl_table *table, int write,
 				    void *buffer, size_t *lenp, loff_t *ppos)
 {
-	struct net *net = (struct net *)table->extra1;
+	struct net *net = table->data;
 	struct vrf_map *vmap = netns_vrf_map(net);
 	int proc_strict_mode = 0;
 	struct ctl_table tmp = {
@@ -1852,35 +1852,25 @@ static int vrf_shared_table_handler(const struct ctl_table *table, int write,
 	return ret;
 }
 
-static const struct ctl_table vrf_table[] = {
-	{
-		.procname	= "strict_mode",
-		.data		= NULL,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= vrf_shared_table_handler,
-		/* set by the vrf_netns_init */
-		.extra1		= NULL,
-	},
+static void *vrf_strict_mode_data(const struct sysctl_context *ctx)
+{
+	return ctx->ns.net_ns;
+}
+
+static const struct sysctl_field vrf_table[] = {
+	SYSCTL_FIELD_CUSTOM("strict_mode", 0644, 0, vrf_strict_mode_data,
+			 vrf_shared_table_handler),
 };
 
 static int vrf_netns_init_sysctl(struct net *net, struct netns_vrf *nn_vrf)
 {
-	struct ctl_table *table;
-
-	table = kmemdup(vrf_table, sizeof(vrf_table), GFP_KERNEL);
-	if (!table)
+	struct sysctl_context ctx = {
+		.ns.net_ns = net,
+	};
+	nn_vrf->ctl_hdr = register_sysctl_fields(&net->sysctls, "net/vrf",
+						 vrf_table, &ctx);
+	if (!nn_vrf->ctl_hdr)
 		return -ENOMEM;
-
-	/* init the extra1 parameter with the reference to current netns */
-	table[0].extra1 = net;
-
-	nn_vrf->ctl_hdr = register_net_sysctl_sz(net, "net/vrf", table,
-						 ARRAY_SIZE(vrf_table));
-	if (!nn_vrf->ctl_hdr) {
-		kfree(table);
-		return -ENOMEM;
-	}
 
 	return 0;
 }
@@ -1888,11 +1878,8 @@ static int vrf_netns_init_sysctl(struct net *net, struct netns_vrf *nn_vrf)
 static void vrf_netns_exit_sysctl(struct net *net)
 {
 	struct netns_vrf *nn_vrf = net_generic(net, vrf_net_id);
-	const struct ctl_table *table;
 
-	table = nn_vrf->ctl_hdr->ctl_table_arg;
 	unregister_net_sysctl_table(nn_vrf->ctl_hdr);
-	kfree(table);
 }
 #else
 static int vrf_netns_init_sysctl(struct net *net, struct netns_vrf *nn_vrf)
