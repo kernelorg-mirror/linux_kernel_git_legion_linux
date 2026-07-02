@@ -54,53 +54,31 @@ int nf_hooks_lwtunnel_sysctl_handler(const struct ctl_table *table, int write,
 }
 EXPORT_SYMBOL_GPL(nf_hooks_lwtunnel_sysctl_handler);
 
-static struct ctl_table nf_lwtunnel_sysctl_table[] = {
-	{
-		.procname	= "nf_hooks_lwtunnel",
-		.data		= NULL,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= nf_hooks_lwtunnel_sysctl_handler,
-	},
+static const struct sysctl_field nf_lwtunnel_sysctl_table[] = {
+	SYSCTL_FIELD_CUSTOM("nf_hooks_lwtunnel", 0644, sizeof(int), NULL,
+			 nf_hooks_lwtunnel_sysctl_handler),
 };
 
 static int __net_init nf_lwtunnel_net_init(struct net *net)
 {
+	struct sysctl_context ctx = {
+		.ns.net_ns = net,
+	};
 	struct ctl_table_header *hdr;
-	struct ctl_table *table;
 
-	table = nf_lwtunnel_sysctl_table;
-	if (!net_eq(net, &init_net)) {
-		table = kmemdup(nf_lwtunnel_sysctl_table,
-				sizeof(nf_lwtunnel_sysctl_table),
-				GFP_KERNEL);
-		if (!table)
-			goto err_alloc;
-	}
-
-	hdr = register_net_sysctl_sz(net, "net/netfilter", table,
-				     ARRAY_SIZE(nf_lwtunnel_sysctl_table));
+	hdr = register_sysctl_fields(&net->sysctls, "net/netfilter",
+				     nf_lwtunnel_sysctl_table, &ctx);
 	if (!hdr)
-		goto err_reg;
+		return -ENOMEM;
 
 	net->nf.nf_lwtnl_dir_header = hdr;
 
 	return 0;
-err_reg:
-	if (!net_eq(net, &init_net))
-		kfree(table);
-err_alloc:
-	return -ENOMEM;
 }
 
 static void __net_exit nf_lwtunnel_net_exit(struct net *net)
 {
-	const struct ctl_table *table;
-
-	table = net->nf.nf_lwtnl_dir_header->ctl_table_arg;
 	unregister_net_sysctl_table(net->nf.nf_lwtnl_dir_header);
-	if (!net_eq(net, &init_net))
-		kfree(table);
 }
 
 static struct pernet_operations nf_lwtunnel_net_ops = {
