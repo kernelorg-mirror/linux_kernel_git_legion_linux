@@ -486,6 +486,10 @@ struct ctl_table_root {
 	__register_sysctl_fields(set, path, fields, ARRAY_SIZE(fields),	\
 				 (ctx), sizeof(*(ctx)))
 
+#define register_sysctl_fields_ctx(set, path, fields, ctx)		\
+	__register_sysctl_fields(set, path, fields, ARRAY_SIZE(fields),	\
+				 (&(ctx)->context), sizeof(*(ctx)))
+
 #ifdef CONFIG_SYSCTL
 
 void proc_sys_poll_notify(struct ctl_table_poll *poll);

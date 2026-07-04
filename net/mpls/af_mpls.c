@@ -1387,74 +1387,62 @@ static int mpls_netconf_dump_devconf(struct sk_buff *skb,
 	return err;
 }
 
-#define MPLS_PERDEV_SYSCTL_OFFSET(field)	\
-	(&((struct mpls_dev *)0)->field)
+struct mpls_dev_ctl_context {
+	struct sysctl_context context;
+	struct mpls_dev *mdev;
+};
+
+static void *mpls_dev_data(const struct sysctl_context *ctx)
+{
+	const struct mpls_dev_ctl_context *mpls_ctx =
+		container_of(ctx, struct mpls_dev_ctl_context, context);
+
+	return mpls_ctx->mdev;
+}
 
 static int mpls_conf_proc(const struct ctl_table *ctl, int write,
 			  void *buffer, size_t *lenp, loff_t *ppos)
 {
-	int oval = *(int *)ctl->data;
-	int ret = proc_dointvec(ctl, write, buffer, lenp, ppos);
+	struct mpls_dev *mdev = ctl->data;
+	int oval = mdev->input_enabled;
+	struct ctl_table tmp = *ctl;
+	int ret;
 
-	if (write) {
-		struct mpls_dev *mdev = ctl->extra1;
-		int i = (int *)ctl->data - (int *)mdev;
-		struct net *net = ctl->extra2;
-		int val = *(int *)ctl->data;
+	tmp.data = &mdev->input_enabled;
+	ret = proc_dointvec(&tmp, write, buffer, lenp, ppos);
 
-		if (i == offsetof(struct mpls_dev, input_enabled) &&
-		    val != oval) {
-			mpls_netconf_notify_devconf(net, RTM_NEWNETCONF,
-						    NETCONFA_INPUT, mdev);
-		}
-	}
+	if (write && ret == 0 && mdev->input_enabled != oval)
+		mpls_netconf_notify_devconf(dev_net(mdev->dev), RTM_NEWNETCONF,
+					    NETCONFA_INPUT, mdev);
 
 	return ret;
 }
 
-static const struct ctl_table mpls_dev_table[] = {
-	{
-		.procname	= "input",
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= mpls_conf_proc,
-		.data		= MPLS_PERDEV_SYSCTL_OFFSET(input_enabled),
-	},
+static const struct sysctl_field mpls_dev_table[] = {
+	SYSCTL_FIELD_CUSTOM("input", 0644, sizeof(int), mpls_dev_data,
+			 mpls_conf_proc),
 };
 
 static int mpls_dev_sysctl_register(struct net_device *dev,
 				    struct mpls_dev *mdev)
 {
 	char path[sizeof("net/mpls/conf/") + IFNAMSIZ];
-	size_t table_size = ARRAY_SIZE(mpls_dev_table);
 	struct net *net = dev_net(dev);
-	struct ctl_table *table;
-	int i;
-
-	table = kmemdup(&mpls_dev_table, sizeof(mpls_dev_table), GFP_KERNEL);
-	if (!table)
-		goto out;
-
-	/* Table data contains only offsets relative to the base of
-	 * the mdev at this point, so make them absolute.
-	 */
-	for (i = 0; i < table_size; i++) {
-		table[i].data = (char *)mdev + (uintptr_t)table[i].data;
-		table[i].extra1 = mdev;
-		table[i].extra2 = net;
-	}
+	struct mpls_dev_ctl_context ctx = {
+		.context.ns.net_ns = net,
+		.mdev = mdev,
+	};
 
 	snprintf(path, sizeof(path), "net/mpls/conf/%s", dev->name);
 
-	mdev->sysctl = register_net_sysctl_sz(net, path, table, table_size);
+	mdev->sysctl = register_sysctl_fields_ctx(&net->sysctls, path,
+						  mpls_dev_table, &ctx);
 	if (!mdev->sysctl)
-		goto free;
+		goto out;
 
 	mpls_netconf_notify_devconf(net, RTM_NEWNETCONF, NETCONFA_ALL, mdev);
 	return 0;
 
-free:
-	kfree(table);
 out:
 	mdev->sysctl = NULL;
 	return -ENOBUFS;
@@ -1464,14 +1452,11 @@ static void mpls_dev_sysctl_unregister(struct net_device *dev,
 				       struct mpls_dev *mdev)
 {
 	struct net *net = dev_net(dev);
-	const struct ctl_table *table;
 
 	if (!mdev->sysctl)
 		return;
 
-	table = mdev->sysctl->ctl_table_arg;
 	unregister_net_sysctl_table(mdev->sysctl);
-	kfree(table);
 
 	mpls_netconf_notify_devconf(net, RTM_DELNETCONF, 0, mdev);
 }
@@ -2705,43 +2690,35 @@ static int mpls_platform_labels(const struct ctl_table *table, int write,
 	return ret;
 }
 
-#define MPLS_NS_SYSCTL_OFFSET(field)		\
-	(&((struct net *)0)->field)
+#define MPLS_DATA(type, field)						\
+static type *mpls_ ## field ## _data(const struct sysctl_context *ctx)	\
+{									\
+	return &ctx->ns.net_ns->mpls.field;				\
+}
 
-static const struct ctl_table mpls_table[] = {
-	{
-		.procname	= "platform_labels",
-		.data		= NULL,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= mpls_platform_labels,
-	},
-	{
-		.procname	= "ip_ttl_propagate",
-		.data		= MPLS_NS_SYSCTL_OFFSET(mpls.ip_ttl_propagate),
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_ONE,
-	},
-	{
-		.procname	= "default_ttl",
-		.data		= MPLS_NS_SYSCTL_OFFSET(mpls.default_ttl),
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= SYSCTL_ONE,
-		.extra2		= &ttl_max,
-	},
+static void *mpls_net_data(const struct sysctl_context *ctx)
+{
+	return ctx->ns.net_ns;
+}
+
+MPLS_DATA(int, ip_ttl_propagate)
+MPLS_DATA(int, default_ttl)
+
+static const struct sysctl_field mpls_table[] = {
+	SYSCTL_FIELD_CUSTOM("platform_labels", 0644, sizeof(int),
+			 mpls_net_data, mpls_platform_labels),
+	SYSCTL_FIELD_STATIC_INT_MINMAX("ip_ttl_propagate", 0644,
+				    mpls_ip_ttl_propagate_data, SYSCTL_ZERO,
+				    SYSCTL_ONE),
+	SYSCTL_FIELD_STATIC_INT_MINMAX("default_ttl", 0644, mpls_default_ttl_data,
+				    SYSCTL_ONE, &ttl_max),
 };
 
 static __net_init int mpls_net_init(struct net *net)
 {
-	size_t table_size = ARRAY_SIZE(mpls_table);
-	struct ctl_table *table;
-	int i;
-
+	struct sysctl_context ctx = {
+		.ns.net_ns = net,
+	};
 	mutex_init(&net->mpls.platform_mutex);
 	seqcount_mutex_init(&net->mpls.platform_label_seq, &net->mpls.platform_mutex);
 
@@ -2750,22 +2727,10 @@ static __net_init int mpls_net_init(struct net *net)
 	net->mpls.ip_ttl_propagate = 1;
 	net->mpls.default_ttl = 255;
 
-	table = kmemdup(mpls_table, sizeof(mpls_table), GFP_KERNEL);
-	if (table == NULL)
+	net->mpls.ctl = register_sysctl_fields(&net->sysctls, "net/mpls",
+					       mpls_table, &ctx);
+	if (!net->mpls.ctl)
 		return -ENOMEM;
-
-	/* Table data contains only offsets relative to the base of
-	 * the mdev at this point, so make them absolute.
-	 */
-	for (i = 0; i < table_size; i++)
-		table[i].data = (char *)net + (uintptr_t)table[i].data;
-
-	net->mpls.ctl = register_net_sysctl_sz(net, "net/mpls", table,
-					       table_size);
-	if (net->mpls.ctl == NULL) {
-		kfree(table);
-		return -ENOMEM;
-	}
 
 	return 0;
 }
@@ -2774,12 +2739,9 @@ static __net_exit void mpls_net_exit(struct net *net)
 {
 	struct mpls_route __rcu **platform_label;
 	size_t platform_labels;
-	const struct ctl_table *table;
 	unsigned int index;
 
-	table = net->mpls.ctl->ctl_table_arg;
 	unregister_net_sysctl_table(net->mpls.ctl);
-	kfree(table);
 
 	/* An rcu grace period has passed since there was a device in
 	 * the network namespace (and thus the last in flight packet)
