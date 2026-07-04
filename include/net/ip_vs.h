@@ -1214,7 +1214,6 @@ struct netns_ipvs {
 
 	/* sys-ctl struct */
 	struct ctl_table_header	*sysctl_hdr;
-	struct ctl_table	*sysctl_tbl;
 #endif
 
 	/* sysctl variables */
@@ -1259,11 +1258,9 @@ struct netns_ipvs {
 	/* ip_vs_lblc */
 	int			sysctl_lblc_expiration;
 	struct ctl_table_header	*lblc_ctl_header;
-	struct ctl_table	*lblc_ctl_table;
 	/* ip_vs_lblcr */
 	int			sysctl_lblcr_expiration;
 	struct ctl_table_header	*lblcr_ctl_header;
-	struct ctl_table	*lblcr_ctl_table;
 	unsigned long		work_flags;	/* IP_VS_WORK_* flags */
 	/* ip_vs_est */
 	struct delayed_work	est_reload_work;/* Reload kthread tasks */

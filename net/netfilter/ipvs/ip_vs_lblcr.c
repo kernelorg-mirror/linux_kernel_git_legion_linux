@@ -285,14 +285,14 @@ struct ip_vs_lblcr_table {
  *      IPVS LBLCR sysctl table
  */
 
-static struct ctl_table vs_vars_table[] = {
-	{
-		.procname	= "lblcr_expiration",
-		.data		= NULL,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-	},
+static void *ip_vs_lblcr_expiration_data(const struct sysctl_context *ctx)
+{
+	return &net_ipvs(ctx->ns.net_ns)->sysctl_lblcr_expiration;
+}
+
+static const struct sysctl_field vs_vars_table[] = {
+	SYSCTL_FIELD_CUSTOM("lblcr_expiration", 0644, sizeof(int),
+			 ip_vs_lblcr_expiration_data, proc_dointvec_jiffies),
 };
 #endif
 
@@ -734,35 +734,26 @@ static struct ip_vs_scheduler ip_vs_lblcr_scheduler =
 #ifdef CONFIG_SYSCTL
 static int __net_init __ip_vs_lblcr_init(struct net *net)
 {
+	struct sysctl_context ctx = {
+		.ns.net_ns = net,
+	};
 	struct netns_ipvs *ipvs = net_ipvs(net);
-	size_t vars_table_size = ARRAY_SIZE(vs_vars_table);
 
 	if (!ipvs)
 		return -ENOENT;
 
-	if (!net_eq(net, &init_net)) {
-		ipvs->lblcr_ctl_table = kmemdup(vs_vars_table,
-						sizeof(vs_vars_table),
-						GFP_KERNEL);
-		if (ipvs->lblcr_ctl_table == NULL)
-			return -ENOMEM;
+	ipvs->sysctl_lblcr_expiration = DEFAULT_EXPIRATION;
 
+	if (!net_eq(net, &init_net)) {
 		/* Don't export sysctls to unprivileged users */
 		if (net->user_ns != &init_user_ns)
-			vars_table_size = 0;
-	} else
-		ipvs->lblcr_ctl_table = vs_vars_table;
-	ipvs->sysctl_lblcr_expiration = DEFAULT_EXPIRATION;
-	ipvs->lblcr_ctl_table[0].data = &ipvs->sysctl_lblcr_expiration;
-
-	ipvs->lblcr_ctl_header = register_net_sysctl_sz(net, "net/ipv4/vs",
-							ipvs->lblcr_ctl_table,
-							vars_table_size);
-	if (!ipvs->lblcr_ctl_header) {
-		if (!net_eq(net, &init_net))
-			kfree(ipvs->lblcr_ctl_table);
-		return -ENOMEM;
+			return 0;
 	}
+
+	ipvs->lblcr_ctl_header = register_sysctl_fields(&net->sysctls, "net/ipv4/vs",
+							vs_vars_table, &ctx);
+	if (!ipvs->lblcr_ctl_header)
+		return -ENOMEM;
 
 	return 0;
 }
@@ -772,9 +763,6 @@ static void __net_exit __ip_vs_lblcr_exit(struct net *net)
 	struct netns_ipvs *ipvs = net_ipvs(net);
 
 	unregister_net_sysctl_table(ipvs->lblcr_ctl_header);
-
-	if (!net_eq(net, &init_net))
-		kfree(ipvs->lblcr_ctl_table);
 }
 
 #else
