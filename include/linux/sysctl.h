@@ -39,6 +39,7 @@ struct ctl_table_root;
 struct ctl_table_header;
 struct ctl_dir;
 struct net;
+struct mpls_dev;
 struct ipc_namespace;
 struct pid_namespace;
 struct user_namespace;
@@ -97,6 +98,9 @@ struct ctl_context {
 		struct pid_namespace *pid_ns;
 		struct net *net_ns;
 	} ns;
+	union {
+		struct mpls_dev *mpls_dev;
+	} target;
 };
 
 int proc_dostring(const struct ctl_table *, int, void *, size_t *, loff_t *);

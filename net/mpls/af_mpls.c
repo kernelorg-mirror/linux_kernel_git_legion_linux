@@ -1387,74 +1387,53 @@ static int mpls_netconf_dump_devconf(struct sk_buff *skb,
 	return err;
 }
 
-#define MPLS_PERDEV_SYSCTL_OFFSET(field)	\
-	(&((struct mpls_dev *)0)->field)
+static void *mpls_dev_data(const struct ctl_context *ctx)
+{
+	return ctx->target.mpls_dev;
+}
 
 static int mpls_conf_proc(const struct ctl_table *ctl, int write,
 			  void *buffer, size_t *lenp, loff_t *ppos)
 {
-	int oval = *(int *)ctl->data;
-	int ret = proc_dointvec(ctl, write, buffer, lenp, ppos);
+	struct mpls_dev *mdev = ctl->data;
+	int oval = mdev->input_enabled;
+	struct ctl_table tmp = *ctl;
+	int ret;
 
-	if (write) {
-		struct mpls_dev *mdev = ctl->extra1;
-		int i = (int *)ctl->data - (int *)mdev;
-		struct net *net = ctl->extra2;
-		int val = *(int *)ctl->data;
+	tmp.data = &mdev->input_enabled;
+	ret = proc_dointvec(&tmp, write, buffer, lenp, ppos);
 
-		if (i == offsetof(struct mpls_dev, input_enabled) &&
-		    val != oval) {
-			mpls_netconf_notify_devconf(net, RTM_NEWNETCONF,
-						    NETCONFA_INPUT, mdev);
-		}
-	}
+	if (write && ret == 0 && mdev->input_enabled != oval)
+		mpls_netconf_notify_devconf(dev_net(mdev->dev), RTM_NEWNETCONF,
+					    NETCONFA_INPUT, mdev);
 
 	return ret;
 }
 
-static const struct ctl_table mpls_dev_table[] = {
-	{
-		.procname	= "input",
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= mpls_conf_proc,
-		.data		= MPLS_PERDEV_SYSCTL_OFFSET(input_enabled),
-	},
+static const struct ctl_field mpls_dev_table[] = {
+	CTL_FIELD_CUSTOM("input", 0644, sizeof(int), mpls_dev_data,
+			 mpls_conf_proc),
 };
 
 static int mpls_dev_sysctl_register(struct net_device *dev,
 				    struct mpls_dev *mdev)
 {
 	char path[sizeof("net/mpls/conf/") + IFNAMSIZ];
-	size_t table_size = ARRAY_SIZE(mpls_dev_table);
 	struct net *net = dev_net(dev);
-	struct ctl_table *table;
-	int i;
-
-	table = kmemdup(&mpls_dev_table, sizeof(mpls_dev_table), GFP_KERNEL);
-	if (!table)
-		goto out;
-
-	/* Table data contains only offsets relative to the base of
-	 * the mdev at this point, so make them absolute.
-	 */
-	for (i = 0; i < table_size; i++) {
-		table[i].data = (char *)mdev + (uintptr_t)table[i].data;
-		table[i].extra1 = mdev;
-		table[i].extra2 = net;
-	}
+	struct ctl_context ctx = {
+		.ns.net_ns = net,
+		.target.mpls_dev = mdev,
+	};
 
 	snprintf(path, sizeof(path), "net/mpls/conf/%s", dev->name);
 
-	mdev->sysctl = register_net_sysctl_sz(net, path, table, table_size);
+	mdev->sysctl = register_net_sysctl_ctx(net, path, mpls_dev_table, &ctx);
 	if (!mdev->sysctl)
-		goto free;
+		goto out;
 
 	mpls_netconf_notify_devconf(net, RTM_NEWNETCONF, NETCONFA_ALL, mdev);
 	return 0;
 
-free:
-	kfree(table);
 out:
 	mdev->sysctl = NULL;
 	return -ENOBUFS;
@@ -1464,14 +1443,11 @@ static void mpls_dev_sysctl_unregister(struct net_device *dev,
 				       struct mpls_dev *mdev)
 {
 	struct net *net = dev_net(dev);
-	const struct ctl_table *table;
 
 	if (!mdev->sysctl)
 		return;
 
-	table = mdev->sysctl->ctl_table_arg;
 	unregister_net_sysctl_table(mdev->sysctl);
-	kfree(table);
 
 	mpls_netconf_notify_devconf(net, RTM_DELNETCONF, 0, mdev);
 }

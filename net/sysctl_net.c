@@ -172,6 +172,21 @@ struct ctl_table_header *register_net_sysctl_sz(struct net *net,
 }
 EXPORT_SYMBOL_GPL(register_net_sysctl_sz);
 
+struct ctl_table_header *register_net_sysctl_ctx_sz(struct net *net,
+						    const char *path,
+						    const struct ctl_field *fields,
+						    size_t field_count,
+						    const struct ctl_context *ctx)
+{
+	struct ctl_context net_ctx = *ctx;
+
+	net_ctx.ns.net_ns = net;
+
+	return __register_sysctl_fields(&net->sysctls, path, fields,
+					field_count, &net_ctx);
+}
+EXPORT_SYMBOL_GPL(register_net_sysctl_ctx_sz);
+
 struct ctl_table_header *register_net_sysctl_fields_sz(struct net *net,
 						       const char *path,
 						       const struct ctl_field *fields,
@@ -181,8 +196,7 @@ struct ctl_table_header *register_net_sysctl_fields_sz(struct net *net,
 		.ns.net_ns = net,
 	};
 
-	return __register_sysctl_fields(&net->sysctls, path, fields,
-					field_count, &ctx);
+	return register_net_sysctl_ctx_sz(net, path, fields, field_count, &ctx);
 }
 EXPORT_SYMBOL_GPL(register_net_sysctl_fields_sz);
 

@@ -517,13 +517,21 @@ void unregister_pernet_device(struct pernet_operations *);
 
 struct ctl_table;
 struct ctl_field;
+struct ctl_context;
 
 #define register_net_sysctl(net, path, table)	\
 	register_net_sysctl_sz(net, path, table, ARRAY_SIZE(table))
+#define register_net_sysctl_ctx(net, path, fields, ctx)		\
+	register_net_sysctl_ctx_sz(net, path, fields, ARRAY_SIZE(fields), ctx)
 #ifdef CONFIG_SYSCTL
 int net_sysctl_init(void);
 struct ctl_table_header *register_net_sysctl_sz(struct net *net, const char *path,
 					     struct ctl_table *table, size_t table_size);
+struct ctl_table_header *register_net_sysctl_ctx_sz(struct net *net,
+						    const char *path,
+						    const struct ctl_field *fields,
+						    size_t field_count,
+						    const struct ctl_context *ctx);
 struct ctl_table_header *register_net_sysctl_fields_sz(struct net *net, const char *path,
 						       const struct ctl_field *fields,
 						       size_t field_count);
@@ -539,6 +547,14 @@ static inline struct ctl_table_header *register_net_sysctl_sz(struct net *net,
 static inline struct ctl_table_header *
 register_net_sysctl_fields_sz(struct net *net, const char *path,
 			      const struct ctl_field *fields, size_t field_count)
+{
+	return NULL;
+}
+
+static inline struct ctl_table_header *
+register_net_sysctl_ctx_sz(struct net *net, const char *path,
+			   const struct ctl_field *fields, size_t field_count,
+			   const struct ctl_context *ctx)
 {
 	return NULL;
 }
