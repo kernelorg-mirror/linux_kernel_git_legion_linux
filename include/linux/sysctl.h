@@ -40,6 +40,7 @@ struct ctl_table_header;
 struct ctl_dir;
 struct net;
 struct mpls_dev;
+struct neigh_parms;
 struct ipv4_devconf;
 struct ipv6_devconf;
 struct ipc_namespace;
@@ -102,6 +103,7 @@ struct ctl_context {
 	} ns;
 	union {
 		struct mpls_dev *mpls_dev;
+		struct neigh_parms *neigh_parms;
 		struct ipv4_devconf *ipv4_devconf;
 		struct ipv6_devconf *ipv6_devconf;
 	} target;
