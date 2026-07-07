@@ -506,6 +506,10 @@ struct ctl_table_header *
 __register_sysctl_fields(struct ctl_table_set *set, const char *path,
 			 const struct sysctl_field *fields, size_t field_count,
 			 const struct sysctl_context *ctx, size_t ctx_size);
+struct ctl_table_header *
+register_sysctl_fields_sz(const char *path,
+			  const struct sysctl_field *fields, size_t field_count,
+			  const struct sysctl_context *ctx, size_t ctx_size);
 struct ctl_table_header *register_sysctl_sz(const char *path, const struct ctl_table *table,
 					    size_t table_size);
 void unregister_sysctl_table(struct ctl_table_header * table);
@@ -537,6 +541,14 @@ static inline struct ctl_table_header *register_sysctl_mount_point(const char *p
 static inline struct ctl_table_header *register_sysctl_sz(const char *path,
 							  const struct ctl_table *table,
 							  size_t table_size)
+{
+	return NULL;
+}
+
+static inline struct ctl_table_header *
+register_sysctl_fields_sz(const char *path,
+			  const struct ctl_field *fields, size_t field_count,
+			  const struct ctl_context *ctx, size_t ctx_size)
 {
 	return NULL;
 }

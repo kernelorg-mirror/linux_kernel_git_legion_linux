@@ -1714,6 +1714,17 @@ struct ctl_table_header *register_sysctl_sz(const char *path, const struct ctl_t
 }
 EXPORT_SYMBOL(register_sysctl_sz);
 
+struct ctl_table_header *register_sysctl_fields_sz(const char *path,
+						   const struct sysctl_field *fields,
+						   size_t field_count,
+						   const struct sysctl_context *ctx,
+						   size_t ctx_size)
+{
+	return __register_sysctl_fields(&sysctl_table_root.default_set, path,
+					fields, field_count, ctx, ctx_size);
+}
+EXPORT_SYMBOL(register_sysctl_fields_sz);
+
 /**
  * __register_sysctl_init() - register sysctl table to path
  * @path: path name for sysctl base. If that path doesn't exist we will create
