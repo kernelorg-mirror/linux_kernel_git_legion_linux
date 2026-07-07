@@ -20,6 +20,7 @@
 /* Define this later. */
 struct parport;
 struct pardevice;
+struct ctl_table_header;
 
 struct pc_parport_state {
 	unsigned int ctr;
@@ -151,7 +152,7 @@ struct pardevice {
 	unsigned long waiting;		 /* long req'd for set_bit --RR */
 	struct pardevice *waitprev;
 	struct pardevice *waitnext;
-	void * sysctl_table;
+	struct ctl_table_header *sysctl_table;
 };
 
 #define to_pardevice(n) container_of(n, struct pardevice, dev)
@@ -223,7 +224,8 @@ struct parport {
 	struct timer_list timer;
 	unsigned int flags;
 
-	void *sysctl_table;
+	struct ctl_table_header *sysctl_table;
+	struct ctl_table_header *sysctl_devices_header;
 	struct parport_device_info probe_info[5]; /* 0-3 + non-IEEE1284.3 */
 	struct ieee1284_info ieee1284;
 

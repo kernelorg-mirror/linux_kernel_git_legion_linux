@@ -41,6 +41,8 @@ struct ctl_dir;
 struct net;
 struct mpls_dev;
 struct neigh_parms;
+struct parport;
+struct pardevice;
 struct ipv4_devconf;
 struct ipv6_devconf;
 struct ipc_namespace;
@@ -104,6 +106,8 @@ struct ctl_context {
 	union {
 		struct mpls_dev *mpls_dev;
 		struct neigh_parms *neigh_parms;
+		struct parport *parport;
+		struct pardevice *pardevice;
 		struct ipv4_devconf *ipv4_devconf;
 		struct ipv6_devconf *ipv6_devconf;
 	} target;
@@ -490,6 +494,10 @@ __register_sysctl_fields(struct ctl_table_set *set, const char *path,
 			 const struct ctl_context *ctx);
 struct ctl_table_header *register_sysctl_sz(const char *path, const struct ctl_table *table,
 					    size_t table_size);
+struct ctl_table_header *register_sysctl_ctx_sz(const char *path,
+						const struct ctl_field *fields,
+						size_t field_count,
+						const struct ctl_context *ctx);
 void unregister_sysctl_table(struct ctl_table_header * table);
 
 extern int sysctl_init_bases(void);
@@ -519,6 +527,13 @@ static inline struct ctl_table_header *register_sysctl_mount_point(const char *p
 static inline struct ctl_table_header *register_sysctl_sz(const char *path,
 							  const struct ctl_table *table,
 							  size_t table_size)
+{
+	return NULL;
+}
+
+static inline struct ctl_table_header *
+register_sysctl_ctx_sz(const char *path, const struct ctl_field *fields,
+		       size_t field_count, const struct ctl_context *ctx)
 {
 	return NULL;
 }
