@@ -78,6 +78,7 @@ struct neigh_parms {
 	struct neigh_table *tbl;
 
 	void	*sysctl_table;
+	proc_handler *sysctl_handler;
 
 	int dead;
 	refcount_t refcnt;
