@@ -26,16 +26,19 @@
 #include <linux/rcupdate.h>
 #include <linux/wait.h>
 #include <linux/rbtree.h>
+#include <linux/stddef.h>
 #include <linux/uidgid.h>
 #include <uapi/linux/sysctl.h>
 
 /* For the /proc/sys support */
 struct completion;
 struct ctl_table;
+struct sysctl_field;
 struct nsproxy;
 struct ctl_table_root;
 struct ctl_table_header;
 struct ctl_dir;
+struct user_namespace;
 
 /* Keep the same order as in fs/proc/proc_sysctl.c */
 #define SYSCTL_ZERO			((void *)&sysctl_vals[0])
@@ -83,6 +86,12 @@ extern const unsigned int sysctl_uint_vals[];
 
 typedef int proc_handler(const struct ctl_table *ctl, int write, void *buffer,
 		size_t *lenp, loff_t *ppos);
+
+struct sysctl_context {
+	union {
+		struct user_namespace *user_ns;
+	} ns;
+};
 
 int proc_dostring(const struct ctl_table *, int, void *, size_t *, loff_t *);
 int proc_dobool(const struct ctl_table *table, int write, void *buffer,
@@ -182,30 +191,244 @@ struct ctl_table {
 	void *extra2;
 } __randomize_layout;
 
+enum sysctl_field_type {
+	SYSCTL_FIELD_CUSTOM,
+	SYSCTL_FIELD_STRING,
+	SYSCTL_FIELD_BOOL,
+	SYSCTL_FIELD_U8,
+	SYSCTL_FIELD_U8_MINMAX,
+	SYSCTL_FIELD_STATIC_U8_MINMAX,
+	SYSCTL_FIELD_INT,
+	SYSCTL_FIELD_INT_MINMAX,
+	SYSCTL_FIELD_UINT,
+	SYSCTL_FIELD_UINT_MINMAX,
+	SYSCTL_FIELD_STATIC_UINT_MINMAX,
+	SYSCTL_FIELD_ULONG,
+	SYSCTL_FIELD_ULONG_MINMAX,
+	SYSCTL_FIELD_STATIC_INT_MINMAX,
+	SYSCTL_FIELD_STATIC_ULONG_MINMAX,
+};
+
+struct sysctl_field_custom {
+	proc_handler *proc_handler;
+	int maxlen;
+	void *(*data)(const struct sysctl_context *ctx);
+	void *(*extra1)(const struct sysctl_context *ctx);
+	void *(*extra2)(const struct sysctl_context *ctx);
+};
+
+struct sysctl_field_string {
+	char *(*data)(const struct sysctl_context *ctx);
+	int maxlen;
+};
+
+struct sysctl_field_bool {
+	bool *(*data)(const struct sysctl_context *ctx);
+};
+
+struct sysctl_field_u8 {
+	u8 *(*data)(const struct sysctl_context *ctx);
+	unsigned int *(*min_value)(const struct sysctl_context *ctx);
+	unsigned int *(*max_value)(const struct sysctl_context *ctx);
+};
+
+struct sysctl_field_static_u8 {
+	u8 *(*data)(const struct sysctl_context *ctx);
+	unsigned int *min_value;
+	unsigned int *max_value;
+};
+
+struct sysctl_field_int {
+	int *(*data)(const struct sysctl_context *ctx);
+	int *(*min_value)(const struct sysctl_context *ctx);
+	int *(*max_value)(const struct sysctl_context *ctx);
+};
+
+struct sysctl_field_static_int {
+	int *(*data)(const struct sysctl_context *ctx);
+	int *min_value;
+	int *max_value;
+};
+
+struct sysctl_field_uint {
+	unsigned int *(*data)(const struct sysctl_context *ctx);
+	unsigned int *(*min_value)(const struct sysctl_context *ctx);
+	unsigned int *(*max_value)(const struct sysctl_context *ctx);
+};
+
+struct sysctl_field_static_uint {
+	unsigned int *(*data)(const struct sysctl_context *ctx);
+	unsigned int *min_value;
+	unsigned int *max_value;
+};
+
+struct sysctl_field_ulong {
+	unsigned long *(*data)(const struct sysctl_context *ctx);
+	unsigned long *(*min_value)(const struct sysctl_context *ctx);
+	unsigned long *(*max_value)(const struct sysctl_context *ctx);
+};
+
+struct sysctl_field_static_ulong {
+	unsigned long *(*data)(const struct sysctl_context *ctx);
+	unsigned long *min_value;
+	unsigned long *max_value;
+};
+
+#define SYSCTL_FIELD_CUSTOM_MODE(_procname, _mode, _mode_fn, _len, _data, _proc_handler)	\
+	{										\
+		.procname	= (_procname),						\
+		.mode		= (_mode),						\
+		.mode_fn	= (_mode_fn),						\
+		.type		= SYSCTL_FIELD_CUSTOM,					\
+		.ctl_custom	= {							\
+			.proc_handler	= (_proc_handler),				\
+			.data		= (_data),					\
+			.maxlen		= (_len),					\
+		}, \
+	}
+
+#define SYSCTL_FIELD_CUSTOM(_procname, _mode, _len, _data, _proc_handler) \
+	SYSCTL_FIELD_CUSTOM_MODE(_procname, _mode, NULL, _len, _data, _proc_handler)
+
+#define SYSCTL_FIELD_STRING(_procname, _mode, _len, _data)		\
+	{							\
+		.procname	= (_procname),			\
+		.mode		= (_mode),			\
+		.type		= SYSCTL_FIELD_STRING,		\
+		.ctl_string	= {				\
+			.data		= (_data),		\
+			.maxlen		= (_len),		\
+		},						\
+	}
+
+#define SYSCTL_FIELD_BOOL(_procname, _mode, _data)			\
+	{							\
+		.procname	= (_procname),			\
+		.mode		= (_mode),			\
+		.type		= SYSCTL_FIELD_BOOL,		\
+		.ctl_bool	= { .data = (_data) },		\
+	}
+
+#define __SYSCTL_FIELD(_type, _name, _procname, _mode, _mode_fn, _data, _min, _max)	\
+	{										\
+		.procname	= (_procname),						\
+		.mode		= (_mode),						\
+		.mode_fn	= (_mode_fn),						\
+		.type		= (_type),						\
+		.ctl_##_name	= {							\
+			.data = (_data),						\
+			.min_value = (_min),						\
+			.max_value = (_max),						\
+		}, \
+	}
+
+#define SYSCTL_FIELD_U8(_procname, _mode, _data)				\
+	__SYSCTL_FIELD(SYSCTL_FIELD_U8, u8,					\
+		       _procname, _mode, NULL, _data, NULL, NULL)
+
+#define SYSCTL_FIELD_U8_MINMAX(_procname, _mode, _data, _min, _max)		\
+	__SYSCTL_FIELD(SYSCTL_FIELD_U8_MINMAX, u8,				\
+		       _procname, _mode, NULL, _data, _min, _max)
+
+#define SYSCTL_FIELD_INT(_procname, _mode, _data)				\
+	__SYSCTL_FIELD(SYSCTL_FIELD_INT, int,					\
+		       _procname, _mode, NULL, _data, NULL, NULL)
+
+#define SYSCTL_FIELD_INT_MINMAX(_procname, _mode, _data, _min, _max)		\
+	__SYSCTL_FIELD(SYSCTL_FIELD_INT_MINMAX, int,				\
+		       _procname, _mode, NULL, _data, _min, _max)
+
+#define SYSCTL_FIELD_UINT(_procname, _mode, _data)				\
+	__SYSCTL_FIELD(SYSCTL_FIELD_UINT, uint,					\
+		       _procname, _mode, NULL, _data, NULL, NULL)
+
+#define SYSCTL_FIELD_UINT_MINMAX(_procname, _mode, _data, _min, _max)		\
+	__SYSCTL_FIELD(SYSCTL_FIELD_UINT_MINMAX, uint,				\
+		       _procname, _mode, NULL, _data, _min, _max)
+
+#define SYSCTL_FIELD_ULONG(_procname, _mode, _data)				\
+	__SYSCTL_FIELD(SYSCTL_FIELD_ULONG, ulong,				\
+		       _procname, _mode, NULL, _data, NULL, NULL)
+
+#define SYSCTL_FIELD_ULONG_MINMAX(_procname, _mode, _data, _min, _max)		\
+	__SYSCTL_FIELD(SYSCTL_FIELD_ULONG_MINMAX, ulong,			\
+		       _procname, _mode, NULL, _data, _min, _max)
+
+#define SYSCTL_FIELD_STATIC_U8_MINMAX(_procname, _mode, _data, _min, _max)	\
+	__SYSCTL_FIELD(SYSCTL_FIELD_STATIC_U8_MINMAX, static_u8,		\
+		       _procname, _mode, NULL, _data, _min, _max)
+
+#define SYSCTL_FIELD_STATIC_UINT_MINMAX(_procname, _mode, _data, _min, _max)	\
+	__SYSCTL_FIELD(SYSCTL_FIELD_STATIC_UINT_MINMAX, static_uint,		\
+		       _procname, _mode, NULL, _data, _min, _max)
+
+#define SYSCTL_FIELD_STATIC_INT_MINMAX(_procname, _mode, _data, _min, _max)	\
+	__SYSCTL_FIELD(SYSCTL_FIELD_STATIC_INT_MINMAX, static_int,		\
+		       _procname, _mode, NULL, _data, _min, _max)
+
+#define SYSCTL_FIELD_STATIC_ULONG_MINMAX(_procname, _mode, _data, _min, _max)	\
+	__SYSCTL_FIELD(SYSCTL_FIELD_STATIC_ULONG_MINMAX, static_ulong,		\
+		       _procname, _mode, NULL, _data, _min, _max)
+
+struct sysctl_field {
+	const char *procname;
+	umode_t mode;
+	enum sysctl_field_type type;
+	umode_t (*mode_fn)(const struct sysctl_context *ctx);
+	union {
+		struct sysctl_field_custom		ctl_custom;
+		struct sysctl_field_string		ctl_string;
+		struct sysctl_field_bool		ctl_bool;
+		struct sysctl_field_u8			ctl_u8;
+		struct sysctl_field_int			ctl_int;
+		struct sysctl_field_uint		ctl_uint;
+		struct sysctl_field_ulong		ctl_ulong;
+		struct sysctl_field_static_u8		ctl_static_u8;
+		struct sysctl_field_static_int		ctl_static_int;
+		struct sysctl_field_static_uint		ctl_static_uint;
+		struct sysctl_field_static_ulong	ctl_static_ulong;
+	};
+} __randomize_layout;
+
 struct ctl_node {
 	struct rb_node node;
 	struct ctl_table_header *header;
 };
 
 /**
- * struct ctl_table_header - maintains dynamic lists of struct ctl_table trees
- * @ctl_table: pointer to the first element in ctl_table array
- * @ctl_table_size: number of elements pointed by @ctl_table
+ * struct ctl_table_header - maintains dynamic lists of sysctl descriptor trees
+ * @ctl_table: pointer to the first element in a legacy ctl_table array
+ * @ctl_fields: pointer to the first element in a ctl_field array
+ * @ctl_table_size: number of elements pointed to by @ctl_table or @ctl_fields
  * @used: The entry will never be touched when equal to 0.
  * @count: Upped every time something is added to @inodes and downed every time
  *         something is removed from inodes
  * @nreg: When nreg drops to 0 the ctl_table_header will be unregistered.
- * @rcu: Delays the freeing of the inode. Introduced with "unfuck proc_sysctl ->d_compare()"
+ * @rcu: delays freeing the header until after an RCU grace period
+ * @unregistering: completion used while unregistering the header
+ * @ctl_table_arg: original legacy ctl_table passed at registration, or NULL
+ * @ctx: copied registration context used to resolve ctl_field entries
+ * @root: sysctl tree containing this header
+ * @set: sysctl set containing this header
+ * @parent: parent directory of this header
+ * @node: array of nodes corresponding to the descriptor entries
+ * @inodes: inodes currently referring to this header
  *
  * @type: Enumeration to differentiate between ctl target types
  * @type.SYSCTL_TABLE_TYPE_DEFAULT: ctl target with no special considerations
  * @type.SYSCTL_TABLE_TYPE_PERMANENTLY_EMPTY: Identifies a permanently empty dir
  *                                            target to serve as a mount point
+ * @table_kind: descriptor format stored in this header
+ * @table_kind.SYSCTL_TABLE_KIND_TABLE: legacy ctl_table descriptors
+ * @table_kind.SYSCTL_TABLE_KIND_FIELD: typed ctl_field descriptors
  */
 struct ctl_table_header {
 	union {
 		struct {
-			const struct ctl_table *ctl_table;
+			union {
+				const struct ctl_table *ctl_table;
+				const struct sysctl_field *ctl_fields;
+			};
 			int ctl_table_size;
 			int used;
 			int count;
@@ -220,10 +443,15 @@ struct ctl_table_header {
 	struct ctl_dir *parent;
 	struct ctl_node *node;
 	struct hlist_head inodes; /* head for proc_inode->sysctl_inodes */
+	const struct sysctl_context *ctx;
 	enum {
 		SYSCTL_TABLE_TYPE_DEFAULT,
 		SYSCTL_TABLE_TYPE_PERMANENTLY_EMPTY,
 	} type;
+	enum {
+		SYSCTL_TABLE_KIND_TABLE,
+		SYSCTL_TABLE_KIND_FIELD,
+	} table_kind;
 };
 
 struct ctl_dir {
@@ -248,6 +476,10 @@ struct ctl_table_root {
 #define register_sysctl(path, table)	\
 	register_sysctl_sz(path, table, ARRAY_SIZE(table))
 
+#define register_sysctl_fields(set, path, fields, ctx)			\
+	__register_sysctl_fields(set, path, fields, ARRAY_SIZE(fields),	\
+				 (ctx), sizeof(*(ctx)))
+
 #ifdef CONFIG_SYSCTL
 
 void proc_sys_poll_notify(struct ctl_table_poll *poll);
@@ -260,6 +492,10 @@ extern void retire_sysctl_set(struct ctl_table_set *set);
 struct ctl_table_header *__register_sysctl_table(
 	struct ctl_table_set *set,
 	const char *path, const struct ctl_table *table, size_t table_size);
+struct ctl_table_header *
+__register_sysctl_fields(struct ctl_table_set *set, const char *path,
+			 const struct sysctl_field *fields, size_t field_count,
+			 const struct sysctl_context *ctx, size_t ctx_size);
 struct ctl_table_header *register_sysctl_sz(const char *path, const struct ctl_table *table,
 					    size_t table_size);
 void unregister_sysctl_table(struct ctl_table_header * table);
@@ -291,6 +527,14 @@ static inline struct ctl_table_header *register_sysctl_mount_point(const char *p
 static inline struct ctl_table_header *register_sysctl_sz(const char *path,
 							  const struct ctl_table *table,
 							  size_t table_size)
+{
+	return NULL;
+}
+
+static inline struct ctl_table_header *
+__register_sysctl_fields(struct ctl_table_set *set, const char *path,
+			 const struct sysctl_field *fields, size_t field_count,
+			 const struct sysctl_context *ctx, size_t ctx_size)
 {
 	return NULL;
 }
