@@ -3281,6 +3281,16 @@ static int vc_get_glyph(struct vc_data *vc, int tc)
 		return -1; /* nothing to display */
 
 	/* Glyph not found */
+	if (vc->vc_utf && !vc->vc_disp_ctrl && vc->vc_glyph_miss) {
+		glyph = vc->vc_glyph_miss(vc, tc);
+
+		/* Callback may have changed font size (256 <-> 512) */
+		charmask = vc->vc_hi_font_mask ? 0x1ff : 0xff;
+
+		if (glyph >= 0 && !(glyph & ~charmask))
+			return glyph;
+	}
+
 	if ((!vc->vc_utf || vc->vc_disp_ctrl || tc < 128) && !(tc & ~charmask)) {
 		/*
 		 * In legacy mode use the glyph we get by a 1:1 mapping.
@@ -3312,8 +3322,8 @@ static int vc_con_write_normal(struct vc_data *vc, int tc, int c,
 		struct vc_draw_region *draw)
 {
 	int next_c;
-	unsigned char vc_attr = vc->vc_attr;
-	u16 himask = vc->vc_hi_font_mask;
+	unsigned char vc_attr;
+	u16 himask;
 	u8 width = 1;
 	bool inverse = false;
 
@@ -3325,6 +3335,8 @@ static int vc_con_write_normal(struct vc_data *vc, int tc, int c,
 
 	/* Now try to find out how to display it */
 	tc = vc_get_glyph(vc, tc);
+	vc_attr = vc->vc_attr;
+	himask = vc->vc_hi_font_mask;
 	if (tc == -1)
 		return -1; /* nothing to display */
 	if (tc < 0) {
@@ -5178,6 +5190,34 @@ u16 screen_glyph(const struct vc_data *vc, int offset)
 	return c;
 }
 EXPORT_SYMBOL_GPL(screen_glyph);
+
+void vc_get_used_glyphs(const struct vc_data *vc, unsigned long *used,
+			unsigned int nr_glyphs)
+{
+	const u16 *buf = vc->vc_origin ? (const u16 *)vc->vc_origin : vc->vc_screenbuf;
+	unsigned int i, count = vc->vc_screenbuf_size / sizeof(u16);
+	u16 himask = vc->vc_hi_font_mask;
+	u16 erase_w, erase_c;
+
+	bitmap_zero(used, nr_glyphs);
+
+	if (buf) {
+		for (i = 0; i < count; i++) {
+			u16 w = scr_readw(&buf[i]);
+			u16 c = (w & 0xff) | ((w & himask) ? 0x100 : 0);
+
+			if (c < nr_glyphs)
+				__set_bit(c, used);
+		}
+	}
+
+	erase_w = vc->vc_video_erase_char;
+	erase_c = (erase_w & 0xff) | ((erase_w & himask) ? 0x100 : 0);
+
+	if (erase_c < nr_glyphs)
+		__set_bit(erase_c, used);
+}
+EXPORT_SYMBOL_GPL(vc_get_used_glyphs);
 
 u32 screen_glyph_unicode(const struct vc_data *vc, int n)
 {

@@ -150,6 +150,7 @@ struct vc_data {
 	/* fonts */
 	unsigned short	vc_hi_font_mask;	/* [#] Attribute set for upper 256 chars of font or 0 if not supported */
 	struct vc_font vc_font;			/* Current VC font set */
+	int (*vc_glyph_miss)(struct vc_data *vc, int ucs);
 	unsigned short	vc_video_erase_char;	/* Background erase character */
 	/* VT terminal data */
 	unsigned int	vc_state;		/* Escape sequence parser state */
