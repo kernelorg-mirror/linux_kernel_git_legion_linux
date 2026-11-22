@@ -570,6 +570,13 @@ int con_clear_unimap(struct vc_data *vc)
 	return con_do_clear_unimap(vc);
 }
 
+int con_clear_unimap_locked(struct vc_data *vc)
+{
+	WARN_CONSOLE_UNLOCKED();
+	return con_do_clear_unimap(vc);
+}
+EXPORT_SYMBOL_GPL(con_clear_unimap_locked);
+
 static struct uni_pagedict *con_unshare_unimap(struct vc_data *vc,
 		struct uni_pagedict *old)
 {
@@ -676,6 +683,83 @@ int con_set_unimap(struct vc_data *vc, ushort ct, struct unipair __user *list)
 
 	return err;
 }
+
+static void con_clear_fontpos(struct uni_pagedict *dict, u16 fontpos)
+{
+	unsigned int d, r, g;
+
+	for (d = 0; d < UNI_DIRS; d++) {
+		u16 **dir = dict->uni_pgdir[d];
+
+		if (!dir)
+			continue;
+
+		for (r = 0; r < UNI_DIR_ROWS; r++) {
+			u16 *row = dir[r];
+
+			if (!row)
+				continue;
+
+			for (g = 0; g < UNI_ROW_GLYPHS; g++) {
+				if (row[g] != fontpos)
+					continue;
+				row[g] = 0xffff;
+				dict->sum -= (fontpos << 20U) + UNI(d, r, g);
+			}
+		}
+	}
+}
+
+/**
+ * con_set_unipair - remap a single font slot to a new Unicode codepoint
+ * @vc: the console to update
+ * @unicode: Unicode BMP codepoint to bind
+ * @fontpos: font glyph slot index (0..MAX_GLYPH-1)
+ *
+ * Unshares the console's uni_pagedict if needed, clears any previous Unicode
+ * mappings pointing to @fontpos, and binds @unicode to @fontpos.
+ *
+ * The caller must hold the console lock.
+ */
+int con_set_unipair(struct vc_data *vc, u16 unicode, u16 fontpos, bool replace)
+{
+	struct uni_pagedict *dict;
+	int err;
+
+	WARN_CONSOLE_UNLOCKED();
+
+	if (fontpos >= MAX_GLYPH)
+		return -EINVAL;
+
+	dict = *vc->uni_pagedict_loc;
+	if (!dict)
+		return -EINVAL;
+
+	if (dict->refcount > 1) {
+		dict = con_unshare_unimap(vc, dict);
+		if (IS_ERR(dict))
+			return PTR_ERR(dict);
+	} else if (dict == dflt) {
+		dflt = NULL;
+	}
+
+	if (replace)
+		con_clear_fontpos(dict, fontpos);
+
+	err = con_insert_unipair(dict, unicode, fontpos);
+	if (err)
+		return err;
+
+	if (dict->inverse_trans_unicode) {
+		if (replace || !dict->inverse_trans_unicode[fontpos])
+			dict->inverse_trans_unicode[fontpos] = unicode;
+	} else {
+		set_inverse_trans_unicode(dict);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(con_set_unipair);
 
 /**
  *	con_set_default_unimap	-	set default unicode map

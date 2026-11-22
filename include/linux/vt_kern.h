@@ -64,7 +64,9 @@ int con_get_trans_old(unsigned char __user * table);
 int con_set_trans_new(unsigned short __user * table);
 int con_get_trans_new(unsigned short __user * table);
 int con_clear_unimap(struct vc_data *vc);
+int con_clear_unimap_locked(struct vc_data *vc);
 int con_set_unimap(struct vc_data *vc, ushort ct, struct unipair __user *list);
+int con_set_unipair(struct vc_data *vc, u16 unicode, u16 fontpos, bool replace);
 int con_get_unimap(struct vc_data *vc, ushort ct, ushort __user *uct, struct unipair __user *list);
 int con_set_default_unimap(struct vc_data *vc);
 void con_free_unimap(struct vc_data *vc);
@@ -91,10 +93,19 @@ static inline int con_clear_unimap(struct vc_data *vc)
 {
 	return 0;
 }
+static inline int con_clear_unimap_locked(struct vc_data *vc)
+{
+	return 0;
+}
 static inline
 int con_set_unimap(struct vc_data *vc, ushort ct, struct unipair __user *list)
 {
 	return 0;
+}
+static inline int con_set_unipair(struct vc_data *vc, u16 unicode, u16 fontpos,
+				  bool replace)
+{
+	return -EOPNOTSUPP;
 }
 static inline
 int con_get_unimap(struct vc_data *vc, ushort ct, ushort __user *uct,
