@@ -33,6 +33,8 @@ void do_blank_screen(int entering_gfx);
 void do_unblank_screen(int leaving_gfx);
 void poke_blanked_console(void);
 int con_font_op(struct vc_data *vc, struct console_font_op *op);
+int con_font_set_glyph(struct vc_data *vc, unsigned int slot,
+		       const unsigned char *glyph);
 void vc_get_used_glyphs(const struct vc_data *vc, unsigned long *used,
 			unsigned int nr_glyphs);
 int con_set_cmap(unsigned char __user *cmap);

@@ -5175,6 +5175,21 @@ int con_font_op(struct vc_data *vc, struct console_font_op *op)
 	return -ENOSYS;
 }
 
+int con_font_set_glyph(struct vc_data *vc, unsigned int slot,
+		       const unsigned char *glyph)
+{
+	WARN_CONSOLE_UNLOCKED();
+
+	if (vc->vc_mode != KD_TEXT)
+		return -EINVAL;
+
+	if (!vc->vc_sw || !vc->vc_sw->con_font_set_glyph)
+		return -EOPNOTSUPP;
+
+	return vc->vc_sw->con_font_set_glyph(vc, slot, glyph);
+}
+EXPORT_SYMBOL_GPL(con_font_set_glyph);
+
 /*
  *	Interface exported to selection and vcs.
  */

@@ -111,6 +111,79 @@ font_data_t *font_data_import(const struct console_font *font, unsigned int vpit
 EXPORT_SYMBOL_GPL(font_data_import);
 
 /**
+ * font_data_unshare - Ensure font data is a private mutable buffer of at least @new_size bytes
+ * @fd: Existing font data
+ * @new_size: Required size in bytes (at least font_data_size(@fd) or expanded)
+ *
+ * If @fd is already a dynamically allocated, unshared buffer of at least
+ * @new_size bytes, returns @fd unchanged. Otherwise allocates a new buffer,
+ * copies existing glyph data (zero-filling any newly added space), and
+ * returns the new font_data_t with refcount 1.
+ *
+ * Returns:
+ * A private font_data_t on success, or a pointer-encoded errno value.
+ */
+font_data_t *font_data_unshare(font_data_t *fd, unsigned int new_size)
+{
+	unsigned int old_size = font_data_size(fd);
+	struct font_data *font_data;
+	size_t alloc_size;
+	font_data_t *new_fd;
+
+	if (!new_size)
+		return ERR_PTR(-EINVAL);
+
+	if (!font_data_is_internal(fd) && REFCOUNT(fd) == 1 && old_size >= new_size)
+		return fd;
+
+	if (check_add_overflow(sizeof(*font_data), (size_t)new_size, &alloc_size))
+		return ERR_PTR(-EINVAL);
+
+	font_data = kzalloc(alloc_size, GFP_KERNEL);
+	if (!font_data)
+		return ERR_PTR(-ENOMEM);
+
+	memcpy(font_data->data, font_data_buf(fd), min(old_size, new_size));
+
+	new_fd = font_data->data;
+	REFCOUNT(new_fd) = 1;
+	FNTSIZE(new_fd) = new_size;
+	FNTSUM(new_fd) = 0;
+
+	return new_fd;
+}
+EXPORT_SYMBOL_GPL(font_data_unshare);
+
+/**
+ * font_data_set_glyph - Overwrite a single glyph in private font data
+ * @fd: Private, unshared font data
+ * @width: Glyph width in pixels
+ * @vpitch: Number of scanlines per glyph
+ * @slot: Glyph index to overwrite
+ * @glyph: Raw bitmap for the glyph (font_glyph_size(@width, @vpitch) bytes)
+ *
+ * Returns:
+ * 0 on success, or a negative errno code.
+ */
+int font_data_set_glyph(font_data_t *fd, unsigned int width, unsigned int vpitch,
+			unsigned int slot, const unsigned char *glyph)
+{
+	unsigned int glyph_size = font_glyph_size(width, vpitch);
+
+	if (!glyph || font_data_is_internal(fd) || REFCOUNT(fd) != 1)
+		return -EINVAL;
+
+	if (!glyph_size || slot >= font_data_size(fd) / glyph_size)
+		return -EINVAL;
+
+	memcpy((unsigned char *)fd + slot * glyph_size, glyph, glyph_size);
+	FNTSUM(fd) = 0;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(font_data_set_glyph);
+
+/**
  * font_data_get - Acquires a reference on font data
  * @fd: Font data
  *

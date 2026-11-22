@@ -106,6 +106,8 @@ struct consw {
 	int	(*con_font_set)(struct vc_data *vc,
 				const struct console_font *font,
 				unsigned int vpitch, unsigned int flags);
+	int	(*con_font_set_glyph)(struct vc_data *vc, unsigned int slot,
+				      const unsigned char *glyph);
 	int	(*con_font_get)(struct vc_data *vc, struct console_font *font,
 			unsigned int vpitch);
 	int	(*con_font_default)(struct vc_data *vc,

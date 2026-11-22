@@ -100,6 +100,9 @@ static inline const unsigned char *font_data_buf(font_data_t *fd)
 
 font_data_t *font_data_import(const struct console_font *font, unsigned int vpitch,
 			      u32 (*calc_csum)(u32, const void *, size_t));
+font_data_t *font_data_unshare(font_data_t *fd, unsigned int new_size);
+int font_data_set_glyph(font_data_t *fd, unsigned int width, unsigned int vpitch,
+			unsigned int slot, const unsigned char *glyph);
 void font_data_get(font_data_t *fd);
 bool font_data_put(font_data_t *fd);
 unsigned int font_data_size(font_data_t *fd);

@@ -2570,6 +2570,72 @@ static int fbcon_set_font(struct vc_data *vc, const struct console_font *font,
 	return ret;
 }
 
+static int fbcon_set_glyph(struct vc_data *vc, unsigned int slot,
+			   const unsigned char *glyph)
+{
+	struct fb_info *info = fbcon_info_from_console(vc->vc_num);
+	struct fbcon_par *par = info->fbcon_par;
+	struct fbcon_display *p = &fb_display[vc->vc_num];
+	unsigned int w = vc->vc_font.width;
+	unsigned int h = vc->vc_font.height;
+	unsigned int charcount = vc->vc_font.charcount;
+	unsigned int new_size;
+	font_data_t *old_fd = p->fontdata;
+	font_data_t *new_fd;
+	int ret;
+
+	if (!old_fd || !glyph || slot >= 512)
+		return -EINVAL;
+
+	if (slot >= charcount) {
+		if (charcount != 256 || fbcon_invalid_charcount(info, 512))
+			return -EINVAL;
+
+		charcount = 512;
+	}
+
+	new_size = font_glyph_size(w, h) * charcount;
+	new_fd = font_data_unshare(old_fd, new_size);
+	if (IS_ERR(new_fd))
+		return PTR_ERR(new_fd);
+
+	ret = font_data_set_glyph(new_fd, w, h, slot, glyph);
+	if (ret) {
+		if (new_fd != old_fd)
+			font_data_put(new_fd);
+		return ret;
+	}
+
+	if (new_fd != old_fd) {
+		p->fontdata = new_fd;
+		vc->vc_font.data = font_data_buf(new_fd);
+		font_data_put(old_fd);
+	}
+
+	if (charcount != vc->vc_font.charcount) {
+		vc->vc_font.charcount = charcount;
+
+		if (!vc->vc_hi_font_mask && charcount == 512)
+			set_vc_hi_font(vc, true);
+	}
+
+	if (con_is_visible(vc)) {
+		set_blitting_type(vc, info);
+
+		if (par->bitops->rotate_font) {
+#ifdef CONFIG_FRAMEBUFFER_CONSOLE_ROTATION
+			kfree(par->rotated.buf);
+			memset(&par->rotated, 0, sizeof(par->rotated));
+#endif
+			ret = par->bitops->rotate_font(info, vc);
+			if (ret)
+				return ret;
+		}
+	}
+
+	return 0;
+}
+
 static int fbcon_set_def_font(struct vc_data *vc, struct console_font *font,
 			      const char *name)
 {
@@ -3213,6 +3279,7 @@ static const struct consw fb_con = {
 	.con_blank 		= fbcon_blank,
 	.con_unblank		= fbcon_unblank,
 	.con_font_set 		= fbcon_set_font,
+	.con_font_set_glyph	= fbcon_set_glyph,
 	.con_font_get 		= fbcon_get_font,
 	.con_font_default	= fbcon_set_def_font,
 	.con_set_palette 	= fbcon_set_palette,
