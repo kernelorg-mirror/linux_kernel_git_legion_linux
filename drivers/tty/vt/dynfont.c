@@ -26,6 +26,7 @@
 #include <linux/sysfs.h>
 #include <linux/unaligned.h>
 #include <linux/vt.h>
+#include <linux/vt_buffer.h>
 #include <linux/vt_kern.h>
 #include <linux/workqueue.h>
 
@@ -236,6 +237,58 @@ static int dynfont_pick_slot(struct vc_data *vc)
 	return slot;
 }
 
+static int dynfont_evict_topmost_slot(struct vc_data *vc)
+{
+	u16 *buf = vc->vc_origin ? (u16 *)vc->vc_origin : vc->vc_screenbuf;
+	unsigned int i, count = vc->vc_screenbuf_size / sizeof(u16);
+	u16 himask = vc->vc_hi_font_mask;
+	u16 erase_c = (vc->vc_video_erase_char & 0xff) |
+		      ((vc->vc_video_erase_char & himask) ? 0x100 : 0);
+	int victim = -ENOSPC;
+
+	if (!buf || !vc->vc_cols)
+		return -ENOSPC;
+
+	for (i = 0; i < count; i++) {
+		u16 w = scr_readw(&buf[i]);
+		u16 c = (w & 0xff) | ((w & himask) ? 0x100 : 0);
+
+		if (c == 0 || c == 0x20 || c == 0x7f || c == erase_c)
+			continue;
+		if (c < DYNFONT_MAX_SLOTS) {
+			victim = c;
+			break;
+		}
+	}
+
+	if (victim < 0)
+		return -ENOSPC;
+
+	/* Replace visible occurrences of the evicted slot with U+FFFD (0x7f) */
+	for (; i < count; i++) {
+		u16 w = scr_readw(&buf[i]);
+		u16 c = (w & 0xff) | ((w & himask) ? 0x100 : 0);
+		u16 new_w;
+
+		if (c != victim)
+			continue;
+
+		new_w = (w & ~(himask | 0xff)) | 0x7f;
+		scr_writew(new_w, &buf[i]);
+		if (con_is_visible(vc) && vc->vc_sw) {
+			unsigned int y = i / vc->vc_cols;
+			unsigned int x = i % vc->vc_cols;
+
+			if (vc->vc_sw->con_putcs)
+				vc->vc_sw->con_putcs(vc, &buf[i], 1, y, x);
+			else if (vc->vc_sw->con_putc)
+				vc->vc_sw->con_putc(vc, new_w, y, x);
+		}
+	}
+
+	return victim;
+}
+
 static int dynfont_find_glyph_slot(struct vc_data *vc, u32 glyph_id)
 {
 	unsigned int slot;
@@ -295,11 +348,12 @@ static int dynfont_glyph_miss(struct vc_data *vc, int ucs)
 	}
 
 	slot = dynfont_pick_slot(vc);
-	if (slot < 0) {
-		if (slot == -ENOSPC)
-			atomic64_inc(&dynfont_stat_nospace);
-		return slot;
+	if (slot == -ENOSPC) {
+		atomic64_inc(&dynfont_stat_nospace);
+		slot = dynfont_evict_topmost_slot(vc);
 	}
+	if (slot < 0)
+		return slot;
 
 	ret = con_font_set_glyph(vc, slot, glyph);
 	if (ret)
