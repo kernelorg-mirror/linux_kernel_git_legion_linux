@@ -49,6 +49,15 @@ config CONSOLE_TRANSLATIONS
 	  This enables support for font mapping and Unicode translation
 	  on virtual consoles.
 
+config VT_DYNFONT
+	tristate "Dynamic VT console font loader (experimental)"
+	depends on VT && CONSOLE_TRANSLATIONS && FRAMEBUFFER_CONSOLE
+	select FW_LOADER
+	help
+	  Experimental driver that loads a PSF2 v1 indexed Unicode console
+	  font via request_firmware() and dynamically swaps unused glyph
+	  slots on VT glyph misses.
+
 config VT_CONSOLE
 	bool "Support for console on virtual terminal" if EXPERT
 	depends on VT
