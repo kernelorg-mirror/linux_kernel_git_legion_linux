@@ -8,6 +8,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/atomic.h>
 #include <linux/bitmap.h>
 #include <linux/bsearch.h>
 #include <linux/console.h>
@@ -79,6 +80,38 @@ static u16 dynfont_cursor[MAX_NR_CONSOLES];
 static DECLARE_BITMAP(dynfont_initialized_vcs, MAX_NR_CONSOLES);
 static DECLARE_BITMAP(dynfont_pending_vcs, MAX_NR_CONSOLES);
 static u32 dynfont_slot_glyph[MAX_NR_CONSOLES][DYNFONT_MAX_SLOTS];
+
+static atomic64_t dynfont_stat_loaded = ATOMIC64_INIT(0);
+static atomic64_t dynfont_stat_evictions = ATOMIC64_INIT(0);
+static atomic64_t dynfont_stat_nospace = ATOMIC64_INIT(0);
+static atomic64_t dynfont_stat_notfound = ATOMIC64_INIT(0);
+
+#define DYNFONT_STAT_ATTR(_name)					\
+static ssize_t _name##_show(struct device *dev,				\
+			    struct device_attribute *attr, char *buf)	\
+{									\
+	return sysfs_emit(buf, "%lld\n",				\
+			  atomic64_read(&dynfont_stat_##_name));	\
+}									\
+static DEVICE_ATTR_RO(_name)
+
+DYNFONT_STAT_ATTR(loaded);
+DYNFONT_STAT_ATTR(evictions);
+DYNFONT_STAT_ATTR(nospace);
+DYNFONT_STAT_ATTR(notfound);
+
+static struct attribute *dynfont_stats_attrs[] = {
+	&dev_attr_loaded.attr,
+	&dev_attr_evictions.attr,
+	&dev_attr_nospace.attr,
+	&dev_attr_notfound.attr,
+	NULL,
+};
+
+static const struct attribute_group dynfont_stats_group = {
+	.name = "stats",
+	.attrs = dynfont_stats_attrs,
+};
 
 static int dynfont_glyph_miss(struct vc_data *vc, int ucs);
 
@@ -223,8 +256,10 @@ static int dynfont_glyph_miss(struct vc_data *vc, int ucs)
 	u32 glyph_id;
 	int slot, ret;
 
-	if (!dynfont_fw || ucs < 0 || ucs > DYNFONT_MAX_UCS)
+	if (!dynfont_fw || ucs < 0 || ucs > DYNFONT_MAX_UCS) {
+		atomic64_inc(&dynfont_stat_notfound);
 		return -ENOENT;
+	}
 
 	if (!test_bit(vc->vc_num, dynfont_initialized_vcs)) {
 		ret = dynfont_init_vc(vc);
@@ -240,8 +275,10 @@ static int dynfont_glyph_miss(struct vc_data *vc, int ucs)
 				     dynfont_index, dynfont_index_count,
 				     (u32)ucs, &glyph_id);
 	if (!glyph || (ucs != 0x20 && ucs != 0xa0 &&
-		       !memchr_inv(glyph, 0, dynfont_glyph_size)))
+		       !memchr_inv(glyph, 0, dynfont_glyph_size))) {
+		atomic64_inc(&dynfont_stat_notfound);
 		return -ENOENT;
+	}
 
 	/*
 	 * Reuse an existing slot if this PSF2 glyph is already loaded on the VC
@@ -258,8 +295,11 @@ static int dynfont_glyph_miss(struct vc_data *vc, int ucs)
 	}
 
 	slot = dynfont_pick_slot(vc);
-	if (slot < 0)
+	if (slot < 0) {
+		if (slot == -ENOSPC)
+			atomic64_inc(&dynfont_stat_nospace);
 		return slot;
+	}
 
 	ret = con_font_set_glyph(vc, slot, glyph);
 	if (ret)
@@ -274,7 +314,10 @@ static int dynfont_glyph_miss(struct vc_data *vc, int ucs)
 	if (ret)
 		return ret;
 
+	if (dynfont_slot_glyph[vc->vc_num][slot] != DYNFONT_GLYPH_NONE)
+		atomic64_inc(&dynfont_stat_evictions);
 	dynfont_slot_glyph[vc->vc_num][slot] = glyph_id;
+	atomic64_inc(&dynfont_stat_loaded);
 	dynfont_cursor[vc->vc_num] = (slot + 1) % DYNFONT_MAX_SLOTS;
 	return slot;
 }
@@ -617,6 +660,10 @@ static int __init dynfont_init(void)
 	if (ret)
 		goto err_pdev;
 
+	ret = sysfs_create_group(&dynfont_pdev->dev.kobj, &dynfont_stats_group);
+	if (ret)
+		goto err_fw_attr;
+
 	if (fw_name && fw_name[0]) {
 		ret = request_firmware_nowait(THIS_MODULE, FW_ACTION_UEVENT,
 					      fw_name, &dynfont_pdev->dev,
@@ -628,6 +675,8 @@ static int __init dynfont_init(void)
 
 	return 0;
 
+err_fw_attr:
+	device_remove_file(&dynfont_pdev->dev, &dev_attr_firmware);
 err_pdev:
 	platform_device_unregister(dynfont_pdev);
 	dynfont_pdev = NULL;
@@ -636,6 +685,7 @@ err_pdev:
 
 static void __exit dynfont_exit(void)
 {
+	sysfs_remove_group(&dynfont_pdev->dev.kobj, &dynfont_stats_group);
 	device_remove_file(&dynfont_pdev->dev, &dev_attr_firmware);
 
 	scoped_guard(mutex, &dynfont_mutex)
